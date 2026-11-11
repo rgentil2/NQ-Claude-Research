@@ -1,0 +1,100 @@
+{
+  "id": "NQC",
+  "version": "1.0.0",
+  "status": "PROPOSED",
+  "date": "2026-11-11",
+  "approved_for_trading": false,
+  "instrument": "NQ",
+  "max_open_contracts": 1,
+  "portfolio_members": [
+    3,
+    5
+  ],
+  "data": {
+    "BUILD": [
+      "2020-01-01",
+      "2021-12-31"
+    ],
+    "VAL": [
+      "2022-01-01",
+      "2022-12-31"
+    ],
+    "OOS1": [
+      "2023-01-01",
+      "2024-12-31"
+    ],
+    "OOS2": [
+      "2025-01-01",
+      "2026-10-31"
+    ]
+  },
+  "costs": {
+    "slippage_ticks_entry": 2,
+    "slippage_ticks_exit": 2,
+    "tick_value_usd": 5,
+    "commission_rt_usd": 4.68,
+    "base_cost_rt_usd": 24.68,
+    "stress_multiplier": 1.5
+  },
+  "risk": {
+    "max_planned_risk_per_entry_usd": 200,
+    "daily_pause_usd": 500,
+    "daily_close_usd": 750,
+    "dd_guard_buffer_usd": 400,
+    "lock_scope": "SESSION (proposal D-007)"
+  },
+  "account_working_values_unverified": {
+    "profit_target_usd": 3000,
+    "mll_usd": 2000,
+    "mll_type": "EOD_TRAILING",
+    "daily_loss_limit": null,
+    "min_days": 4,
+    "consistency_pct": 30
+  },
+  "stages": [
+    "ET0 Datos y entorno",
+    "ET1 Motor, simulador de cuenta y paridad",
+    "ET2 Calibracion ciega",
+    "ET3 Generacion evolutiva (BUILD)",
+    "ET4 Poda barata (BUILD)",
+    "ET5 Validacion interna (VAL)",
+    "ET6 Portafolios con ejecutor en el bucle (IS)",
+    "ET7 Evidencia estadistica",
+    "ET8 Paridad nativa NT8",
+    "ET9 OOS sellado",
+    "ET10 Habilitacion y evaluacion MFFU"
+  ],
+  "level_B_thresholds_start_values": {
+    "ET0_session_completeness_min": 0.99,
+    "ET2_false_positive_max": 0.05,
+    "ET2_power_min": 0.7,
+    "ET3_min_trades_build": 100,
+    "ET3_max_campaigns": 3,
+    "ET3_max_evals_per_campaign": 100000,
+    "ET3_databank_K": 2000,
+    "ET4_quarters_positive_min": "5/8",
+    "ET4_neighbor_positive_min": 0.7,
+    "ET5_min_trades_val": 30,
+    "ET5_pbo_max": 0.4,
+    "ET6_pf_min": 1.25,
+    "ET6_stability_gt": 30,
+    "ET6_symmetry_gt": 30,
+    "ET6_dd_max_usd": 2000,
+    "ET6_worst_day_max_usd": 1000,
+    "ET6_trades_min": 150,
+    "ET6_trades_per_month_min": 5,
+    "ET6_p_pass_min": "set in ET2",
+    "ET7_dsr_min": 0.95,
+    "ET7_null_percentile_min": 95,
+    "ET7_mc_block": 8,
+    "ET7_mc_paths": [
+      500,
+      5000
+    ],
+    "ET7_mc_p95_dd_max_usd": 2000,
+    "ET8_trade_match_min": 0.99,
+    "ET8_mean_price_diff_max_ticks": 1,
+    "ET8_net_diff_max": 0.02
+  },
+  "change_control": "Level B thresholds adjustable only inside ET2; frozen in NQC 1.1.0. Any later change requires NQC 2.0.0."
+}

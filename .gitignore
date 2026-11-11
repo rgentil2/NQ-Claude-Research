@@ -1,0 +1,9 @@
+# Datos y exportaciones pesadas: nunca al repo (solo manifiestos y hashes)
+*.csv
+*.parquet
+*.zip
+*.ntd
+data/
+exports/
+*.tsv.gz
+# Se versionan: .cs, .md, .json de contrato, SUMMARY.txt y manifiestos con SHA256
