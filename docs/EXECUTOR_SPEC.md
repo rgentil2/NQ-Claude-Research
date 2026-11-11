@@ -2,29 +2,33 @@
 
 Versión de especificación: 1.0.0 (ligada a NQC 1.0.0). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
 
-## 1. Barras y tiempo
-- Datos: NQ, Last, M1, sesión CME US Index Futures ETH, zona ET, según `DATA_MANIFEST` de ET0.
-- Una señal se evalúa al **cierre** de una barra completada; la entrada se simula a la **apertura de la barra siguiente**.
-- Ventana operativa: pendiente D-010. Toda posición abierta se cierra a la hora de salida forzada definida en la ventana.
-- Días excluidos por ET0: no se generan señales ni se abren posiciones.
+## 1. Barras, tiempo y ventana
+- Datos: NQ, Last, M1, serie Merge back adjusted con el roll de NT8 (R1); zona horaria de NinjaTrader (Eastern) (R2); sesión y días según `DATA_MANIFEST` de ET0.
+- NinjaTrader sella cada barra con su **hora de cierre**: la barra con sello 09:31 cubre 09:30:00–09:31:00. La ventana son los sellos 09:31 a 11:30 (120 barras).
+- Una señal se evalúa al **cierre** de una barra completada; la entrada se simula a la **apertura de la barra siguiente** (el mismo instante del cierre).
+- **Sin hora límite de entrada (D-010):** se permite cualquier entrada cuyo instante sea anterior a las 11:30:00. Toda posición abierta se cierra a las 11:30:00 ET al precio de cierre de la barra con sello 11:30. No se abren entradas con instante ≥ 11:30:00.
+- Días excluidos por ET0 (INCOMPLETA o SIN_VENTANA): no se generan señales ni se abren posiciones. No se excluyen sesiones de roll.
+- Una **sesión** es la ventana 09:30–11:30 de un día; los controles de D-007 se liberan al terminar esa ventana.
 
 ## 2. Posición y conflictos
 - Máximo **1 NQ** abierto en todo momento, en todo el portafolio.
 - Si hay posición abierta, toda señal nueva se **descarta** (no se encola) y se registra con motivo `BUSY`.
-- Señales simultáneas en la misma barra: gana la de mayor prioridad. La prioridad es un orden fijo por portafolio, guardado en `PORTFOLIO_SPEC.json` (propuesta D-016: por fitness en VAL).
+- Señales simultáneas en la misma barra: gana la de mayor prioridad. La prioridad es un orden fijo por portafolio, guardado en `PORTFOLIO_SPEC.json`, fijado por fitness (D-016).
 
 ## 3. Salidas
 - Stop fijo o ATR según genoma; el ATR se calcula con datos disponibles al cierre de la barra de señal.
 - Si SL y TP caen en la misma barra: **se asume SL primero**.
 - Gap que salta el stop: se ejecuta al precio de apertura de la barra (peor que el stop).
-- Salida por tiempo según genoma o ventana.
+- Salida forzada a las 11:30:00 como se indica en §1.
+- **Convención de fills de órdenes límite (TP):** se determina en ET1 P1 contra NT8 nativo y se congela.
 
 ## 4. Costos y riesgo
-- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación.
+- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación como cargo fijo.
 - Estrés: 1,5× = US$37,02.
 - Riesgo planificado: `stopTicks × 5 + 24,68 ≤ 200` → stop máximo 35 ticks (8,75 puntos). Si no se cumple, la señal se descarta con motivo `RISK`.
+- Referencia nativa en Strategy Analyzer: slippage 2 ticks y comisión equivalente a US$4,68 por viaje redondo; P3 verifica que el total por operación coincide.
 
-## 5. Capa protectora (propuesta D-007)
+## 5. Capa protectora (D-007, aprobada)
 | Control | Disparo | Efecto | Liberación |
 |---|---|---|---|
 | Pausa diaria | P&L de la sesión ≤ –US$500 | No hay nuevas entradas | Fin de la sesión |
@@ -42,10 +46,10 @@ Versión de especificación: 1.0.0 (ligada a NQC 1.0.0). Cualquier cambio de sem
 ## 7. Métricas
 - **Stability:** 100 × R² de la regresión OLS de la equity neta diaria (incluye días válidos sin operaciones) contra el índice de día; 0 si la pendiente no es positiva.
 - **Symmetry:** si el neto Long > 0 y el neto Short > 0: 100 × min/max; si no, 0.
-- **P_pass:** para cada sesión de inicio posible, se simula la cuenta desde saldo cero; resultado `PASS` si alcanza el objetivo cumpliendo días mínimos y consistencia antes de tocar el MLL; `FAIL` si toca el MLL; `CENSORED` si se acaban los datos. P_pass = PASS / (PASS + FAIL). Se reportan también los censurados y la duración media. Los arranques se solapan: no tratarlos como independientes.
+- **P_pass (D-008):** para cada sesión de inicio posible, se simula la cuenta desde saldo cero; resultado `PASS` si alcanza el objetivo cumpliendo días mínimos y consistencia antes de tocar el MLL; `FAIL` si toca el MLL; `CENSORED` si se acaban los datos. P_pass = PASS / (PASS + FAIL). Se reportan también los censurados y la duración media. Los arranques se solapan: no tratarlos como independientes.
 
 ## 8. Simulador de cuenta MFFU
-Parámetros leídos de configuración (valores en `ACCOUNT_RULES_MFFU.md`): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario. El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
+Parámetros leídos de configuración (valores en `ACCOUNT_RULES_MFFU.md`, pendientes de verificación D-009): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario. El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
 
 ## 9. Salidas de auditoría (obligatorias en toda corrida)
 - `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, stop en ticks, riesgo US$, motivo de salida, MAE, MFE, neto.
@@ -53,3 +57,6 @@ Parámetros leídos de configuración (valores en `ACCOUNT_RULES_MFFU.md`): obje
 - `PROTECT_EVENTS.tsv`: tipo, timestamp, P&L de sesión, saldo, pico, DD cerrado, DD M2M, colchón al MLL, hora de liberación.
 - `ACCOUNT_SIM.tsv`: por arranque: fecha, resultado, días, mejor día, razón de fallo.
 - `SUMMARY.txt`: versión de contrato y de esta especificación, hash del `.cs`, parámetros, rango, conteos, resultado del gate.
+
+## 10. Unidades de las condiciones (R5)
+Toda condición del generador se expresa en múltiplos de ATR, ticks o puntos relativos a un nivel calculado en la propia sesión o en datos previos. No se usan niveles absolutos ni porcentajes de precio, porque la serie back-adjusted desplaza los precios antiguos.

@@ -19,7 +19,8 @@ La frecuencia mensual también tiene aritmética propia: con llegadas Poisson (c
 
 ## 2. Conteo de ensayos
 - Toda evaluación de genoma (ET3), candidato (ET4–ET5) y portafolio (ET6) se registra en `TRIALS_LEDGER`.
-- **N efectivo:** agrupamiento jerárquico de las series de P&L diario en BUILD (distancia √(0,5·(1–ρ)), corte declarado antes de correr); N_eff = número de grupos. Se reporta junto al N bruto.
+- Con hasta 5 campañas de 100.000 evaluaciones (D-011), el conteo acumulado puede llegar a ~500.000 más las evaluaciones de portafolios; el N efectivo, no el bruto, entra al DSR.
+- **N efectivo:** agrupamiento jerárquico de las series de P&L diario del IS (distancia √(0,5·(1–ρ)), corte declarado antes de correr); N_eff = número de grupos. Se reporta junto al N bruto.
 
 ## 3. Datasets nulos (ET2)
 - **N1 — Permutación de sesiones completas:** reordena sesiones enteras; conserva el perfil intradía y la distribución de cada sesión; destruye la dependencia entre sesiones.
@@ -27,16 +28,17 @@ La frecuencia mensual también tiene aritmética propia: con llegadas Poisson (c
 - Ninguno es un random walk arbitrario. Limitaciones documentadas: N1 rompe tendencias multi-día; N2 conserva la autocorrelación intradía en valor absoluto.
 
 ## 4. Control positivo (ET2)
-- Sobre datasets N1, se inyecta un edge conocido: una regla simple de la misma familia de condiciones con expectativa neta de referencia de +US$20 por operación a ~0,5 operaciones por sesión [B].
+- Sobre datasets N1, se inyecta un edge conocido: una regla simple de la misma familia de condiciones con expectativa neta de referencia de +US$20 por operación a ~0,5 operaciones por sesión [B] (D-020).
 - **Potencia** = fracción de datasets inyectados en los que el embudo completo aprueba un portafolio que contiene la regla inyectada (o una equivalente).
 
-## 5. Métricas de evidencia (ET7)
-- **DSR (Deflated Sharpe Ratio):** con N_eff, asimetría y curtosis de los retornos diarios del portafolio; umbral [B] ≥ 0,95.
-- **PBO (CSCV):** 12 trimestres del IS, combinaciones de mitades; reporta la probabilidad de que el mejor en entrenamiento quede bajo la mediana en prueba. Umbral [B] ≤ 0,40.
-- **Percentil nulo:** posición del fitness del portafolio frente a la distribución de "mejor portafolio por campaña" obtenida en ET2; umbral [B] ≥ 95.
-- **Monte Carlo:** bootstrap por bloques de 8 operaciones ejecutadas (no corrige la selección, solo mide dispersión).
+## 5. Métricas de evidencia (ET5 y ET7)
+- **PBO (CSCV), ET5:** 12 trimestres del IS, combinaciones de mitades; reporta la probabilidad de que el mejor en entrenamiento quede bajo la mediana en prueba. Umbral [B] ≤ 0,40. Sustituye al examen intermedio descartado en D-004b.
+- **DSR (Deflated Sharpe Ratio), ET7:** con N_eff, asimetría y curtosis de los retornos diarios del portafolio; umbral [B] ≥ 0,95.
+- **Percentil nulo, ET7:** posición del fitness del portafolio frente a la distribución de "mejor portafolio por campaña" obtenida en ET2; umbral [B] ≥ 95.
+- **Monte Carlo, ET7:** bootstrap por bloques de 8 operaciones ejecutadas (no corrige la selección, solo mide dispersión).
 
 ## 6. Supuestos y límites
 - DSR asume ensayos aproximadamente independientes tras el agrupamiento; con selección en varias etapas, el N_eff es una cota aproximada.
 - La selección secuencial (ET3→ET6) hace que la distribución nula correcta sea la del **embudo completo**, no la de cada etapa: por eso ET2 corre el embudo entero.
+- Sin examen intermedio (D-004b), todo el IS interviene en la selección; la confirmación independiente recae en ET9 y su peso depende de `OOS_EXPOSURE.md`.
 - Si ET2 entrega 0 aprobados tanto en nulo como en real, eso no basta: se comparan las distribuciones intermedias (fitness, supervivientes por etapa, frecuencia ejecutada, eventos protectores).
