@@ -1,0 +1,4 @@
+# Opcional. Si el instalador no encuentra NinjaTrader 8 solo, escribe aqui la ruta
+# de la carpeta "NinjaTrader 8" (la que contiene bin\Custom), en una sola linea.
+# Ejemplo:
+# D:\Usuarios\rodrigo\Documents\NinjaTrader 8
