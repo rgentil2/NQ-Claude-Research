@@ -1,7 +1,7 @@
 {
   "id": "NQC",
   "version": "1.0.0",
-  "status": "PROPOSED",
+  "status": "FROZEN_LEVEL_A",
   "date": "2026-11-11",
   "approved_for_trading": false,
   "instrument": "NQ",
@@ -11,12 +11,10 @@
     5
   ],
   "data": {
-    "BUILD": [
+    "series": "NQ M1 Last, Merge back adjusted, NinjaTrader roll",
+    "timezone": "NinjaTrader general option (Eastern)",
+    "IS": [
       "2020-01-01",
-      "2021-12-31"
-    ],
-    "VAL": [
-      "2022-01-01",
       "2022-12-31"
     ],
     "OOS1": [
@@ -27,6 +25,22 @@
       "2025-01-01",
       "2026-10-31"
     ]
+  },
+  "window": {
+    "start_et": "09:30",
+    "flat_et": "11:30",
+    "last_entry_limit": null,
+    "first_bar_stamp": "09:31",
+    "last_bar_stamp": "11:30",
+    "bars_per_session": 120
+  },
+  "architecture": {
+    "ET3_to_ET7": "own engine inside NinjaScript launched from Strategy Analyzer",
+    "native_orders": [
+      "ET1 reference strategies",
+      "ET8"
+    ],
+    "conditions_units": "ATR multiples, ticks or points (never absolute levels or price percentages)"
   },
   "costs": {
     "slippage_ticks_entry": 2,
@@ -41,7 +55,7 @@
     "daily_pause_usd": 500,
     "daily_close_usd": 750,
     "dd_guard_buffer_usd": 400,
-    "lock_scope": "SESSION (proposal D-007)"
+    "lock_scope": "SESSION (D-007 approved)"
   },
   "account_working_values_unverified": {
     "profit_target_usd": 3000,
@@ -49,32 +63,34 @@
     "mll_type": "EOD_TRAILING",
     "daily_loss_limit": null,
     "min_days": 4,
-    "consistency_pct": 30
+    "consistency_pct": 30,
+    "verification": "PENDING (D-009)"
   },
   "stages": [
     "ET0 Datos y entorno",
     "ET1 Motor, simulador de cuenta y paridad",
     "ET2 Calibracion ciega",
-    "ET3 Generacion evolutiva (BUILD)",
-    "ET4 Poda barata (BUILD)",
-    "ET5 Validacion interna (VAL)",
+    "ET3 Generacion evolutiva (IS)",
+    "ET4 Poda barata (IS)",
+    "ET5 Robustez interna por bloques (IS)",
     "ET6 Portafolios con ejecutor en el bucle (IS)",
     "ET7 Evidencia estadistica",
     "ET8 Paridad nativa NT8",
     "ET9 OOS sellado",
     "ET10 Habilitacion y evaluacion MFFU"
   ],
+  "campaigns_max": 5,
   "level_B_thresholds_start_values": {
     "ET0_session_completeness_min": 0.99,
+    "ET0_tz_hit_min": 0.7,
     "ET2_false_positive_max": 0.05,
     "ET2_power_min": 0.7,
-    "ET3_min_trades_build": 100,
-    "ET3_max_campaigns": 3,
+    "ET3_min_trades_is": 100,
     "ET3_max_evals_per_campaign": 100000,
     "ET3_databank_K": 2000,
-    "ET4_quarters_positive_min": "5/8",
+    "ET4_quarters_positive_min": "7/12",
     "ET4_neighbor_positive_min": 0.7,
-    "ET5_min_trades_val": 30,
+    "ET5_years_positive_min": "2/3",
     "ET5_pbo_max": 0.4,
     "ET6_pf_min": 1.25,
     "ET6_stability_gt": 30,
