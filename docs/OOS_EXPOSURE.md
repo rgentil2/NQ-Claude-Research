@@ -1,6 +1,6 @@
 # Exposición previa de los bloques OOS
 
-**Propósito:** que ningún resultado se llame "independiente" solo por la etiqueta OOS. Se completa **antes** de ET9 y se commitea con el hash de congelado.
+**Propósito:** que ningún resultado se llame "independiente" solo por la etiqueta OOS. Se completa **antes** de ET8 y se commitea con el hash de congelado.
 
 ## Exposiciones conocidas (completar y precisar)
 
@@ -21,4 +21,4 @@
 
 ## Reglas
 - Este documento **no** autoriza a abrir el OOS para estudiarlo. Se completa con lo que ya se sabe del trabajo previo.
-- Un fallo en ET9 reduce el peso de OOS1/OOS2 para todas las campañas siguientes (contrato §4).
+- Un fallo en ET8 reduce el peso de OOS1/OOS2 para todas las campañas siguientes (contrato §4).

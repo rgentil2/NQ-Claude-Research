@@ -9,3 +9,7 @@
 - El usuario aprobó las decisiones de §3 del master. Ventana 09:30–11:30 ET, serie Merge back adjusted, zona horaria de NT8.
 - Entregado `NQC_ET0_DataManifest.cs` v1.0.0 (SHA256 `73e937b5…b0eed`). Falta ejecutarlo en Strategy Analyzer y comparar hashes de dos corridas.
 - Sin resultados de mercado hasta ahora.
+
+## 2026-11-11 — NQC 2.0.0
+- Cambios del usuario antes de ejecutar nada sobre mercado: sin tope de riesgo por entrada (el stop de 35 ticks ahogaba al NQ), salidas solo por ATR con stop obligatorio y objetivo opcional (periodo, k_sl y k_tp generados), Stability y Symmetry como propiedades del portafolio, y paridad nativa después del OOS (ET8 = OOS, ET9 = paridad).
+- Sin resultados de mercado ni ensayos que sumar. ET0 sigue pendiente de ejecución; su script no cambia.
