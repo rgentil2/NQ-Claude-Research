@@ -1,6 +1,6 @@
 # Especificación del ejecutor central y del simulador de cuenta
 
-Versión de especificación: 2.0.0 (ligada a NQC 2.0.0). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
+Versión de especificación: **2.1.0** (ligada a NQC 2.0.0; la 2.1.0 agrega el blackout de noticias antes de ejecutar ET1). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
 
 ## 1. Barras, tiempo y ventana
 - Datos: NQ, Last, M1, serie Merge back adjusted con el roll de NT8 (R1); zona horaria de NinjaTrader (Eastern) (R2); sesión y días según `DATA_MANIFEST` de ET0.
@@ -9,19 +9,22 @@ Versión de especificación: 2.0.0 (ligada a NQC 2.0.0). Cualquier cambio de sem
 - **Sin hora límite de entrada (D-010):** se permite cualquier entrada cuyo instante sea anterior a las 11:30:00. Toda posición abierta se cierra a las 11:30:00 ET al precio de cierre de la barra con sello 11:30. No se abren entradas con instante ≥ 11:30:00.
 - Días excluidos por ET0 (INCOMPLETA o SIN_VENTANA): no se generan señales ni se abren posiciones. No se excluyen sesiones de roll.
 - Una **sesión** es la ventana 09:30–11:30 de un día; los controles de D-007 se liberan al terminar esa ventana.
+- **Noticias (D-027):** el blackout de ±5 minutos de `docs/NEWS_BLACKOUT.md` se aplica antes que cualquier otra regla de entrada.
 
 ## 2. Posición y conflictos
 - Máximo **1 NQ** abierto en todo momento, en todo el portafolio.
 - Si hay posición abierta, toda señal nueva se **descarta** (no se encola) y se registra con motivo `BUSY`.
+- Una señal con instante de entrada dentro de un blackout de noticias se descarta con motivo `NEWS`.
 - Señales simultáneas en la misma barra: gana la de mayor prioridad. La prioridad es un orden fijo por portafolio, guardado en `PORTFOLIO_SPEC.json`, fijado por fitness (D-016).
 
 ## 3. Salidas (D-021)
-- **Stop = k_sl × ATR(periodo)**, obligatorio. **Objetivo = k_tp × ATR(periodo)**, opcional: si el genoma no lo tiene, la operación sale por stop o por el plano de las 11:30.
+- **Stop = k_sl × ATR(periodo)**, obligatorio. **Objetivo = k_tp × ATR(periodo)**, opcional: si el genoma no lo tiene, la operación sale por stop, por el plano de las 11:30 o por una noticia.
 - El periodo, k_sl y k_tp los genera la evolución (ET3). No hay stops ni objetivos en ticks fijos.
 - **ATR:** el indicador ATR de NinjaTrader (suavizado de Wilder) sobre la serie M1 completa, incluidas las barras previas a las 09:30. Se calcula al cierre de la barra de señal; el stop y el objetivo se fijan en ese momento y se redondean al tick (0,25 puntos). ET1 P1 verifica que el ATR del motor coincide con el de NT8.
 - Si SL y TP caen en la misma barra: **se asume SL primero**.
 - Gap que salta el stop: se ejecuta al precio de apertura de la barra (peor que el stop).
 - Salida forzada a las 11:30:00 como se indica en §1.
+- **Salida por noticia (`NEWS_FLAT`):** a `t−5:00` de un evento, cierre a mercado al precio de cierre de la barra que termina en ese instante, con los costos habituales.
 - **Convención de fills de órdenes límite (objetivo):** se determina en ET1 P1 contra NT8 nativo y se congela.
 
 ## 4. Costos (D-006) y riesgo (D-006b)
@@ -51,14 +54,17 @@ Versión de especificación: 2.0.0 (ligada a NQC 2.0.0). Cualquier cambio de sem
 - **P_pass (D-008):** para cada sesión de inicio posible, se simula la cuenta desde saldo cero; resultado `PASS` si alcanza el objetivo cumpliendo días mínimos y consistencia antes de tocar el MLL; `FAIL` si toca el MLL; `CENSORED` si se acaban los datos. P_pass = PASS / (PASS + FAIL). Se reportan también los censurados y la duración media. Los arranques se solapan: no tratarlos como independientes.
 
 ## 8. Simulador de cuenta MFFU
-Parámetros leídos de configuración (valores en `ACCOUNT_RULES_MFFU.md`, pendientes de verificación D-009): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario. El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
+Parámetros leídos de configuración con el perfil elegido (D-024; valores y perfiles en `ACCOUNT_RULES_MFFU.md`): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario, comprobación del MLL durante la sesión (D-025) y día de operación = al menos una operación (D-026). El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
 
 ## 9. Salidas de auditoría (obligatorias en toda corrida)
-- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida, MAE, MFE, neto.
-- `SIGNALS_WATERFALL.tsv`: por portafolio, mes y miembro: señales brutas, fuera de ventana, `BUSY`, pausa diaria, cierre diario, guardia DD, día excluido, ejecutadas.
+- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida (`SL`, `TP`, `TIME_1130`, `NEWS_FLAT`, `DAILY_CLOSE`), MAE, MFE, neto.
+- `SIGNALS_WATERFALL.tsv`: por portafolio, mes y miembro: señales brutas, fuera de ventana, `NEWS`, `BUSY`, pausa diaria, cierre diario, guardia DD, día excluido, ejecutadas.
 - `PROTECT_EVENTS.tsv`: tipo, timestamp, P&L de sesión, saldo, pico, DD cerrado, DD M2M, colchón al MLL, hora de liberación.
 - `ACCOUNT_SIM.tsv`: por arranque: fecha, resultado, días, mejor día, razón de fallo.
-- `SUMMARY.txt`: versión de contrato y de esta especificación, hash del `.cs`, parámetros, rango, conteos, resultado del gate.
+- `SUMMARY.txt`: versión de contrato y de esta especificación, hash del `.cs`, hash del calendario de noticias, parámetros, rango, conteos, resultado del gate.
 
 ## 10. Unidades de las condiciones (R5)
 Toda condición del generador se expresa en múltiplos de ATR, ticks o puntos relativos a un nivel calculado en la propia sesión o en datos previos. No se usan niveles absolutos ni porcentajes de precio, porque la serie back-adjusted desplaza los precios antiguos.
+
+## 11. Noticias
+Regla, datos y aceptación del calendario: `docs/NEWS_BLACKOUT.md`. El motor verifica el SHA256 del archivo al cargar y lo escribe en el `SUMMARY.txt`.
