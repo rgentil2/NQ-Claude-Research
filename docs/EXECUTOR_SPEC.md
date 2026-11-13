@@ -1,6 +1,6 @@
 # Especificación del ejecutor central y del simulador de cuenta
 
-Versión de especificación: **2.2.0** (ligada a NQC 2.0.0). La 2.2.0 fija las convenciones de ejecución con los datos nativos de NT8 de ET1 (`runs/2026-11-12_ET1A_replication/`). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
+Versión de especificación: **2.3.0** (ligada a NQC 2.0.0). La 2.3.0 fija todas las convenciones de ejecución con datos nativos de NT8 de ET1 (`runs/2026-11-12_ET1A_replication/` y `runs/2026-11-12_ET1A_gapprobe/`). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
 
 ## 1. Barras, tiempo y ventana
 - Datos: NQ, Last, M1, serie Merge back adjusted con el roll de NT8 (R1); zona horaria de NinjaTrader (Eastern) (R2); sesión y días según `DATA_MANIFEST` de ET0.
@@ -25,12 +25,12 @@ Versión de especificación: **2.2.0** (ligada a NQC 2.0.0). La 2.2.0 fija las c
 - **Activación:** el stop y el objetivo están activos desde la propia barra de entrada.
 - **El stop se activa al tocar** el precio (en largos, mínimo ≤ stop; en cortos, máximo ≥ stop). **El objetivo exige atravesar** el precio (en largos, máximo > objetivo; en cortos, mínimo < objetivo); tocarlo no basta.
 - **Stop y objetivo posibles en la misma barra:** gana el extremo más cercano a la apertura. Si (máximo − apertura) ≤ (apertura − mínimo) se asume el camino apertura → máximo → mínimo; si no, apertura → mínimo → máximo. El empate favorece al máximo.
-- **Precio de salida:** el stop sale al precio del stop; el objetivo, al precio del límite. **Salto sobre el stop** (la barra abre más allá del stop): pendiente de la sonda ET1 A3. Hasta entonces el motor usa el precio del stop y marca la operación.
+- **Precio de salida:** el objetivo sale al precio del límite. El stop sale al precio del stop si la barra solo lo toca; **si la barra abre más allá del stop (salto), sale al precio de apertura de esa barra**, que es peor que el stop. Demostrado con 46 casos de 46; el empeoramiento fue de 0,25 a 16 puntos (media 1,6).
 - **Salidas forzadas** (plano de las 11:30, hora propia de un genoma, noticia): orden a mercado enviada al cierre de la barra en que se decide y ejecutada en la apertura de la siguiente. Esa ejecución ocurre **antes** de evaluar stop u objetivo en esa barra.
 - **Salida por noticia (`NEWS_FLAT`):** cuando el cierre de una barra cae en `[t−5, t+5)` de un evento y hay posición abierta, se aplica la regla anterior (instante de ejecución t−5:00 si la barra es la que cruza ese límite).
 
 ## 4. Costos (D-006) y riesgo (D-006b)
-- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación como cargo fijo y **después** de la simulación en precios brutos.
+- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación como cargo fijo y **después** de la simulación en precios brutos. El peor precio de un salto sobre el stop ya está en el precio bruto de salida; el cargo fijo no lo reemplaza.
 - Estrés: 1,5× = US$37,02.
 - **No hay tope de riesgo por entrada.** Ninguna señal se descarta por el tamaño de su stop. El riesgo se controla después: capa protectora (§5), peor día ≤ US$1.000 (que implica un límite a la peor operación), DD ≤ US$2.000 y P_pass.
 - Referencia nativa en Strategy Analyzer: **Slippage 0 y comisión ninguna**; la paridad se mide en precios brutos (aclaración de P3 en `docs/ET1_REFERENCES.md`).
@@ -42,7 +42,7 @@ Versión de especificación: **2.2.0** (ligada a NQC 2.0.0). La 2.2.0 fija las c
 | Cierre diario | P&L de la sesión ≤ –US$750 | Cierra la posición abierta y bloquea entradas | Fin de la sesión |
 | Guardia de DD | Colchón hasta el MLL simulado ≤ US$400 | No hay nuevas entradas | Fin de la sesión; se reevalúa en la siguiente |
 
-**Ningún bloqueo es permanente.** Para diagnóstico existe el modo `LOCK_MODE=PERMANENT_DIAGNOSTIC`, que nunca se usa para aceptar un portafolio. Estos controles actúan después de una pérdida: una sola operación con stop ancho puede superar los umbrales antes de que se disparen, y eso lo miden las puertas de ET6 y el simulador de cuenta.
+**Ningún bloqueo es permanente.** Para diagnóstico existe el modo `LOCK_MODE=PERMANENT_DIAGNOSTIC`, que nunca se usa para aceptar un portafolio. Estos controles actúan después de una pérdida: una sola operación con stop ancho o un salto puede superar los umbrales antes de que se disparen, y eso lo miden las puertas de ET6 y el simulador de cuenta.
 
 ## 6. Contabilidad
 - **DD cerrado:** pico a valle de la equity de operaciones cerradas.
@@ -59,7 +59,7 @@ Versión de especificación: **2.2.0** (ligada a NQC 2.0.0). La 2.2.0 fija las c
 Parámetros leídos de configuración con el perfil elegido (D-024; valores y perfiles en `ACCOUNT_RULES_MFFU.md`): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario, comprobación del MLL durante la sesión (D-025) y día de operación = al menos una operación (D-026). El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
 
 ## 9. Salidas de auditoría (obligatorias en toda corrida)
-- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida (`SL`, `TP`, `TIME`, `NEWS`, `DAILY_CLOSE`), MAE, MFE, neto.
+- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida (`SL`, `TP`, `TIME`, `NEWS`, `DAILY_CLOSE`), indicador de salto, MAE, MFE, neto.
 - `SIGNALS_WATERFALL.tsv`: por portafolio, mes y miembro: señales brutas, fuera de ventana, `NEWS`, `BUSY`, pausa diaria, cierre diario, guardia DD, día excluido, ejecutadas.
 - `PROTECT_EVENTS.tsv`: tipo, timestamp, P&L de sesión, saldo, pico, DD cerrado, DD M2M, colchón al MLL, hora de liberación.
 - `ACCOUNT_SIM.tsv`: por arranque: fecha, resultado, días, mejor día, razón de fallo.

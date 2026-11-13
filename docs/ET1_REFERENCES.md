@@ -6,8 +6,8 @@ ET1 se hace en partes. Ninguna mira resultados económicos.
 |---|---|---|
 | **A** | Estrategias nativas N1–N9 con órdenes de NT8 sobre el IS (`NQC_ET1A_NativeRefs.cs`) | **Ejecutada** 2026-11-12 (`runs/2026-11-12_ET1A_native_run1/`) |
 | **A2** | Exportación de barras (`NQC_ET1A_BarsExport.cs`) y réplica fuera de línea | **Ejecutada**: réplica exacta de las 8.110 operaciones (`runs/2026-11-12_ET1A_replication/`) |
-| **A3** | Sonda de saltos sobre el stop (`NQC_ET1A_GapProbe.cs`, 46 casos) | Entregada; falta ejecutarla |
-| **B** | Motor propio, simulador de cuenta y comparador dentro de NinjaTrader | Pendiente |
+| **A3** | Sonda de saltos sobre el stop (`NQC_ET1A_GapProbe.cs`, 46 casos) | **Ejecutada**: las 46 salidas al precio de apertura (`runs/2026-11-12_ET1A_gapprobe/`) |
+| **B** | Motor propio, simulador de cuenta y comparador dentro de NinjaTrader | **Siguiente** |
 | **C** | Autopruebas P2 a P6 (casos límite, costos, capa protectora, cuenta, determinismo) | Pendiente |
 
 ## Configuración en Strategy Analyzer (obligatoria)
@@ -35,16 +35,14 @@ Los multiplicadores son múltiplos de ATR. El ATR es el indicador de NT8 evaluad
 - **Plano:** a las 11:30 una posición abierta se cierra igual (motivo `TIME`; también a las 10:30 en N7).
 - Sin operación ni señal en los 25 días excluidos por ET0 ni después de 2022-12-31.
 
-## Convenciones de NT8 demostradas (ver `runs/2026-11-12_ET1A_replication/RUN_NOTES.md`)
+## Convenciones de NT8 demostradas
 1. Entrada a mercado: precio = apertura de la barra siguiente.
 2. Stop y objetivo: precio de entrada ± k × ATR de la señal, al tick más cercano, activos desde la barra de entrada.
 3. **El stop se activa al tocar; el objetivo exige atravesar** el precio.
 4. Con ambos posibles en la misma barra gana el extremo más cercano a la apertura; empate, el máximo.
-5. Precio de salida del stop = precio del stop; del objetivo = precio del límite.
+5. El objetivo sale al precio del límite. El stop sale a su precio si la barra solo lo toca; **si la barra abre más allá, sale al precio de apertura** (46 de 46 en la sonda).
 6. Salidas forzadas: ejecutadas en la apertura de la barra siguiente al cierre en que se deciden, antes de evaluar stop u objetivo.
 7. ATR y EMA del motor deben igualar a los de NT8 (a verificar en la parte B).
-
-**Pendiente:** precio de ejecución de un stop cuando la barra abre más allá (sonda A3).
 
 ## Aclaración de P3: paridad en precios brutos
 NT8 no cobra slippage en las órdenes límite, así que un costo fijo de US$24,68 no puede igualarse operación por operación con NT8 configurado con slippage de 2 ticks. La paridad se mide en **precios brutos con slippage 0** y el costo fijo (D-006) se aplica después, igual en el motor y en el informe de NT8. La intención de P3 se mantiene: el costo se aplica una vez por operación y de la misma forma en ambos lados.
