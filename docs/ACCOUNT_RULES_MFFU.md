@@ -1,34 +1,44 @@
 # Reglas de la cuenta MFFU 50K — estado de verificación
 
-**Estado: NO VERIFICADO en fuente primaria.** Valores de trabajo tomados de fuentes secundarias consultadas el 2026-11-11. El simulador de cuenta (ET1) lee estos valores desde configuración; **no se codifican fijos**.
+**Estado: PARCIALMENTE VERIFICADO en fuente primaria (2026-11-12).** Los parámetros principales se confirmaron en el Help Center oficial de MFFU; quedan puntos de mecánica por confirmar (abajo). El simulador de cuenta (ET1) lee estos valores desde configuración; **no se codifican fijos**.
 
-## Valores de trabajo (plan Rapid EOD 50K)
+## Verificado en el Help Center oficial
 
-| Parámetro | Valor de trabajo | Acuerdo entre fuentes |
-|---|---|---|
-| Objetivo de beneficio | US$3.000 | Sí |
-| Pérdida máxima (MLL) | US$2.000, trailing al cierre (EOD) en evaluación y sim-funded | Sí en lo principal |
-| Lock del MLL | Se fija en saldo inicial + US$100 al alcanzarlo (según una fuente, en sim-funded) | Verificar |
-| Límite de pérdida diaria | Ninguno | Sí |
-| Días mínimos de evaluación | 4 | Discrepa (otras fuentes, para otros planes: 2) |
-| Regla de consistencia en evaluación | 30% | Discrepa (otras fuentes: 50% u otra cifra según plan) |
-| Contratos máximos | 3 mini / 30 micro | Discrepa (otras: 5 mini) — irrelevante con 1 NQ |
-| Disponibilidad del plan | Descrito como plan por tiempo limitado | Verificar que siga disponible |
+Fuentes: `help.myfundedfutures.com/en/articles/16158363` ("Rapid EOD 50k – A Comprehensive Look", fechado 2026-08-24) y `help.myfundedfutures.com/en/articles/8348565` ("End of Day (EOD) Drawdown Explained").
 
-## Fuentes secundarias consultadas (2026-11-11)
+### Evaluación, Rapid EOD 50K
+| Parámetro | Valor |
+|---|---|
+| Objetivo de beneficio | US$3.000 |
+| Pérdida máxima (MLL) | US$2.000, EOD |
+| Límite de pérdida diaria | Ninguno |
+| Contratos máximos | 3 mini / 30 micro |
+| Consistencia | 30% (solo en evaluación) |
+| Días mínimos de operación | 4 |
+| Noticias T1 | Permitidas en evaluación |
+| Regla de inactividad | 7 días |
+| Cuota de activación | Ninguna |
+| Lock del trailing EOD | Saldo inicial + US$100 (artículo 8348565; confirmar que aplica a este plan) |
 
-- Finance Magnates, 2026-08-06: Rapid EOD con objetivo US$3.000, MLL US$2.000, sin límite diario, trailing EOD en evaluación y sim-funded; 30% de consistencia y 4 días mínimos en su tabla comparativa.
-- PropTradingVibes, guía Rapid EOD (actualizada 2026-08-06): plan por tiempo limitado, 30% de consistencia, 4 días mínimos, lock del piso en US$100, 3 mini / 30 micro.
-- Otras guías de terceros sobre los planes Rapid/Pro/Builder muestran cifras distintas de consistencia y días mínimos: no usar sin verificar.
+### Sim-funded, Rapid EOD 50K
+| Parámetro | Valor |
+|---|---|
+| Balance inicial | US$0 |
+| MLL | US$2.000, trailing EOD: sube solo con cada cierre de sesión en máximo nuevo, no se mueve intradía, nunca baja |
+| Lock | Se fija cuando el MLL llega a US$100; desde ahí hay que mantener al menos US$100 en la cuenta |
+| Límite de pérdida diaria | Ninguno |
+| Contratos máximos | 3 mini / 30 micro |
+| Noticias T1 | **No permitidas** |
+| Cuentas fondeadas | Máx. 3 |
+| Pagos | Buffer de US$2.100 para el primer pago; luego US$500 de beneficio neto por pago; mínimo US$500; diarios; 90/10 |
 
-## Checklist de verificación (usuario)
+## Por confirmar (D-009 sigue abierta)
 
-- [ ] URL del Help Center oficial y fecha de consulta.
-- [ ] Definición exacta del trailing EOD: ¿se recalcula solo al cierre? ¿la violación se evalúa solo al cierre o también intradía?
-- [ ] Definición exacta de la regla de consistencia (¿mejor día ≤ X% del beneficio total?) y cómo se cuenta un día.
-- [ ] Días mínimos y qué cuenta como día operado.
-- [ ] Regla de inactividad, si existe.
-- [ ] Reglas de noticias y horarios, si existen.
-- [ ] Cambios entre evaluación y sim-funded.
+- [ ] ¿El límite se evalúa **solo al cierre** o también **intradía** contra el equity abierto? El artículo dice que el MLL no se mueve intradía, pero no dice cuándo se comprueba la violación. Define si el simulador usa DD cerrado o mark-to-market.
+- [ ] Fórmula exacta de la **regla de consistencia del 30%** (qué se compara con qué).
+- [ ] Qué cuenta como **día de operación** para los 4 días mínimos.
+- [ ] Definición de **noticias T1**, lista de eventos y restricción exacta en sim-funded. La ventana 09:30–11:30 ET incluye publicaciones de las 10:00.
+- [ ] Vigencia del plan Rapid EOD (descrito por fuentes secundarias como plan por tiempo limitado, cuota de US$157 y 365 días de acceso), costo de un reset y condiciones de reinicio.
+- [ ] Lock del MLL en la evaluación de este plan específico (saldo inicial + US$100).
 
 Al completar: estado → VERIFICADO, fecha, y entrada en `CHANGELOG.md`. Cualquier diferencia con los valores de trabajo se aplica a la configuración del simulador **antes de ET2**.
