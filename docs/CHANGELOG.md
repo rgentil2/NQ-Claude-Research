@@ -1,6 +1,11 @@
 # Changelog del contrato
 
-## NQC 2.0.0 — aclaración de ET1 — 2026-11-12
+## NQC 2.0.0 — aclaración de ET1 (P3) — 2026-11-12
+- **P3, paridad en precios brutos.** NT8 no cobra slippage en órdenes límite, así que no puede igualar un costo fijo de US$24,68 operación por operación. La paridad se mide con Slippage 0 y comisión ninguna en Strategy Analyzer, y el costo fijo se aplica después, igual en ambos lados. No cambia ninguna etapa, dato, orden ni umbral. Detalle en `docs/ET1_REFERENCES.md`.
+- Las convenciones de fills (entrada, salidas forzadas, stop contra objetivo, límites) se fijan con las referencias nativas de ET1 antes de congelar el motor. Ya estaba previsto en P1 para las órdenes límite; se extiende a las demás.
+- Rangos de ATR de ET3 aceptados por el usuario (D-019).
+
+## NQC 2.0.0 — aclaración de ET1 (noticias) — 2026-11-12
 El usuario decidió un blackout de ±5 minutos sobre noticias USD de Forex Factory (impacto alto y medio, todos los tipos) más los T1 de MFFU (D-027). Como el contrato no menciona noticias, esto se trata como **aclaración de ET1 antes de ver resultados**, no como cambio de estructura:
 - Cambia el ejecutor: `EXECUTOR_SPEC` pasa a 2.1.0 (motivos `NEWS` y `NEWS_FLAT`, hash del calendario en el resumen).
 - Se agrega `docs/NEWS_BLACKOUT.md` con la regla, el formato del archivo y la aceptación.
@@ -15,7 +20,7 @@ Cambios de estructura pedidos por el usuario sobre NQC 1.0.0. **Ninguna etapa se
 - **D-022 — Stability y Symmetry como propiedades del portafolio (ET6).** Restricciones duras durante la construcción y gates de aceptación; no se aplican a estrategias individuales.
 - **D-023 — paridad nativa después del OOS.** ET8 y ET9 intercambian su lugar: ET8 pasa a ser OOS sellado (evaluado por el motor con el portafolio ya congelado) y ET9 pasa a ser paridad nativa sobre IS, OOS1 y OOS2. El congelado del portafolio pasa a ET7. NT8 nativo manda para el veredicto final del OOS.
 - Versión numeral: el congelado numérico tras ET2 pasa a llamarse NQC 2.1.0; el siguiente cambio mayor sería NQC 3.0.0.
-- Interpretación pendiente de confirmar por el usuario: la frase "la paridad" al final del punto de ET6 se entendió como parte del punto de ET8/ET9.
+- La frase "la paridad" al final del punto de ET6 se descartó como requisito adicional (2026-11-12): Stability y Symmetry ya están cubiertas por D-022 y la paridad con NT8 por D-023.
 
 ## NQC 1.0.0 — 2026-11-11 — REEMPLAZADO
 - Creación del contrato con etapas ET0–ET10, congelamiento en dos niveles, política de OOS y campañas.
