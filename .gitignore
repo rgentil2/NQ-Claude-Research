@@ -6,4 +6,6 @@
 data/
 exports/
 *.tsv.gz
+NQC_News_Out/
+raw_html/
 # Se versionan: .cs, .md, .json de contrato, SUMMARY.txt y manifiestos con SHA256
