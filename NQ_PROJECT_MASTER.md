@@ -2,7 +2,7 @@
 
 **Fuente única de verdad.** Si otro documento contradice este, manda este (y se corrige el otro).
 **Límite de tamaño:** este archivo no supera ~300 líneas. El detalle vive en `docs/`; los resultados, en `runs/`.
-**Última actualización:** 2026-11-12 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0).
+**Última actualización:** 2026-11-12 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0). Ejecutor: EXECUTOR_SPEC 2.1.0.
 
 ---
 
@@ -26,7 +26,7 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | Consistencia en evaluación | 50% (mejor día / beneficio total) | Verificado |
 | Días mínimos | 2; día = al menos una operación (D-026) | Verificado + decisión del usuario |
 | Contratos máximos | 5 (usamos 1) | Verificado |
-| Noticias T1 | Blackout ±5 min (D-027); los eventos son a las 8:30 y 14:00, fuera de la ventana | Verificado + decisión |
+| Noticias | **Blackout ±5 min sobre eventos USD de Forex Factory (impacto alto y medio) y T1 de MFFU; tiene efecto en la ventana** (D-027, `docs/NEWS_BLACKOUT.md`) | Decisión del usuario |
 | Costo | US$209 pago único; reset US$0 (dato del usuario) | Capturas del usuario |
 | Cuenta fondeada | MLL en tiempo real; sin consistencia | Verificado; se modela en ET10 |
 
@@ -57,14 +57,14 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-024 | Plan objetivo: **Rapid (intradía) 50K** (delegado al asistente); perfil secundario Rapid EOD. |
 | D-025 | MLL comprobado **durante la sesión** contra el equity abierto. |
 | D-026 | Día de operación = al menos una operación tomada. |
-| D-027 | Blackout de noticias T1 de ±5 minutos; costo de reset US$0. |
+| D-027 | **Blackout de ±5 minutos** en noticias USD de Forex Factory (impacto alto y medio, todos los tipos) más T1 de MFFU; costo de reset US$0. |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
 | R3 | **Motor propio dentro de NinjaScript**, lanzado desde Strategy Analyzer, para ET3–ET8. Órdenes nativas en ET1 (referencia) y ET9 (paridad). |
-| R4 | Referencia de paridad en ET1: 5–10 estrategias simples con órdenes nativas de NT8; sin Python. |
+| R4 | Referencia de paridad en ET1: 5–10 estrategias simples con **órdenes nativas de NT8**, comparadas operación por operación. Sin Python. |
 | R5 | Condiciones del generador en múltiplos de ATR, ticks o puntos; nunca niveles absolutos ni porcentajes. |
 
-Propuestas con valor por defecto y pendientes: [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Propuestas con valor por defecto y pendientes (incluye D-027b, alcance del blackout, y D-028, archivo del calendario): [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## 4. Las etapas (ET0–ET10)
 
@@ -91,6 +91,7 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 - Después de ver resultados reales, cualquier cambio exige versión mayor (NQC 3.0.0), justificación escrita y suma de los ensayos previos al conteo de pruebas.
 - Consecuencia asumida de D-004b: sin examen intermedio, la selección usa todo el IS; ET5 (bloques + PBO) y ET7 compensan y el peso de la confirmación recae en ET8.
 - Consecuencia asumida de D-023: si el motor tuviera un error, el OOS se podría consumir con una medición incorrecta; lo mitiga ET1 (referencias nativas) y la regla de que NT8 manda en ET9.
+- El blackout de noticias (D-027) se registró como **aclaración de ET1 antes de ver resultados** (ver `docs/CHANGELOG.md`); el usuario puede objetarlo antes de ET1.
 
 ## 6. Estado actual
 
@@ -98,7 +99,7 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 |---|---|---|---|
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
-| ET1 | **NO INICIADA, desbloqueada** (D-009 cerrada) | — | — |
+| ET1 | **NO INICIADA.** El motor puede desarrollarse; las corridas sobre datos reales esperan el calendario de noticias (D-028) | — | — |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
@@ -110,10 +111,11 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 7. Próximas acciones
 
-1. Desarrollo: ET1 — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K y las 5–10 referencias nativas (`docs/WORK_PLAN.md`).
-2. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
-3. Usuario (opcional): comprobar con el pico de volumen de un día de CPI de verano que el calendario T1 está en hora local de Nueva York; revisar 2020-10-23 en el gráfico de NT8.
-4. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos.
+1. Usuario: conseguir el **calendario de noticias** (USD, alto y medio, 2020-01-01 a 2026-12-31, hora de Nueva York) y subirlo para validarlo (D-028, `docs/NEWS_BLACKOUT.md`). Confirmar también D-027b: "no operar" = estar fuera del mercado (cerrar a `t−5:00`).
+2. Desarrollo: ET1 — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K, blackout de noticias y las referencias nativas (`docs/WORK_PLAN.md`).
+3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
+4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
+5. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos.
 
 ## 8. Mapa del repo
 
@@ -126,7 +128,8 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `docs/DECISIONS.md` | Registro de decisiones (firmes, propuestas, pendientes) |
 | `docs/WORK_PLAN.md` | Mapa de trabajo y entregables por etapa |
 | `docs/ACCOUNT_RULES_MFFU.md` | Reglas de la cuenta, perfiles del simulador y verificación |
-| `docs/EXECUTOR_SPEC.md` | Semántica del ejecutor, costos, capa protectora, simulador de cuenta, auditoría |
+| `docs/NEWS_BLACKOUT.md` | Regla del blackout de noticias, archivo de datos y aceptación |
+| `docs/EXECUTOR_SPEC.md` | Semántica del ejecutor (2.1.0), costos, capa protectora, simulador de cuenta, auditoría |
 | `docs/STATISTICS_PLAN.md` | Conteo de ensayos, nulos, control positivo, DSR, PBO |
 | `docs/OOS_EXPOSURE.md` | Exposición previa de los bloques OOS |
 | `docs/LESSONS_FROM_PREVIOUS_REPOS.md` | Qué se hereda y qué se evita |
@@ -144,7 +147,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 - Nombres reservados: etapas `ET0`–`ET10`, versiones `NQC x.y.z`, campañas `C1`–`C5`. **No reutilizar** E1–E9, PF1, V19–V25 ni S0.xx del repo anterior.
 - `docs/RESEARCH_LOG.md`: máximo ~15 líneas por entrada. Si crece más de ~150 KB, se resume por mes.
 - Ningún resultado de desarrollo se presenta como validado. Ninguna etapa no ejecutada aparece como aprobada.
-- Repo público de forma temporal (D-014: minutos de Actions agotados). No subir genomas ni especificaciones de portafolio sin revisar visibilidad.
+- Repo público de forma temporal (D-014: minutos de Actions agotados). No subir genomas ni especificaciones de portafolio sin revisar visibilidad. Los datos de terceros (calendario de noticias) no se suben: solo su manifiesto y hash.
 
 ## 10. Cómo retomar (para cualquier sesión nueva)
 
