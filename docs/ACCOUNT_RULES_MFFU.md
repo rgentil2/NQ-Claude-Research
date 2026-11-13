@@ -32,32 +32,31 @@ Ningún día debe superar el porcentaje (50% o 30%) del beneficio total de la ev
 - T1 para todos: reuniones y actas del FOMC, informe de empleo y CPI. EIA solo para energía; reportes agrícolas para agrícolas.
 - Restringidas en T1: Rapid sim-funded y Pro sim-funded. Permitidas: todas las evaluaciones y Builder.
 - Regla en cuentas restringidas: sin posiciones ni órdenes desde 2 minutos antes hasta 2 minutos después del dato.
-- **Calendario T1 2026 (imagen oficial):** todos los eventos son a las **8:30 AM** (empleo, CPI) o a las **2:00 PM** (FOMC y actas). Ninguno cae en la ventana 09:30–11:30 ET.
-- **Decisión D-027:** blackout de **5 minutos antes y 5 después** de cada evento T1 (margen mayor que los 2 minutos oficiales). Como los eventos son a las 8:30 y 14:00, **no se solapa con la ventana** y no cambia ningún resultado; queda como protección si MFFU cambia horarios. Para ET10 el calendario se consulta a mano.
-- La etiqueta del calendario dice EST. Se interpreta como hora local de Nueva York (8:30 es la hora local habitual de CPI y empleo). Si fuera UTC−5 fijo, en verano 8:30 EST sería 9:30 EDT, justo al inicio de la ventana: comprobar con el pico de volumen en un día de CPI de verano (por ejemplo 2026-07-14).
-- El calendario 2026 no muestra una reunión del FOMC en octubre aunque sí las actas de esa reunión en noviembre: puede estar incompleto. Es responsabilidad del operador revisar cambios.
-- Publicaciones **no T1** (por ejemplo, las de las 10:00 ET): no se modelan. El artículo es ambiguo sobre la regla de 2 minutos para ellas; si soporte confirma que aplica, se agrega un calendario.
+- **Calendario T1 2026 (imagen oficial):** todos los eventos son a las 8:30 AM (empleo, CPI) o a las 2:00 PM (FOMC y actas). Ninguno cae en la ventana 09:30–11:30 ET.
+- **Decisión D-027 (actualizada):** el usuario decidió un blackout de ±5 minutos sobre los eventos **USD de Forex Factory con impacto alto y medio, de todos los tipos**, más los T1 de MFFU. Eso **sí afecta la ventana** (publicaciones de las 10:00, discursos, etc.). Regla, archivo de datos y aceptación: [`NEWS_BLACKOUT.md`](NEWS_BLACKOUT.md).
+- La etiqueta del calendario T1 de MFFU dice EST. Se interpreta como hora local de Nueva York. El archivo de Forex Factory se pide ya en hora de Nueva York, y su aceptación comprueba que empleo y CPI aparecen a las 08:30 todo el año.
+- El calendario T1 2026 no muestra una reunión del FOMC en octubre aunque sí las actas de esa reunión en noviembre: puede estar incompleto.
 
 ## Decisiones del usuario (2026-11-12)
 - **D-024:** plan Rapid (intradía), delegado al asistente.
 - **D-025:** el límite de pérdida máxima se comprueba **durante la sesión**, contra el equity abierto (mark-to-market M1). El nivel del MLL sube solo con los cierres de sesión. Se reporta también el modo "solo al cierre" como diagnóstico.
 - **D-026:** un **día de operación** es un día con al menos una operación tomada.
-- **D-027:** blackout de noticias T1 de ±5 minutos (arriba).
+- **D-027:** blackout de noticias de ±5 minutos (arriba).
 - **Costo de reset: US$0** (dato del usuario; no verificado por el asistente en el Help Center).
 
 ## Perfil del simulador: RAPID_INTRADAY_50K (por defecto)
 - Saldo inicial relativo 0; objetivo +US$3.000; MLL US$2.000; el nivel empieza en –US$2.000 y sube con el mayor saldo de cierre; lock cuando el nivel llega a +US$100 (artículo 8348565, por confirmar para este plan).
 - Violación: equity abierto (M2M) ≤ nivel en cualquier momento de la sesión (D-025).
 - Consistencia 50%; días mínimos 2 (D-026); sin límite diario; contratos 1 NQ (máximo del plan 5).
-- Blackout T1 ±5 min (D-027, sin efecto en la ventana). Inactividad de 7 días: no aplica en backtest.
+- Blackout de noticias ±5 min (D-027), con el calendario de `NEWS_BLACKOUT.md`. Inactividad de 7 días: no aplica en backtest.
 - **Cuenta fondeada (ET10):** MLL en tiempo real, sin consistencia, noticias T1 restringidas.
 
 ## Perfil secundario: RAPID_EOD_50K
 Consistencia 30%, días mínimos 4, contratos máximos 3 mini; fondeada con EOD trailing y lock en US$100. Mismas reglas de D-025 a D-027.
 
 ## Residuales (no bloquean ET1)
-- [ ] Confirmar la etiqueta EST del calendario T1 (comprobación del pico de volumen en un día de CPI de verano).
-- [ ] Aclaración de soporte sobre la regla de 2 minutos para publicaciones no T1 (opcional).
+- [ ] Archivo del calendario de noticias (D-028): bloquea las corridas de ET1 sobre datos reales.
+- [ ] Aclaración de soporte sobre la regla de 2 minutos para publicaciones no T1 (hoy cubierta por el blackout de ±5 minutos).
 - [ ] Costo de reset US$0: guardar la fuente.
 - [ ] Lock del MLL en la evaluación de Rapid intradía (saldo inicial + US$100).
 - [ ] Artículo "Permitted Times to Trade" (no revisado).
