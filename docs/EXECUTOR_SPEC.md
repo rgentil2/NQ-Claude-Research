@@ -1,12 +1,12 @@
 # Especificación del ejecutor central y del simulador de cuenta
 
-Versión de especificación: **2.1.0** (ligada a NQC 2.0.0; la 2.1.0 agrega el blackout de noticias antes de ejecutar ET1). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
+Versión de especificación: **2.2.0** (ligada a NQC 2.0.0). La 2.2.0 fija las convenciones de ejecución con los datos nativos de NT8 de ET1 (`runs/2026-11-12_ET1A_replication/`). Cualquier cambio de semántica = cambio de versión + repetir pruebas ET1.
 
 ## 1. Barras, tiempo y ventana
 - Datos: NQ, Last, M1, serie Merge back adjusted con el roll de NT8 (R1); zona horaria de NinjaTrader (Eastern) (R2); sesión y días según `DATA_MANIFEST` de ET0.
 - NinjaTrader sella cada barra con su **hora de cierre**: la barra con sello 09:31 cubre 09:30:00–09:31:00. La ventana son los sellos 09:31 a 11:30 (120 barras).
-- Una señal se evalúa al **cierre** de una barra completada; la entrada se simula a la **apertura de la barra siguiente** (el mismo instante del cierre).
-- **Sin hora límite de entrada (D-010):** se permite cualquier entrada cuyo instante sea anterior a las 11:30:00. Toda posición abierta se cierra a las 11:30:00 ET al precio de cierre de la barra con sello 11:30. No se abren entradas con instante ≥ 11:30:00.
+- Una señal se evalúa al **cierre** de una barra completada. La entrada es una **orden a mercado que se ejecuta en la apertura de la barra siguiente**: precio = apertura de esa barra; el sello de ejecución es el de esa barra (el instante del cierre de la señal más un minuto).
+- **Sin hora límite de entrada (D-010):** se permite cualquier entrada cuyo instante de señal sea ≤ 11:29:00. Toda posición abierta recibe una orden a mercado al cierre de la barra con sello 11:30 y se ejecuta en la apertura de la barra con sello 11:31 (instante 11:30:00).
 - Días excluidos por ET0 (INCOMPLETA o SIN_VENTANA): no se generan señales ni se abren posiciones. No se excluyen sesiones de roll.
 - Una **sesión** es la ventana 09:30–11:30 de un día; los controles de D-007 se liberan al terminar esa ventana.
 - **Noticias (D-027):** el blackout de ±5 minutos de `docs/NEWS_BLACKOUT.md` se aplica antes que cualquier otra regla de entrada.
@@ -14,24 +14,26 @@ Versión de especificación: **2.1.0** (ligada a NQC 2.0.0; la 2.1.0 agrega el b
 ## 2. Posición y conflictos
 - Máximo **1 NQ** abierto en todo momento, en todo el portafolio.
 - Si hay posición abierta, toda señal nueva se **descarta** (no se encola) y se registra con motivo `BUSY`.
-- Una señal con instante de entrada dentro de un blackout de noticias se descarta con motivo `NEWS`.
+- Una señal con instante dentro de un blackout de noticias se descarta con motivo `NEWS`.
 - Señales simultáneas en la misma barra: gana la de mayor prioridad. La prioridad es un orden fijo por portafolio, guardado en `PORTFOLIO_SPEC.json`, fijado por fitness (D-016).
+- Si una posición se cierra dentro de una barra, al cierre de esa barra puede entrar una señal nueva.
 
-## 3. Salidas (D-021)
-- **Stop = k_sl × ATR(periodo)**, obligatorio. **Objetivo = k_tp × ATR(periodo)**, opcional: si el genoma no lo tiene, la operación sale por stop, por el plano de las 11:30 o por una noticia.
-- El periodo, k_sl y k_tp los genera la evolución (ET3). No hay stops ni objetivos en ticks fijos.
-- **ATR:** el indicador ATR de NinjaTrader (suavizado de Wilder) sobre la serie M1 completa, incluidas las barras previas a las 09:30. Se calcula al cierre de la barra de señal; el stop y el objetivo se fijan en ese momento y se redondean al tick (0,25 puntos). ET1 P1 verifica que el ATR del motor coincide con el de NT8.
-- Si SL y TP caen en la misma barra: **se asume SL primero**.
-- Gap que salta el stop: se ejecuta al precio de apertura de la barra (peor que el stop).
-- Salida forzada a las 11:30:00 como se indica en §1.
-- **Salida por noticia (`NEWS_FLAT`):** a `t−5:00` de un evento, cierre a mercado al precio de cierre de la barra que termina en ese instante, con los costos habituales.
-- **Convención de fills de órdenes límite (objetivo):** se determina en ET1 P1 contra NT8 nativo y se congela.
+## 3. Salidas (D-021) — convenciones demostradas con NT8
+- **Stop = precio de entrada ± k_sl × ATR**, obligatorio. **Objetivo = precio de entrada ± k_tp × ATR**, opcional. El ATR es el de la barra de señal; ambos niveles se redondean al tick (0,25) más cercano. Si el genoma no tiene objetivo, la operación sale por stop, por el plano de las 11:30 o por una noticia.
+- El periodo del ATR, k_sl y k_tp los genera la evolución (ET3). No hay stops ni objetivos en ticks fijos.
+- **ATR y EMA:** los indicadores de NinjaTrader (ATR con suavizado de Wilder) sobre la serie M1 completa, incluidas las barras previas a las 09:30. ET1 B verifica que los del motor coinciden con los de NT8.
+- **Activación:** el stop y el objetivo están activos desde la propia barra de entrada.
+- **El stop se activa al tocar** el precio (en largos, mínimo ≤ stop; en cortos, máximo ≥ stop). **El objetivo exige atravesar** el precio (en largos, máximo > objetivo; en cortos, mínimo < objetivo); tocarlo no basta.
+- **Stop y objetivo posibles en la misma barra:** gana el extremo más cercano a la apertura. Si (máximo − apertura) ≤ (apertura − mínimo) se asume el camino apertura → máximo → mínimo; si no, apertura → mínimo → máximo. El empate favorece al máximo.
+- **Precio de salida:** el stop sale al precio del stop; el objetivo, al precio del límite. **Salto sobre el stop** (la barra abre más allá del stop): pendiente de la sonda ET1 A3. Hasta entonces el motor usa el precio del stop y marca la operación.
+- **Salidas forzadas** (plano de las 11:30, hora propia de un genoma, noticia): orden a mercado enviada al cierre de la barra en que se decide y ejecutada en la apertura de la siguiente. Esa ejecución ocurre **antes** de evaluar stop u objetivo en esa barra.
+- **Salida por noticia (`NEWS_FLAT`):** cuando el cierre de una barra cae en `[t−5, t+5)` de un evento y hay posición abierta, se aplica la regla anterior (instante de ejecución t−5:00 si la barra es la que cruza ese límite).
 
 ## 4. Costos (D-006) y riesgo (D-006b)
-- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación como cargo fijo.
+- Slippage: 2 ticks en entrada y 2 en salida (US$5/tick); comisión US$4,68 RT. Total US$24,68, aplicado **una sola vez** por operación como cargo fijo y **después** de la simulación en precios brutos.
 - Estrés: 1,5× = US$37,02.
 - **No hay tope de riesgo por entrada.** Ninguna señal se descarta por el tamaño de su stop. El riesgo se controla después: capa protectora (§5), peor día ≤ US$1.000 (que implica un límite a la peor operación), DD ≤ US$2.000 y P_pass.
-- Referencia nativa en Strategy Analyzer: slippage 2 ticks y comisión equivalente a US$4,68 por viaje redondo; P3 verifica que el total por operación coincide.
+- Referencia nativa en Strategy Analyzer: **Slippage 0 y comisión ninguna**; la paridad se mide en precios brutos (aclaración de P3 en `docs/ET1_REFERENCES.md`).
 
 ## 5. Capa protectora (D-007, aprobada)
 | Control | Disparo | Efecto | Liberación |
@@ -57,7 +59,7 @@ Versión de especificación: **2.1.0** (ligada a NQC 2.0.0; la 2.1.0 agrega el b
 Parámetros leídos de configuración con el perfil elegido (D-024; valores y perfiles en `ACCOUNT_RULES_MFFU.md`): objetivo, MLL, tipo de trailing, lock, días mínimos, consistencia, límite diario, comprobación del MLL durante la sesión (D-025) y día de operación = al menos una operación (D-026). El simulador recibe la secuencia de operaciones ejecutadas y la equity por barra; no genera operaciones.
 
 ## 9. Salidas de auditoría (obligatorias en toda corrida)
-- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida (`SL`, `TP`, `TIME_1130`, `NEWS_FLAT`, `DAILY_CLOSE`), MAE, MFE, neto.
+- `TRADES.tsv`: portafolio, miembro, barra de señal, entrada, salida, dirección, ATR, k_sl, k_tp (o vacío), stop en puntos y en US$, motivo de salida (`SL`, `TP`, `TIME`, `NEWS`, `DAILY_CLOSE`), MAE, MFE, neto.
 - `SIGNALS_WATERFALL.tsv`: por portafolio, mes y miembro: señales brutas, fuera de ventana, `NEWS`, `BUSY`, pausa diaria, cierre diario, guardia DD, día excluido, ejecutadas.
 - `PROTECT_EVENTS.tsv`: tipo, timestamp, P&L de sesión, saldo, pico, DD cerrado, DD M2M, colchón al MLL, hora de liberación.
 - `ACCOUNT_SIM.tsv`: por arranque: fecha, resultado, días, mejor día, razón de fallo.
