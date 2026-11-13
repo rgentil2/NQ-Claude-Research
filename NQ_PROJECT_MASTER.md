@@ -16,16 +16,20 @@
 
 ## 2. Reglas de la cuenta (resumen)
 
-| Parámetro | Valor de trabajo | Estado |
-|---|---|---|
-| Objetivo de beneficio | US$3.000 | Coinciden las fuentes consultadas |
-| Pérdida máxima (MLL) | US$2.000, trailing EOD | Coinciden; mecánica exacta de lock **por verificar** |
-| Límite de pérdida diaria | Ninguno | Coinciden las fuentes consultadas |
-| Días mínimos | 4 (Rapid EOD) / 2 (otros planes) | **Discrepan** — verificar |
-| Regla de consistencia | 30% (Rapid EOD) | **Discrepan** — verificar |
-| Contratos máximos | 3 o 5 mini según fuente | Irrelevante (usamos 1 NQ), verificar igual |
+Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulador: [`docs/ACCOUNT_RULES_MFFU.md`](docs/ACCOUNT_RULES_MFFU.md). **D-009 cerrada para ET1.**
 
-Detalle, fuentes y checklist de verificación: [`docs/ACCOUNT_RULES_MFFU.md`](docs/ACCOUNT_RULES_MFFU.md). **Verificación pendiente (D-009), ahora la siguiente acción: bloquea ET1.**
+| Parámetro | Valor | Estado |
+|---|---|---|
+| Objetivo de beneficio | US$3.000 | Verificado |
+| Pérdida máxima (MLL) | US$2.000; nivel EOD; **comprobación durante la sesión** (D-025) | Verificado + decisión del usuario |
+| Límite de pérdida diaria | Ninguno | Verificado |
+| Consistencia en evaluación | 50% (mejor día / beneficio total) | Verificado |
+| Días mínimos | 2; día = al menos una operación (D-026) | Verificado + decisión del usuario |
+| Contratos máximos | 5 (usamos 1) | Verificado |
+| Noticias T1 | Blackout ±5 min (D-027); los eventos son a las 8:30 y 14:00, fuera de la ventana | Verificado + decisión |
+| Costo | US$209 pago único; reset US$0 (dato del usuario) | Capturas del usuario |
+| Cuenta fondeada | MLL en tiempo real; sin consistencia | Verificado; se modela en ET10 |
+
 **Ningún parámetro de cuenta se codifica fijo:** el simulador los lee de configuración versionada.
 
 ## 3. Decisiones firmes (no se reabren sin nueva versión mayor)
@@ -42,6 +46,7 @@ Detalle, fuentes y checklist de verificación: [`docs/ACCOUNT_RULES_MFFU.md`](do
 | D-006b | **Sin tope de riesgo por entrada.** El riesgo se controla en las puertas del portafolio y en la capa protectora. |
 | D-007 | Capa protectora con alcance de sesión: ningún bloqueo es permanente. |
 | D-008 | P_pass (arranques rodantes en el simulador de cuenta) como criterio adicional. |
+| D-009 | Reglas MFFU verificadas; cerrada para ET1 (residuales en `ACCOUNT_RULES_MFFU.md`). |
 | D-010 | Ventana: **09:30 ET** inicio, **plano a las 11:30 ET**; sin hora límite de entrada. Decisión del usuario (volumen inicial). |
 | D-011 | Máximo **5** campañas de búsqueda (C1–C5). |
 | D-012 | Si ET8 falla, OOS1/OOS2 dejan de ser confirmación independiente para campañas siguientes. |
@@ -49,11 +54,15 @@ Detalle, fuentes y checklist de verificación: [`docs/ACCOUNT_RULES_MFFU.md`](do
 | D-021 | **Salidas solo por ATR**: stop obligatorio, objetivo opcional; periodo del ATR, k_sl y k_tp generados por la evolución. |
 | D-022 | Stability y Symmetry son propiedades **del portafolio** (restricción dura en ET6 y gate). |
 | D-023 | **Paridad nativa después del OOS**: el OOS lo evalúa el motor con el portafolio ya congelado; NT8 nativo manda en el veredicto final. |
+| D-024 | Plan objetivo: **Rapid (intradía) 50K** (delegado al asistente); perfil secundario Rapid EOD. |
+| D-025 | MLL comprobado **durante la sesión** contra el equity abierto. |
+| D-026 | Día de operación = al menos una operación tomada. |
+| D-027 | Blackout de noticias T1 de ±5 minutos; costo de reset US$0. |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
-| R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. ET0 la verifica con el pico de volumen de 09:30. |
+| R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
 | R3 | **Motor propio dentro de NinjaScript**, lanzado desde Strategy Analyzer, para ET3–ET8. Órdenes nativas en ET1 (referencia) y ET9 (paridad). |
-| R4 | Referencia de paridad en ET1: 5–10 estrategias simples con **órdenes nativas de NT8**, comparadas operación por operación. Sin Python. |
-| R5 | Condiciones del generador en **múltiplos de ATR, ticks o puntos**; nunca niveles absolutos ni porcentajes de precio. |
+| R4 | Referencia de paridad en ET1: 5–10 estrategias simples con órdenes nativas de NT8; sin Python. |
+| R5 | Condiciones del generador en múltiplos de ATR, ticks o puntos; nunca niveles absolutos ni porcentajes. |
 
 Propuestas con valor por defecto y pendientes: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
@@ -89,7 +98,7 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 |---|---|---|---|
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
-| ET1 | NO INICIADA (bloqueada por D-009) | — | — |
+| ET1 | **NO INICIADA, desbloqueada** (D-009 cerrada) | — | — |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
@@ -101,11 +110,10 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 7. Próximas acciones
 
-1. Usuario: verificar reglas MFFU (D-009) y registrar fecha y URL en `docs/ACCOUNT_RULES_MFFU.md`. Bloquea ET1.
-2. Usuario: confirmar la interpretación de ET6 anotada en el changelog y los rangos de ATR por defecto (D-019).
-3. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
-4. Desarrollo: especificación ejecutable de ET1 y las 5–10 estrategias nativas de referencia (`docs/WORK_PLAN.md`).
-5. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos y costo.
+1. Desarrollo: ET1 — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K y las 5–10 referencias nativas (`docs/WORK_PLAN.md`).
+2. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
+3. Usuario (opcional): comprobar con el pico de volumen de un día de CPI de verano que el calendario T1 está en hora local de Nueva York; revisar 2020-10-23 en el gráfico de NT8.
+4. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos.
 
 ## 8. Mapa del repo
 
@@ -117,7 +125,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `contract/NQC_RULES_2.0.0.json` | Versión legible por máquina de los parámetros (vigente) |
 | `docs/DECISIONS.md` | Registro de decisiones (firmes, propuestas, pendientes) |
 | `docs/WORK_PLAN.md` | Mapa de trabajo y entregables por etapa |
-| `docs/ACCOUNT_RULES_MFFU.md` | Reglas de la cuenta y verificación |
+| `docs/ACCOUNT_RULES_MFFU.md` | Reglas de la cuenta, perfiles del simulador y verificación |
 | `docs/EXECUTOR_SPEC.md` | Semántica del ejecutor, costos, capa protectora, simulador de cuenta, auditoría |
 | `docs/STATISTICS_PLAN.md` | Conteo de ensayos, nulos, control positivo, DSR, PBO |
 | `docs/OOS_EXPOSURE.md` | Exposición previa de los bloques OOS |

@@ -14,18 +14,23 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-004b | Construir con los 36 meses del IS, **sin examen intermedio**. | 2026-11-11 | Usuario |
 | D-005 | Portafolio de 3–5 estrategias, ejecutor central de 1 NQ; aceptación sobre operaciones ejecutadas. | 2026-11-11 | Usuario |
 | D-006 | Costos US$24,68 RT (2+2 ticks + US$4,68); estrés 1,5×. | 2026-11-11 | Usuario (heredada de PF1) |
-| D-006b | **Sin tope de riesgo por entrada** (se eliminó "≤ US$200 / stop ≤ 35 ticks"). El riesgo se controla en las puertas del portafolio y en la capa protectora. | 2026-11-11 | Usuario (NQC 2.0.0) |
+| D-006b | **Sin tope de riesgo por entrada**. El riesgo se controla en las puertas del portafolio y en la capa protectora. | 2026-11-11 | Usuario (NQC 2.0.0) |
 | D-007 | Capa protectora con alcance de sesión; ningún bloqueo es permanente. | 2026-11-11 | Usuario APROBADA |
 | D-008 | P_pass (arranques rodantes) como criterio adicional al perfil heredado. | 2026-11-11 | Usuario APROBADA |
-| D-010 | Ventana: inicio 09:30 ET, plano a las 11:30 ET, sin hora límite de entrada. Decisión del usuario por el volumen inicial; no es regla MFFU. | 2026-11-11 | Usuario |
+| D-009 | Reglas MFFU verificadas en el Help Center y pantallas del usuario; mecánicas no aclaradas fijadas por el usuario (D-025 a D-027). **CERRADA para ET1.** Residuales en `ACCOUNT_RULES_MFFU.md`. | 2026-11-12 | Usuario |
+| D-010 | Ventana: inicio 09:30 ET, plano a las 11:30 ET, sin hora límite de entrada. No es regla MFFU. | 2026-11-11 | Usuario |
 | D-011 | Máximo 5 campañas de búsqueda y criterio de parada global (contrato §4). | 2026-11-11 | Usuario |
 | D-012 | Política de OOS tras un fallo en ET8 (contrato §4). | 2026-11-11 | Usuario APROBADA |
-| D-013 | Código C# fuente en `ninjatrader/src/`; ZIP derivado con hash. Formato de entrega: ZIP con `.cs` + instalador + archivo de ruta. | 2026-11-11 | Usuario APROBADA |
-| D-021 | Salidas solo por ATR: stop obligatorio y objetivo opcional; periodo del ATR, k_sl y k_tp generados por la evolución. Sin stops en ticks fijos. | 2026-11-11 | Usuario (NQC 2.0.0) |
-| D-022 | Stability y Symmetry son propiedades del portafolio: restricciones duras en la construcción (ET6) y gates; no se aplican a estrategias individuales. | 2026-11-11 | Usuario (NQC 2.0.0) |
-| D-023 | Paridad nativa **después** del OOS: ET8 = OOS sellado evaluado por el motor con el portafolio ya congelado (en ET7); ET9 = paridad nativa sobre IS y OOS; NT8 manda en el veredicto final. | 2026-11-11 | Usuario (NQC 2.0.0) |
+| D-013 | Código C# fuente en `ninjatrader/src/`; ZIP derivado con hash. Formato: ZIP con `.cs` + instalador + archivo de ruta. | 2026-11-11 | Usuario APROBADA |
+| D-021 | Salidas solo por ATR: stop obligatorio y objetivo opcional; periodo del ATR, k_sl y k_tp generados por la evolución. | 2026-11-11 | Usuario (NQC 2.0.0) |
+| D-022 | Stability y Symmetry son propiedades del portafolio (restricción dura en ET6 y gate). | 2026-11-11 | Usuario (NQC 2.0.0) |
+| D-023 | Paridad nativa **después** del OOS: ET8 = OOS evaluado por el motor con el portafolio ya congelado (en ET7); ET9 = paridad nativa; NT8 manda en el veredicto final. | 2026-11-11 | Usuario (NQC 2.0.0) |
+| D-024 | Plan objetivo: **Rapid (intradía) 50K**, elegido por el asistente por delegación del usuario. Perfil secundario Rapid EOD. Cambiar después de ET2 exige versión mayor. | 2026-11-12 | Usuario (delegada) |
+| D-025 | El MLL se comprueba **durante la sesión** contra el equity abierto (M2M). | 2026-11-12 | Usuario |
+| D-026 | **Día de operación** = día con al menos una operación tomada. | 2026-11-12 | Usuario |
+| D-027 | Blackout de noticias T1 de **±5 minutos**; no se solapa con la ventana (eventos a las 8:30 y 14:00). Costo de reset: US$0 (dato del usuario). | 2026-11-12 | Usuario |
 | R1 | Serie NQ Merge back adjusted con el roll de NinjaTrader; no se excluyen sesiones de roll. | 2026-11-11 | Usuario |
-| R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC (Bogotá). | 2026-11-11 | Usuario |
+| R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. | 2026-11-11 | Usuario |
 | R3 | Motor propio dentro de NinjaScript lanzado desde Strategy Analyzer para ET3–ET8; nativo en ET1 y ET9. | 2026-11-11 | Usuario APROBADA |
 | R4 | Referencia de paridad en ET1: 5–10 estrategias simples con órdenes nativas de NT8; sin Python. | 2026-11-11 | Usuario |
 | R5 | Condiciones del generador en ATR, ticks o puntos; no niveles absolutos ni porcentajes. | 2026-11-11 | Usuario |
@@ -40,15 +45,16 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-019 | Parámetros genéticos | Población 500, 200 generaciones (~100.000 evaluaciones), cruce uniforme, mutación 5% por gen, elitismo 5%, torneo de 3. Rangos de salidas: periodo del ATR 5–100; k_sl 0,5–6,0 (paso 0,25); k_tp 0,5–8,0 (paso 0,25) o ausente |
 | D-017 | Umbrales [B] | Heredados de PF1 como punto de partida; se fijan al cerrar ET2 |
 | D-020 | Edge de referencia de ET2 | +US$20 netos por operación a ~0,5 operaciones por sesión |
+| — | Interpretación de ET6 | "La paridad" al final del punto de ET6 se entendió como parte del punto de ET8/ET9; sin confirmar |
 
 ## Pendientes
 
 | ID | Tema | Qué falta |
 |---|---|---|
-| D-009 | Reglas MFFU vigentes | Verificación del usuario en el Help Center oficial (ver `ACCOUNT_RULES_MFFU.md`). Diferida por el usuario hasta cerrar las demás confirmaciones; **bloquea ET1**. |
 | D-014 | Visibilidad del repo | **Público de forma temporal** por minutos de Actions agotados. Revisar antes de subir genomas o especificaciones de portafolio. |
 | — | `OOS_EXPOSURE.md` | Completar antes de ET8: qué años se miraron en cada programa previo. |
-| — | Plazo y tope de intentos | Antes de ET10: fecha límite global, número máximo de intentos de evaluación y costo máximo. |
+| — | Plazo y tope de intentos | Antes de ET10: fecha límite global y número máximo de intentos. Costo de la evaluación: US$209; reset: US$0 (dato del usuario). |
+| — | Residuales de reglas MFFU | Ver `ACCOUNT_RULES_MFFU.md` (etiqueta EST del calendario, regla de 2 minutos para noticias no T1, lock del MLL). |
 
 ## Cómo cambiar una decisión firme
 
