@@ -26,7 +26,7 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | Consistencia en evaluación | 50% (mejor día / beneficio total) | Verificado |
 | Días mínimos | 2; día = al menos una operación (D-026) | Verificado + decisión del usuario |
 | Contratos máximos | 5 (usamos 1) | Verificado |
-| Noticias | **Blackout ±5 min sobre eventos USD de Forex Factory (impacto alto y medio) y T1 de MFFU; tiene efecto en la ventana** (D-027, `docs/NEWS_BLACKOUT.md`) | Decisión del usuario |
+| Noticias | **Blackout ±5 min sobre eventos USD de Forex Factory (impacto alto y medio) y T1 de MFFU; fuera del mercado y sin eliminar barras; tiene efecto en la ventana** (D-027, D-027b, `docs/NEWS_BLACKOUT.md`) | Decisión del usuario |
 | Costo | US$209 pago único; reset US$0 (dato del usuario) | Capturas del usuario |
 | Cuenta fondeada | MLL en tiempo real; sin consistencia | Verificado; se modela en ET10 |
 
@@ -37,7 +37,7 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | ID | Decisión |
 |---|---|
 | D-001 | Solo NQ, máximo 1 contrato simultáneo. No MNQ. |
-| D-002 | Todo en NinjaTrader 8 → Strategy Analyzer, con el histórico M1 de NT8. Sin Python/PowerShell en el flujo del usuario. |
+| D-002 | Todo en NinjaTrader 8 → Strategy Analyzer, con el histórico M1 de NT8. Python solo para adquisición de datos (D-028), fuera del flujo del embudo. |
 | D-003 | Sin paper-trading forward obligatorio. |
 | D-004 | IS 2020–2022 · OOS1 2023–2024 · OOS2 2025-01 a 2026-10. |
 | D-004b | Se construye con los 36 meses del IS, sin examen intermedio. |
@@ -57,14 +57,16 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-024 | Plan objetivo: **Rapid (intradía) 50K** (delegado al asistente); perfil secundario Rapid EOD. |
 | D-025 | MLL comprobado **durante la sesión** contra el equity abierto. |
 | D-026 | Día de operación = al menos una operación tomada. |
-| D-027 | **Blackout de ±5 minutos** en noticias USD de Forex Factory (impacto alto y medio, todos los tipos) más T1 de MFFU; costo de reset US$0. |
+| D-027 | **Blackout de ±5 minutos** en noticias USD de Forex Factory (impacto alto y medio) más T1 de MFFU; costo de reset US$0. |
+| D-027b | Alcance: **fuera del mercado** (cierre a `t−5:00`, sin entradas hasta `t+5:00`) y **sin eliminar barras**; igual que en `PDCSmallGapParity.cs`. |
+| D-028 | Fuente del calendario: el **método del 2026-10-05** (páginas mensuales de Forex Factory), rehecho para 2020–2026 con `tools/news/`. |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
 | R3 | **Motor propio dentro de NinjaScript**, lanzado desde Strategy Analyzer, para ET3–ET8. Órdenes nativas en ET1 (referencia) y ET9 (paridad). |
 | R4 | Referencia de paridad en ET1: 5–10 estrategias simples con **órdenes nativas de NT8**, comparadas operación por operación. Sin Python. |
 | R5 | Condiciones del generador en múltiplos de ATR, ticks o puntos; nunca niveles absolutos ni porcentajes. |
 
-Propuestas con valor por defecto y pendientes (incluye D-027b, alcance del blackout, y D-028, archivo del calendario): [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Propuestas con valor por defecto y pendientes: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## 4. Las etapas (ET0–ET10)
 
@@ -99,7 +101,8 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 |---|---|---|---|
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
-| ET1 | **NO INICIADA.** El motor puede desarrollarse; las corridas sobre datos reales esperan el calendario de noticias (D-028) | — | — |
+| Calendario de noticias | **Herramienta lista** (`tools/news/`, NEWS-1.0.0); falta ejecutarla y validar el archivo | `tools/news/build_forexfactory_calendar.py` | 2026-11-12 |
+| ET1 | **NO INICIADA.** El motor puede desarrollarse; las corridas sobre datos reales esperan el calendario validado (D-028) | — | — |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
@@ -111,7 +114,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 7. Próximas acciones
 
-1. Usuario: conseguir el **calendario de noticias** (USD, alto y medio, 2020-01-01 a 2026-12-31, hora de Nueva York) y subirlo para validarlo (D-028, `docs/NEWS_BLACKOUT.md`). Confirmar también D-027b: "no operar" = estar fuera del mercado (cerrar a `t−5:00`).
+1. Usuario: ejecutar `tools/news/RUN_NEWS_BUILD.cmd` (Python 3.11 o superior) y enviar `NEWS_MANIFEST.txt` y el CSV para validarlos (D-028, `docs/NEWS_BLACKOUT.md`).
 2. Desarrollo: ET1 — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K, blackout de noticias y las referencias nativas (`docs/WORK_PLAN.md`).
 3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
 4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
@@ -128,7 +131,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `docs/DECISIONS.md` | Registro de decisiones (firmes, propuestas, pendientes) |
 | `docs/WORK_PLAN.md` | Mapa de trabajo y entregables por etapa |
 | `docs/ACCOUNT_RULES_MFFU.md` | Reglas de la cuenta, perfiles del simulador y verificación |
-| `docs/NEWS_BLACKOUT.md` | Regla del blackout de noticias, archivo de datos y aceptación |
+| `docs/NEWS_BLACKOUT.md` | Regla del blackout de noticias, fuente de datos y aceptación |
 | `docs/EXECUTOR_SPEC.md` | Semántica del ejecutor (2.1.0), costos, capa protectora, simulador de cuenta, auditoría |
 | `docs/STATISTICS_PLAN.md` | Conteo de ensayos, nulos, control positivo, DSR, PBO |
 | `docs/OOS_EXPOSURE.md` | Exposición previa de los bloques OOS |
@@ -138,6 +141,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `ninjatrader/src/` | **Código C# fuente versionado** (única fuente válida) |
 | `ninjatrader/installer/` | Plantillas del instalador (`INSTALAR.cmd`, `RUTA_NT8.txt`) |
 | `ninjatrader/runbooks/` | Instrucciones de ejecución por etapa |
+| `tools/news/` | Herramienta del calendario de noticias (Python, solo adquisición de datos) |
 | `runs/` | `SUMMARY.txt` y manifiestos con SHA256 de cada corrida NT8 |
 
 ## 9. Reglas de trabajo
