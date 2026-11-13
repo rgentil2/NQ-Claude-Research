@@ -11,13 +11,22 @@ if exist "%HERE%RUTA_NT8.txt" (
   )
 )
 
-rem 2) Deteccion automatica
+rem 2) Carpeta Documentos real segun Windows (cubre OneDrive e idioma)
+set "DOCS="
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Personal 2^>nul') do set "DOCS=%%B"
+if defined DOCS call set "DOCS=%DOCS%"
+if not defined NT8 if defined DOCS if exist "%DOCS%\NinjaTrader 8\bin\Custom\Strategies" set "NT8=%DOCS%\NinjaTrader 8"
+
+rem 3) Rutas habituales en ingles y espanol
 if not defined NT8 if exist "%USERPROFILE%\Documents\NinjaTrader 8\bin\Custom\Strategies" set "NT8=%USERPROFILE%\Documents\NinjaTrader 8"
+if not defined NT8 if exist "%USERPROFILE%\Documentos\NinjaTrader 8\bin\Custom\Strategies" set "NT8=%USERPROFILE%\Documentos\NinjaTrader 8"
 if not defined NT8 if defined OneDrive if exist "%OneDrive%\Documents\NinjaTrader 8\bin\Custom\Strategies" set "NT8=%OneDrive%\Documents\NinjaTrader 8"
+if not defined NT8 if defined OneDrive if exist "%OneDrive%\Documentos\NinjaTrader 8\bin\Custom\Strategies" set "NT8=%OneDrive%\Documentos\NinjaTrader 8"
 
 if not defined NT8 goto :NOFOLDER
 
 set "DEST=%NT8%\bin\Custom\Strategies"
+if not exist "%DEST%" if exist "%NT8%\Strategies" set "DEST=%NT8%\Strategies"
 if not exist "%DEST%" goto :NOFOLDER
 
 rem Verificar hash del .cs contra HASH_SHA256.txt
@@ -45,7 +54,8 @@ exit /b 0
 
 :NOFOLDER
 echo.
-echo No encontre la carpeta de NinjaTrader 8.
+echo No encontre la carpeta Strategies de NinjaTrader 8.
+if defined NT8 echo Ruta probada: !NT8!
 echo Abre RUTA_NT8.txt, escribe en una linea la ruta de "NinjaTrader 8" (la carpeta que contiene "bin\Custom")
 echo y vuelve a ejecutar este instalador.
 echo.
