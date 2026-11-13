@@ -26,7 +26,7 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | Consistencia en evaluación | 50% (mejor día / beneficio total) | Verificado |
 | Días mínimos | 2; día = al menos una operación (D-026) | Verificado + decisión del usuario |
 | Contratos máximos | 5 (usamos 1) | Verificado |
-| Noticias | **Blackout ±5 min sobre eventos USD de Forex Factory (impacto alto y medio) y T1 de MFFU; fuera del mercado y sin eliminar barras; tiene efecto en la ventana** (D-027, D-027b, `docs/NEWS_BLACKOUT.md`) | Decisión del usuario |
+| Noticias | **Blackout ±5 min sobre eventos USD de Forex Factory (impacto alto y medio) y T1 de MFFU; fuera del mercado y sin eliminar barras; toca ~45% de las sesiones y ~4,5% de los minutos de la ventana** (D-027, D-027b, `docs/NEWS_BLACKOUT.md`) | Decisión del usuario; archivo validado |
 | Costo | US$209 pago único; reset US$0 (dato del usuario) | Capturas del usuario |
 | Cuenta fondeada | MLL en tiempo real; sin consistencia | Verificado; se modela en ET10 |
 
@@ -101,21 +101,23 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 |---|---|---|---|
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
-| Calendario de noticias | **Herramienta lista** (`tools/news/`, NEWS-1.0.0); falta ejecutarla y validar el archivo | `tools/news/build_forexfactory_calendar.py` | 2026-11-12 |
-| ET1 | **NO INICIADA.** El motor puede desarrollarse; las corridas sobre datos reales esperan el calendario validado (D-028) | — | — |
+| Calendario de noticias | **APROBADO** (3.954 eventos; reproduce exactamente los 2.856 de 2020–2024) | `runs/2026-11-12_NEWS_run1/`; CSV SHA256 `93d837ac…377d` | 2026-11-12 |
+| ET1 | **NO INICIADA, desbloqueada.** Todos los datos y reglas necesarios están fijados | — | — |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
 
-**Limitaciones conocidas de ET0** (detalle en `runs/2026-11-12_ET0_run1/RUN_NOTES.md`):
-- 7 sesiones incompletas del IS excluidas, 3 de ellas de marzo de 2020 (los días más volátiles). En vivo esos días existen; se considerará en ET6/ET7.
-- 2020-10-23 (viernes) sin barras en la ventana y sin festivo conocido: revisar si es un hueco de datos.
-- Los márgenes de G3 (99,10% frente a 99%) y G4 (70,54% frente a 70%) son pequeños.
+**Limitaciones conocidas** (detalle en los `RUN_NOTES.md` de `runs/`):
+- ET0: 7 sesiones incompletas del IS excluidas, 3 de ellas de marzo de 2020 (los días más volátiles). En vivo esos días existen; se considerará en ET6/ET7.
+- ET0: 2020-10-23 (viernes) sin barras en la ventana y sin festivo conocido: revisar si es un hueco de datos.
+- ET0: los márgenes de G3 (99,10% frente a 99%) y G4 (70,54% frente a 70%) son pequeños.
+- Noticias: el script NEWS-1.0.0 cuenta el ADP (08:15) como empleo en su métrica de zona horaria; los datos están bien (empleo 83 de 83 a las 08:30). Por corregir en la próxima versión.
+- Noticias: el informe de empleo de febrero de 2026 figura el 02-11 en Forex Factory y el 02-06 en el calendario de MFFU.
 
 ## 7. Próximas acciones
 
-1. Usuario: ejecutar `tools/news/RUN_NEWS_BUILD.cmd` (Python 3.11 o superior) y enviar `NEWS_MANIFEST.txt` y el CSV para validarlos (D-028, `docs/NEWS_BLACKOUT.md`).
-2. Desarrollo: ET1 — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K, blackout de noticias y las referencias nativas (`docs/WORK_PLAN.md`).
+1. Desarrollo: **ET1** — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K, blackout de noticias y las referencias nativas (`docs/WORK_PLAN.md`).
+2. Usuario: dejar `usd_high_medium_2020_2026.csv` en `Documents/NinjaTrader 8/NQC_Data/` (el motor verificará su SHA256 `93d837ac…`).
 3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
 4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
 5. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos.
@@ -142,7 +144,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `ninjatrader/installer/` | Plantillas del instalador (`INSTALAR.cmd`, `RUTA_NT8.txt`) |
 | `ninjatrader/runbooks/` | Instrucciones de ejecución por etapa |
 | `tools/news/` | Herramienta del calendario de noticias (Python, solo adquisición de datos) |
-| `runs/` | `SUMMARY.txt` y manifiestos con SHA256 de cada corrida NT8 |
+| `runs/` | `SUMMARY.txt`, manifiestos y notas con SHA256 de cada corrida |
 
 ## 9. Reglas de trabajo
 

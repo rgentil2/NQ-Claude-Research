@@ -1,0 +1,36 @@
+NQC NEWS_MANIFEST
+script_version     : NEWS-1.0.0
+source             : Forex Factory (paginas mensuales)
+timezone_scraped   : UTC/GMT via cookie fftimezone
+timezone_output    : America/New_York
+rule               : USD High/Medium; fuera del mercado de T-5 a T+5; barras sin eliminar
+range              : 2020-01-01 .. 2026-12-31
+events_scheduled   : 3954
+events_unscheduled : 17
+by_impact          : {'High': 2117, 'Medium': 1837}
+by_year            : {'2020': 523, '2021': 516, '2022': 573, '2023': 590, '2024': 654, '2025': 596, '2026': 502}
+csv_file           : usd_high_medium_2020_2026.csv
+csv_sha256         : 93d837ac323c6f144786c507606b0b77f25c2fa33fba6d21bb941d2d4d9c377d
+
+[Meses con pocos eventos (< 50% de la mediana mensual)]
+median_monthly     : 49
+weak_months        : {}
+
+[Zona horaria]
+non_farm_at_0830   : {'n': 163, 'pct_at': 50.92}
+non_farm_by_dst    : {'summer': {'ok': 52, 'n': 103}, 'winter': {'ok': 31, 'n': 60}}
+cpi_at_0830        : {'n': 328, 'pct_at': 99.39}
+fomc_stmt_at_1400  : {'n': 57, 'pct_at': 96.49}
+
+[Control cruzado T1 2026 de MFFU]
+checked            : 39
+missing_past       : ['2026-02-06 08:30']
+missing_future     : []
+
+[Efecto sobre la ventana 09:30-11:30 ET]
+days_with_blackout_in_window          : 816
+weekdays_in_range                     : 1827
+pct_weekdays_affected                 : 44.66
+mean_blocked_minutes_per_affected_day : 11.88
+pct_of_window_minutes_blocked         : 4.42
+events_forcing_flat_inside_window     : 1270
