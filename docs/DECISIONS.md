@@ -8,7 +8,7 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | ID | Decisión | Fecha | Origen |
 |---|---|---|---|
 | D-001 | Solo NQ, máximo 1 contrato simultáneo. No MNQ. | 2026-11-11 | Usuario (heredada de PF1) |
-| D-002 | Ejecución en NinjaTrader 8 → Strategy Analyzer con histórico M1 de NT8. | 2026-11-11 | Usuario |
+| D-002 | Ejecución en NinjaTrader 8 → Strategy Analyzer con histórico M1 de NT8. Python solo para adquisición de datos (D-028), fuera del flujo del embudo. | 2026-11-11 | Usuario |
 | D-003 | Sin paper-trading forward obligatorio. No autoriza operar sin ET10. | 2026-11-11 | Usuario |
 | D-004 | IS 2020–2022; OOS1 2023–2024; OOS2 2025-01 → 2026-10 (más periodo de prueba mediante varios OOS). | 2026-11-11 | Usuario |
 | D-004b | Construir con los 36 meses del IS, **sin examen intermedio**. | 2026-11-11 | Usuario |
@@ -28,7 +28,9 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-024 | Plan objetivo: **Rapid (intradía) 50K**, elegido por el asistente por delegación del usuario. Perfil secundario Rapid EOD. Cambiar después de ET2 exige versión mayor. | 2026-11-12 | Usuario (delegada) |
 | D-025 | El MLL se comprueba **durante la sesión** contra el equity abierto (M2M). | 2026-11-12 | Usuario |
 | D-026 | **Día de operación** = día con al menos una operación tomada. | 2026-11-12 | Usuario |
-| D-027 | **Blackout de noticias de ±5 minutos** sobre eventos **USD de Forex Factory con impacto alto y medio (todos los tipos)** más los T1 de MFFU: sin posiciones ni entradas en esa franja. **Tiene efecto real en la ventana** (eventos de las 10:00 y similares). Spec en `docs/NEWS_BLACKOUT.md`. Costo de reset: US$0 (dato del usuario). | 2026-11-12 | Usuario |
+| D-027 | **Blackout de ±5 minutos** sobre eventos **USD de Forex Factory con impacto alto y medio** más los T1 de MFFU. Costo de reset: US$0 (dato del usuario). Tiene efecto real en la ventana. | 2026-11-12 | Usuario |
+| D-027b | Alcance del blackout: **fuera del mercado** (cierre a `t−5:00`, sin entradas hasta `t+5:00`) y **sin eliminar barras**. Confirmado por la práctica anterior del usuario (`PDCSmallGapParity.cs`, 2026-10-05). | 2026-11-12 | Usuario |
+| D-028 | Fuente del calendario: el **método del 2026-10-05** (páginas mensuales de Forex Factory), rehecho para 2020–2026 con `tools/news/`. | 2026-11-12 | Usuario |
 | R1 | Serie NQ Merge back adjusted con el roll de NinjaTrader; no se excluyen sesiones de roll. | 2026-11-11 | Usuario |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. | 2026-11-11 | Usuario |
 | R3 | Motor propio dentro de NinjaScript lanzado desde Strategy Analyzer para ET3–ET8; nativo en ET1 y ET9. | 2026-11-11 | Usuario APROBADA |
@@ -45,14 +47,13 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-019 | Parámetros genéticos | Población 500, 200 generaciones (~100.000 evaluaciones), cruce uniforme, mutación 5% por gen, elitismo 5%, torneo de 3. Rangos de salidas: periodo del ATR 5–100; k_sl 0,5–6,0 (paso 0,25); k_tp 0,5–8,0 (paso 0,25) o ausente |
 | D-017 | Umbrales [B] | Heredados de PF1 como punto de partida; se fijan al cerrar ET2 |
 | D-020 | Edge de referencia de ET2 | +US$20 netos por operación a ~0,5 operaciones por sesión |
-| D-027b | Alcance del blackout | "No operar" = **estar fuera del mercado**: se cierra a `t−5:00` (`NEWS_FLAT`) y no se entra hasta `t+5:00`. Alternativa: solo bloquear entradas (`NEWS_BLOCK_ONLY`) |
 | — | Interpretación de ET6 | "La paridad" al final del punto de ET6 se entendió como parte del punto de ET8/ET9; sin confirmar |
 
 ## Pendientes
 
 | ID | Tema | Qué falta |
 |---|---|---|
-| D-028 | Archivo del calendario de noticias | El usuario consigue el CSV de USD alto y medio, 2020-01-01 a 2026-12-31, en hora de Nueva York; el asistente lo valida (`NEWS_MANIFEST`) antes de ET1 sobre datos reales. Fuentes y aceptación en `docs/NEWS_BLACKOUT.md`. |
+| D-028 | Ejecutar la herramienta | El usuario corre `tools/news/RUN_NEWS_BUILD.cmd` en su PC (Python 3.11 o superior) y envía `NEWS_MANIFEST.txt` y el CSV; el asistente valida (`docs/NEWS_BLACKOUT.md`). Si el sitio bloquea, plan de respaldo. **Bloquea las corridas de ET1 sobre datos reales.** |
 | D-014 | Visibilidad del repo | **Público de forma temporal** por minutos de Actions agotados. Revisar antes de subir genomas o especificaciones de portafolio. |
 | — | `OOS_EXPOSURE.md` | Completar antes de ET8: qué años se miraron en cada programa previo. |
 | — | Plazo y tope de intentos | Antes de ET10: fecha límite global y número máximo de intentos. Costo de la evaluación: US$209; reset: US$0 (dato del usuario). |
