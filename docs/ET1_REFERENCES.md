@@ -1,12 +1,14 @@
 # ET1 — Referencias nativas y convenciones de paridad
 
-ET1 se hace en tres partes. Ninguna mira resultados económicos.
+ET1 se hace en partes. Ninguna mira resultados económicos.
 
 | Parte | Qué es | Estado |
 |---|---|---|
-| **A** | Estrategias nativas N1–N9 con órdenes de NT8 sobre el IS: el "libro de operaciones" que NT8 considera verdadero | Script entregado (`NQC_ET1A_NativeRefs.cs`, ET1A-1.0.0) |
-| **B** | Motor propio, simulador de cuenta MFFU y comparador contra las operaciones nativas | Pendiente de A |
-| **C** | Autopruebas P2 a P6 (casos límite, costos, capa protectora, cuenta, determinismo) | Pendiente de B |
+| **A** | Estrategias nativas N1–N9 con órdenes de NT8 sobre el IS (`NQC_ET1A_NativeRefs.cs`) | **Ejecutada** 2026-11-12 (`runs/2026-11-12_ET1A_native_run1/`) |
+| **A2** | Exportación de barras (`NQC_ET1A_BarsExport.cs`) y réplica fuera de línea | **Ejecutada**: réplica exacta de las 8.110 operaciones (`runs/2026-11-12_ET1A_replication/`) |
+| **A3** | Sonda de saltos sobre el stop (`NQC_ET1A_GapProbe.cs`, 46 casos) | Entregada; falta ejecutarla |
+| **B** | Motor propio, simulador de cuenta y comparador dentro de NinjaTrader | Pendiente |
+| **C** | Autopruebas P2 a P6 (casos límite, costos, capa protectora, cuenta, determinismo) | Pendiente |
 
 ## Configuración en Strategy Analyzer (obligatoria)
 NQ, Minute 1, Last, Merge back adjusted; **2020-01-01 a 2022-12-31** (las barras posteriores se ignoran); **Slippage 0 y comisión ninguna**; sin optimizar. El archivo `usd_high_medium_2020_2026.csv` debe estar en `Documents/NinjaTrader 8/NQC_Data/` o `NQC Data/`; el script verifica su SHA256 y no opera si falta o es distinto.
@@ -25,25 +27,24 @@ NQ, Minute 1, Last, Merge back adjusted; **2020-01-01 a 2022-12-31** (las barras
 | N8 | A: long 09:35 (1,5 / 3,0). B: short 09:35 y 09:38 (2,5 / 1,0) | 14 | según miembro | según miembro | Prioridad A sobre B; B descartada si hay posición |
 | N9 | Long a las 09:35 | 14 | 1,5 | 0,5 | Fija la convención de órdenes límite |
 
-Los multiplicadores son múltiplos de ATR. El ATR es el indicador de NT8 evaluado al cierre de la barra de señal. Stop y objetivo se calculan sobre el **precio de entrada ejecutado** y se redondean al tick.
+Los multiplicadores son múltiplos de ATR. El ATR es el indicador de NT8 evaluado al cierre de la barra de señal.
 
 ## Reglas comunes
-- Señal al cierre de una barra; entrada con orden a mercado, que NT8 ejecuta en la apertura de la barra siguiente. Entradas con instante entre 09:31 y 11:29.
-- **Noticias:** si el instante de cierre de la barra cae en `[t−5, t+5)` de un evento del calendario no se entra, y una posición abierta se cierra a mercado con motivo `NEWS`.
-- **Plano:** a las 11:30 una posición abierta se cierra a mercado con motivo `TIME` (también a las 10:30 en N7).
-- Sin operación ni señal en los 25 días excluidos por ET0 (incluidos en el código) ni después de 2022-12-31.
-- Nombres de las órdenes de salida: `SL`, `TP`, `TIME`, `NEWS`.
+- Señal al cierre de una barra; entrada con orden a mercado ejecutada en la apertura de la barra siguiente. Entradas con instante entre 09:31 y 11:29.
+- **Noticias:** si el instante de cierre de la barra cae en `[t−5, t+5)` de un evento no se entra, y una posición abierta se cierra con orden a mercado enviada al cierre de esa barra (motivo `NEWS`).
+- **Plano:** a las 11:30 una posición abierta se cierra igual (motivo `TIME`; también a las 10:30 en N7).
+- Sin operación ni señal en los 25 días excluidos por ET0 ni después de 2022-12-31.
 
-## Convenciones que NT8 debe responder (se fijan con estos datos)
-1. Precio y barra de ejecución de la entrada a mercado.
-2. Si stop y objetivo ya están activos dentro de la propia barra de entrada.
-3. Qué sale primero cuando stop y objetivo caben en la misma barra (N5).
-4. Si una orden límite se ejecuta al tocar el precio o solo al atravesarlo (N9).
-5. Precio y barra de las salidas a mercado forzadas (11:30, 10:30, noticias).
-6. Si el ATR del motor coincide con el de NT8.
+## Convenciones de NT8 demostradas (ver `runs/2026-11-12_ET1A_replication/RUN_NOTES.md`)
+1. Entrada a mercado: precio = apertura de la barra siguiente.
+2. Stop y objetivo: precio de entrada ± k × ATR de la señal, al tick más cercano, activos desde la barra de entrada.
+3. **El stop se activa al tocar; el objetivo exige atravesar** el precio.
+4. Con ambos posibles en la misma barra gana el extremo más cercano a la apertura; empate, el máximo.
+5. Precio de salida del stop = precio del stop; del objetivo = precio del límite.
+6. Salidas forzadas: ejecutadas en la apertura de la barra siguiente al cierre en que se deciden, antes de evaluar stop u objetivo.
+7. ATR y EMA del motor deben igualar a los de NT8 (a verificar en la parte B).
+
+**Pendiente:** precio de ejecución de un stop cuando la barra abre más allá (sonda A3).
 
 ## Aclaración de P3: paridad en precios brutos
-El contrato dice que el costo total por operación debe coincidir con NT8 configurado con slippage de 2 ticks y comisión. NT8 no cobra slippage en las órdenes límite, así que esa comparación no puede cumplirse operación por operación. La paridad se mide en **precios brutos con slippage 0** y el costo fijo de US$24,68 (D-006) se aplica después, igual en el motor y en el informe de NT8. La intención de P3 se mantiene: el costo se aplica una vez por operación y de la misma forma en ambos lados.
-
-## Qué enviar
-Para cada ref (N1–N9): la línea `NQC_ET1A_END` de la ventana Output, `SUMMARY.txt` y `TRADES_NATIVE.tsv`. No se interpretan los resultados económicos.
+NT8 no cobra slippage en las órdenes límite, así que un costo fijo de US$24,68 no puede igualarse operación por operación con NT8 configurado con slippage de 2 ticks. La paridad se mide en **precios brutos con slippage 0** y el costo fijo (D-006) se aplica después, igual en el motor y en el informe de NT8. La intención de P3 se mantiene: el costo se aplica una vez por operación y de la misma forma en ambos lados.
