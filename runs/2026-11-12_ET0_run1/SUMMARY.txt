@@ -1,0 +1,43 @@
+NQC ET0 - SUMMARY
+script_version      : ET0-1.0.0
+contract_version    : NQC-1.0.0
+status              : PASS_PENDIENTE_REPRODUCIBILIDAD   (G6 reproducibilidad: comparar hashes de 2 corridas)
+
+[Entorno]
+instrument          : NQ DEC26
+barsPeriod          : Minute 1 / Last
+tradingHours        : CME US Index Futures ETH  (tz plantilla: Central Standard Time)
+tz_NinjaTrader      : Eastern Standard Time
+tz_PC               : SA Pacific Standard Time
+merge_policy        : MergeBackAdjusted (declarado por el usuario; NT8 no lo expone a la estrategia)
+primera_barra       : 2020-01-01 18:01:00
+ultima_barra        : 2026-10-30 16:59:00
+barras_totales      : 2410746
+ventana             : sellos 09:31-11:30 (120 barras M1) = 09:30-11:30 ET
+
+[Bloques]  sesiones = dias habiles con alguna barra en la ventana
+IS   : sesiones=774 completas=767 (99.10%) incompletas=7 sin_ventana_habil=4 tz_hit=70.54%
+OOS1 : sesiones=516 completas=513 (99.42%) incompletas=3 sin_ventana_habil=5 tz_hit=77.91%
+OOS2 : sesiones=472 completas=471 (99.79%) incompletas=1 sin_ventana_habil=5 tz_hit=87.08%
+
+[Dias habiles sin ventana por ano]  (esperables: festivos, ~9-12 por ano)
+2020 : 2
+2021 : 1
+2022 : 1
+2023 : 3
+2024 : 2
+2025 : 3
+2026 : 2
+
+[Gates ET0]
+G0 cobertura 2020-01..2026-10          : PASS
+G1 instrumento NQ                      : PASS
+G2 periodo M1                          : PASS
+G3 completitud IS >= 99% (99.10%)       : PASS
+G4 zona horaria (pico 09:31) IS >= 70% (70.54%) : PASS
+G5 barras con segundos = 0             : PASS (anomalas=0)
+Aviso festivos por ano <= 12          : OK
+
+[Hashes]
+DAYS_SHA256         : 9bd25f767636ad72136325ce56b555fa66babf5ced003d1bb496f2e047768943
+MONTHS_SHA256       : 79f61c6da678e393d42b33c9bd3cf742237b38c659df6407dabc20db7a38af3b

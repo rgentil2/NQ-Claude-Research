@@ -2,7 +2,7 @@
 
 **Fuente única de verdad.** Si otro documento contradice este, manda este (y se corrige el otro).
 **Límite de tamaño:** este archivo no supera ~300 líneas. El detalle vive en `docs/`; los resultados, en `runs/`.
-**Última actualización:** 2026-11-11 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0).
+**Última actualización:** 2026-11-12 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0).
 
 ---
 
@@ -25,7 +25,7 @@
 | Regla de consistencia | 30% (Rapid EOD) | **Discrepan** — verificar |
 | Contratos máximos | 3 o 5 mini según fuente | Irrelevante (usamos 1 NQ), verificar igual |
 
-Detalle, fuentes y checklist de verificación: [`docs/ACCOUNT_RULES_MFFU.md`](docs/ACCOUNT_RULES_MFFU.md). **Verificación pendiente (D-009): el usuario la hará después de cerrar las demás confirmaciones y antes de ET1.**
+Detalle, fuentes y checklist de verificación: [`docs/ACCOUNT_RULES_MFFU.md`](docs/ACCOUNT_RULES_MFFU.md). **Verificación pendiente (D-009), ahora la siguiente acción: bloquea ET1.**
 **Ningún parámetro de cuenta se codifica fijo:** el simulador los lee de configuración versionada.
 
 ## 3. Decisiones firmes (no se reabren sin nueva versión mayor)
@@ -88,17 +88,22 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 | Etapa | Estado | Artefacto / hash | Fecha |
 |---|---|---|---|
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
-| ET0 | **EN DESARROLLO** — script v1.0.0 entregado, falta ejecutarlo | `ninjatrader/src/NQC_ET0_DataManifest.cs` SHA256 `73e937b5fb38356954e43ef7374e93a5e4aea6883ac46dd29997ba12e82b0eed` | 2026-11-11 |
-| ET1 | NO INICIADA | — | — |
+| ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
+| ET1 | NO INICIADA (bloqueada por D-009) | — | — |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
 
+**Limitaciones conocidas de ET0** (detalle en `runs/2026-11-12_ET0_run1/RUN_NOTES.md`):
+- 7 sesiones incompletas del IS excluidas, 3 de ellas de marzo de 2020 (los días más volátiles). En vivo esos días existen; se considerará en ET6/ET7.
+- 2020-10-23 (viernes) sin barras en la ventana y sin festivo conocido: revisar si es un hueco de datos.
+- Los márgenes de G3 (99,10% frente a 99%) y G4 (70,54% frente a 70%) son pequeños.
+
 ## 7. Próximas acciones
 
-1. Usuario: instalar y correr ET0 dos veces (`ninjatrader/runbooks/ET0_RUNBOOK.md`) y enviar `SUMMARY.txt` y `MONTHS.tsv`.
-2. Usuario: verificar reglas MFFU (D-009) antes de ET1.
-3. Usuario: confirmar la interpretación de ET6 anotada en el changelog y los rangos de ATR por defecto (D-019).
+1. Usuario: verificar reglas MFFU (D-009) y registrar fecha y URL en `docs/ACCOUNT_RULES_MFFU.md`. Bloquea ET1.
+2. Usuario: confirmar la interpretación de ET6 anotada en el changelog y los rangos de ATR por defecto (D-019).
+3. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
 4. Desarrollo: especificación ejecutable de ET1 y las 5–10 estrategias nativas de referencia (`docs/WORK_PLAN.md`).
 5. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos y costo.
 
