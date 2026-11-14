@@ -76,16 +76,54 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 		public int MemoCount { get { return memo.Count; } }
 
-		// Valor de la familia f con periodo n en la barra at (memorizado si at cae en la ventana de carga).
-		// Devuelve NaN si el valor no es finito.
-		public double Feature(int f, int n, int at)
+		// ---- D-031(3): ATR de Wilder (el MISMO arreglo que usa el ejecutor: NQCE_Bars.Atr(p) = AtrOwn) con el periodo p del gen de salida.
+		// AtrOwn arranca con r[0]=H-L y MEDIA CRECIENTE hasta completar p barras (calentamiento): en las primeras ~3p barras de la serie
+		// completa el valor es una media parcial, no un Wilder asentado. Como la serie incluye pre-mercado (ETH desde 00:00), a las 09:31
+		// de cualquier dia del IS salvo los primeros del dataset el ATR ya esta asentado; la biblioteca NO anade otro requisito.
+		private bool atrUnit; private double[] atrArr;
+		public const double AtrEps = 1e-12;
+		public void SetAtr(int p, bool unit)
 		{
-			int p = pos[at];
-			if (p < 0) return Clean(NQCE3_Features.Compute(this, at, f, n));
-			double[] arr = GetArr(f * 64 + n);
-			double v = arr[p];
-			if (double.IsNaN(v)) { v = Clean(NQCE3_Features.Compute(this, at, f, n)); arr[p] = double.IsNaN(v) ? NonFiniteMark : v; }
+			atrUnit = unit; atrArr = unit ? null : Src.Atr(p);
+		}
+		// ATR (Wilder, periodo SetAtr) en la barra k. En modo unitario devuelve 1: las formulas "numerador/ATR" devuelven entonces el numerador en puntos.
+		public double AtrAt(int k)
+		{
+			if (atrUnit) return 1.0;
+			if (atrArr == null) throw new InvalidOperationException("ATR no fijado (SetAtr)");
+			return Math.Max(atrArr[k], AtrEps);
+		}
+		private double WilderAt(int p, int at) { return Math.Max(Src.Atr(p)[at], AtrEps); }
+
+		// Calculo directo (sin cache) de la familia f, periodo n, ATR de Wilder p, en la barra at; unit=true => ATR = 1 (numerador).
+		public double Direct(int f, int n, int p, int at, bool unit)
+		{
+			SetAtr(p, unit);
+			try { return NQCE3_Features.Compute(this, at, f, n); }
+			finally { atrArr = null; atrUnit = false; }
+		}
+
+		// Valor de la familia f (periodo n, ATR de Wilder de periodo p) en la barra at. NaN si no es finito.
+		// Descomposicion D-031(3) segun NQCE3_Catalog.AtrKind(f):
+		//   '0' independiente del ATR: se cachea por (f,n);
+		//   '1' numerador en puntos (cacheado por (f,n), independiente de p) dividido por el ATR de Wilder (96 series, una por periodo del gen de salida);
+		//   '2' no descomponible (ATR en una no linealidad o evaluado en otras barras): cache propia por (f,n,p) con el mismo tope LRU.
+		public double Feature(int f, int n, int p, int at)
+		{
+			char kind = NQCE3_Catalog.AtrKindOf(f);
+			int ps = pos[at];
+			if (ps < 0)
+			{
+				if (kind == '2') return Clean(Direct(f, n, p, at, false));
+				double v0 = Clean(Direct(f, n, p, at, true));
+				return (kind == '1' && !double.IsNaN(v0)) ? Clean(v0 / WilderAt(p, at)) : v0;
+			}
+			int key = kind == '2' ? 2000000 + (f * 64 + n) * 128 + p : f * 64 + n;
+			double[] arr = GetArr(key);
+			double v = arr[ps];
+			if (double.IsNaN(v)) { v = Clean(Direct(f, n, p, at, kind != '2')); arr[ps] = double.IsNaN(v) ? NonFiniteMark : v; }
 			else if (double.IsNegativeInfinity(v)) v = double.NaN;
+			if (kind == '1' && !double.IsNaN(v)) v = Clean(v / WilderAt(p, at));
 			return v;
 		}
 
@@ -177,7 +215,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public static class NQCE3_Catalog
 	{
-		public const int Families = 120, Rules = 11, Count = Families * Rules;   // 1.320
+		// Espacio de ids ESTABLE (trazabilidad con NQCL-2.0.0): condId = 11*familia + regla + 1, 1..1320, con huecos.
+		// D-031(2): 7 familias eliminadas (duplicados exactos): quedan 113 familias x 11 = 1.243 condiciones; ConditionCount = 1.243.
+		public const int Families = 120, Rules = 11, IdSpace = Families * Rules;   // 1.320 ids posibles
+		// 1 = familia eliminada por D-031(2) (duplicado EXACTO de otra de id menor): 9(=0), 18(=11), 52(=5), 76(=34), 81(=7), 104(=20), 108(=20).
+		public static readonly int[] RemovedFamilies = new int[] { 9, 18, 52, 76, 81, 104, 108 };
+		private static bool IsRemoved(int family) { return Array.IndexOf(RemovedFamilies, family) >= 0; }
+		public static readonly int[] ActiveIds = BuildActiveIds();
+		public static readonly int Count = ActiveIds.Length;      // 1.243
+		public static readonly int ActiveFamilies = CountActiveFamilies();
+		private static int[] BuildActiveIds()
+		{
+			List<int> l = new List<int>();
+			for (int id = 1; id <= IdSpace; id++) if (!IsRemoved((id - 1) / Rules)) l.Add(id);
+			return l.ToArray();
+		}
+		private static int CountActiveFamilies() { int k = 0; for (int f = 0; f < Families; f++) if (!IsRemoved(f)) k++; return k; }
+		public static bool IsActiveFamily(int family) { return family >= 0 && family < Families && !IsRemoved(family); }
+		public static bool IsActiveId(int condId) { return condId >= 1 && condId <= IdSpace && !IsRemoved((condId - 1) / Rules); }
 		public const int MinPeriod = 4, MaxPeriod = 30, PeriodLevels = MaxPeriod - MinPeriod + 1;   // 27
 		// niveles de umbral por condicion = ThresholdCount(regla); parametros por (familia,periodo): 45 combinaciones de umbral
 
@@ -224,21 +279,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 			"Polarized fractal efficiency", "Hurst rescaled-range trend persistence" };
 
 		// Auditoria R5 de la unidad de cada familia tras D-018b (120 caracteres, una por familia):
-		//  A = magnitud en multiplos de ATR (100 familias: 53 originales + 17 C + EOM(21) corregidas + 29 de clase B reexpresadas);
-		//  B = razon/indicador acotado SIN reexpresion honesta en ATR (16 familias, pendientes de decision del usuario):
-		//      10,17,24,33,42,59,64,68,69,71,99,106,110,115,118,119;
-		//  E = dudosa (4 familias, sin cambios; pendientes): 32,60,85,103.
+		//  A = magnitud en multiplos de ATR (100 familias antes de D-031(2); 93 activas tras eliminar 7 duplicados exactos);
+		//  X = EXCEPCION R5 ACEPTADA (D-031(1), 2026-11-14): razon/indicador adimensional acotado SIN escala de precio, no reexpresable en ATR
+		//      (16 familias, se MANTIENEN): 10,17,24,33,42,59,64,68,69,71,99,106,110,115,118,119. Su umbral es una fraccion, NO un multiplo de ATR.
+		//  E = dudosa (4 familias, sin cambios; D-031 no las trata): 32,60,85,103.
+		//  Las familias eliminadas por D-031(2) (ver RemovedFamilies) conservan aqui su letra original; el conteo de clases se hace sobre las activas.
 		public const string UnitClass =
-			"AAAAAAAAAABA"+	// 0..11
-			"AAAAABAAAAAA"+	// 12..23
-			"BAAAAAAAEBAA"+	// 24..35
-			"AAAAAABAAAAA"+	// 36..47
-			"AAAAAAAAAAAB"+	// 48..59
-			"EAAABAAABBAB"+	// 60..71
+			"AAAAAAAAAAXA"+	// 0..11
+			"AAAAAXAAAAAA"+	// 12..23
+			"XAAAAAAAEXAA"+	// 24..35
+			"AAAAAAXAAAAA"+	// 36..47
+			"AAAAAAAAAAAX"+	// 48..59
+			"EAAAXAAAXXAX"+	// 60..71
 			"AAAAAAAAAAAA"+	// 72..83
 			"AEAAAAAAAAAA"+	// 84..95
-			"AAABAAAEAABA"+	// 96..107
-			"AABAAAABAABB";	// 108..119
+			"AAAXAAAEAAXA"+	// 96..107
+			"AAXAAAAXAAXX";	// 108..119
 
 		// 1 = la familia usa volumen (NT8 M1 lo entrega, pero NQCE_Bars de ET1 Core no lo guarda: hay que pasarlo a NQCE3_Library.Bind).
 		public const string VolumeDep =
@@ -253,6 +309,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 			"000111111111" +	// 96..107
 			"111110000000";	// 108..119
 
+		// D-031(3): como depende cada familia del ATR de Wilder (verificado numericamente por NQC_ET3_LibraryTest L11):
+		//  '0' independiente del ATR (razones/fracciones/estimadores sin escala de precio); '1' = numerador en puntos / ATR(at) exactamente;
+		//  Las de tipo '2' (9): 78 Keltner (umbral 1,5 ATR), 82 (cociente de ATR de barras distintas), 83 (ATR al cuadrado), 86 (ATR en dos barras), 92 Ulcer (piso 1e-12 del
+		//  denominador cuando no hay caidas), 93 Chande-Kroll,
+		//  94 Supertrend (ATR de cada barra), 98 squeeze Bollinger-Keltner, 118 fractal polarizado (raiz de ATR^2+delta^2).
+		//  '2' NO descomponible (el ATR entra en una no linealidad, en otras barras o con potencia distinta de 1): cache propia por (f,n,p).
+		public const string AtrKind =
+			"111111111101" +	// 0..11
+			"111110111111" +	// 12..23
+			"011111111011" +	// 24..35
+			"111111011111" +	// 36..47
+			"111111111110" +	// 48..59
+			"011101110010" +	// 60..71
+			"111111211122" +	// 72..83
+			"102111112221" +	// 84..95
+			"112011101101" +	// 96..107
+			"110111101120";	// 108..119
+		public static bool DebugForceDirect;   // SOLO medicion de costo (NQC_ET3_GaTest): trata las '1' como '2' para comparar contra no descomponer
+		public static char AtrKindOf(int family) { char k = AtrKind[family]; return (DebugForceDirect && k == '1') ? '2' : k; }
 		public static char UnitOf(int family) { return UnitClass[family]; }
 		public static bool NeedsVolume(int family) { return VolumeDep[family] == '1'; }
 		public static int FamilyOf(int condId) { return (condId - 1) / Rules; }

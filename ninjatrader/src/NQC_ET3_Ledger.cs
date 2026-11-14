@@ -74,12 +74,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public string Name = "C1";
 		public StringBuilder Curve = new StringBuilder("generation\tbest_t\tmean_t\tvalid_frac\tfresh_evals_cum\n");
 		public NQCE3_Ledger Ledger = new NQCE3_Ledger();
-		public NQCE3_Databank Bank = new NQCE3_Databank(2000);
-		public const int MaxEvaluations = 100000;
+		public NQCE3_Databank Bank = new NQCE3_Databank(2000);   // D-019: top-K 2.000 deduplicado (se reconstruye con p.TopK al correr)
+		public const int MaxEvaluations = 100000;   // tope duro D-019 (inmigrantes y elite recalculada incluidos en el conteo de evaluaciones nuevas)
+		public int MaxEvals = MaxEvaluations;      // por defecto el tope; las pruebas pueden bajarlo
 
 		public void Run(NQCE3_Fitness fit, INQCE3_Library lib, NQCE3_Params p, Func<NQCE3_Genome, bool> minSignal)
 		{
-			NQCE_Rng r = new NQCE_Rng(p.Seed);
+			NQCE_Rng r = new NQCE_Rng(p.Seed); Bank = new NQCE3_Databank(p.TopK);
 			List<NQCE3_Genome> pop = new List<NQCE3_Genome>();
 			for (int i = 0; i < p.PopSize; i++) pop.Add(NQCE3_Operators.InitWithMinSignal(r, lib, p, minSignal));
 			for (int gen = 0; gen < p.Generations; gen++)
@@ -88,7 +89,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				for (int i = 0; i < pop.Count; i++)
 				{
 					int before = fit.FreshEvaluations;
-					if (before >= MaxEvaluations) { f[i] = double.NegativeInfinity; continue; }      // tope duro de evaluaciones
+					if (before >= MaxEvals) { f[i] = double.NegativeInfinity; continue; }      // tope duro de evaluaciones
 					NQCE3_Eval e = fit.Evaluate(pop[i]);
 					if (fit.FreshEvaluations > before) Ledger.Add(Name, gen, e);            // solo evaluaciones nuevas son ensayos
 					Bank.Offer(e);
@@ -97,8 +98,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Curve.Append(gen.ToString(CultureInfo.InvariantCulture)).Append('\t').Append(double.IsNaN(best) ? "NA" : best.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t')
 				     .Append(evaluated == 0 ? "NA" : (sum / evaluated).ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(evaluated == 0 ? "NA" : ((double)valid / evaluated).ToString("0.000", CultureInfo.InvariantCulture)).Append('\t')
 				     .Append(fit.FreshEvaluations.ToString(CultureInfo.InvariantCulture)).Append('\n');
-				if (fit.FreshEvaluations >= MaxEvaluations || gen == p.Generations - 1) break;
-				pop = NQCE3_Operators.NextGeneration(r, pop, f, p, lib);
+				if (fit.FreshEvaluations >= MaxEvals || gen == p.Generations - 1) break;
+				pop = NQCE3_Operators.NextGeneration(r, pop, f, p, lib, minSignal);
 			}
 		}
 	}

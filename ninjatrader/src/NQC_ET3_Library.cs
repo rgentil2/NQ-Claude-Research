@@ -6,7 +6,7 @@ using System.Text;
 #endregion
 
 //==============================================================================
-// NQC_ET3_Library - ET3 WP1/D-018b/D-030: biblioteca de condiciones D-018 (120 familias x 11 reglas = 1.320 condiciones)
+// NQC_ET3_Library - ET3 WP1/D-018b/D-030: biblioteca de condiciones D-018 (113 familias activas x 11 reglas = 1.243 condiciones (ids 1..1320 con huecos))
 // que implementa INQCE3_Library (NQC_ET3_Genome.cs). Contrato NQC 2.0.0. SOLO DESARROLLO, sin compilar.
 //
 // PROCEDENCIA (solo informativa; material de terceros leido en SOLO LECTURA, nada ejecutado):
@@ -21,14 +21,16 @@ using System.Text;
 //   NQVolumeActionFeaturesV19.cs     228a0c61354ef2f68d856e80cf1c1b0f25e05e3a2e7c95f94f9cb5523d52fcec
 // Port mecanico de las formulas (mismo calculo, nombres NQCE3_*, sin las clases del repo historico).
 //
-// Mapa: condId 1..1320 -> tipo = condId-1; familia = tipo/11; regla = tipo%11 (mismos ids 0..1319 de la referencia, +1).
+// Mapa (estable): condId 1..1320 -> tipo = condId-1; familia = tipo/11; regla = tipo%11 (mismos ids 0..1319 de la referencia, +1).
 // Parametros geneticos por condicion (D-030): periodo n = 4 + nivelPeriodo (27 niveles, 4..30) y umbral en multiplos de ATR
 // (nivelUmbral; 1/5/5/10 niveles segun la regla, ver NQCE3_Rules). El gen unico de parametro del genoma empaqueta ambos:
 // gen = nivelPeriodo * ThresholdLevels(cond) + nivelUmbral (ver NQCE3_Genome).
 // Direccion: la condicion dispara cuando el predicado de la regla es alcista (dir=+1) o bajista (dir=-1).
-// ATR (decision documentada, M4): TODAS las familias normalizan con el ATR SIMPLE de n barras (media de TR de las ultimas n barras,
-// n = periodo de la condicion). El parametro atrPeriod de Create (periodo de ATR de salida del miembro, Wilder) NO se usa:
-// acoplarlo multiplicaria por 96 las claves de la cache de caracteristicas y mezclaria la escala de entrada con la de salida.
+// ATR (D-031(3), reemplaza la decision M4): el ATR de TODAS las condiciones es el ATR de WILDER del gen de salida del miembro
+// (NQCE_Bars.Atr(p) = AtrOwn, periodo 5..100, el MISMO arreglo que usa el ejecutor). El periodo n de la condicion ya no define el ATR.
+// Para no multiplicar por 96 el costo, cada familia se descompone (NQCE3_Catalog.AtrKind): '1' numerador en puntos cacheado por (familia,n)
+// y dividido por el ATR de Wilder; '0' independiente del ATR; '2' no descomponible, cache propia por (familia,n,p) con el tope LRU.
+// D-031(2): 7 familias eliminadas (9,18,52,76,81,104,108): 113 familias, 1.243 condiciones; los ids conservan el mapa 11*familia+regla+1.
 // VOLUMEN (D-018b): el runner DEBE llamar lib.Bind(bars, volumen) con volumen[i] alineado con bars (mismo Count, M1 completo desde
 // 00:00, contratos por barra). NQCE_Bars (ET1 Core) no se modifica. Sin Bind las 24 familias de volumen no dan senal y NQCE3_Fitness lo rechaza.
 //==============================================================================
@@ -36,7 +38,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public sealed class NQCE3_Library : INQCE3_Library
 	{
-		public const string LibName = "NQCL-2.0.0";
+		public const string LibName = "NQCL-3.0.0";
 		public const int WarmSameDay = 0, WarmAnyHistory = 1;
 		public int WarmupMode = WarmSameDay;       // defecto: todas las barras de recursion en el mismo dia calendario
 		// Contadores de condiciones sin senal posible (diagnostico; se reinician con ResetRejects).
@@ -74,54 +76,58 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (version == null)
 				{
 					StringBuilder sb = new StringBuilder(LibName);
-					sb.Append("|req=7n+10|periods=4..30|atr=simple-n|rules=").Append(NQCE3_Rules.Count.ToString(CultureInfo.InvariantCulture));
+					sb.Append("|req=7n+10|periods=4..30|atr=wilder-exit|removed=9,18,52,76,81,104,108|rules=").Append(NQCE3_Rules.Count.ToString(CultureInfo.InvariantCulture));
 					for (int r = 0; r < NQCE3_Rules.Count; r++)
 						sb.Append("|thr").Append(r.ToString(CultureInfo.InvariantCulture)).Append("=").Append(NQCE3_Rules.ThresholdCount(r).ToString(CultureInfo.InvariantCulture))
 						  .Append("@").Append(NQCE3_Rules.ThresholdCount(r) > 1 ? NQCE3_Rules.ThresholdValue(r, 0).ToString("0.00", CultureInfo.InvariantCulture) : "-");
 					for (int f = 0; f < NQCE3_Catalog.Families; f++) sb.Append("|").Append(NQCE3_Catalog.FamilyNames[f]);
 					for (int r = 0; r < NQCE3_Rules.Count; r++) sb.Append("|").Append(NQCE3_Rules.Names[r]);
-					sb.Append("|").Append(NQCE3_Catalog.UnitClass).Append("|").Append(NQCE3_Catalog.VolumeDep);
+					sb.Append("|").Append(NQCE3_Catalog.UnitClass).Append("|").Append(NQCE3_Catalog.VolumeDep).Append("|").Append(NQCE3_Catalog.AtrKind);
 					version = LibName + ":" + NQCE_Const.Sha256Text(sb.ToString()).Substring(0, 16);
 				}
 				return version;
 			}
 		}
-		public int ConditionCount { get { return NQCE3_Catalog.Count; } }
+		public int ConditionCount { get { return NQCE3_Catalog.Count; } }               // 1.243 (D-031(2))
+		public int ConditionId(int index) { return NQCE3_Catalog.ActiveIds[index]; }       // indice 0..ConditionCount-1 -> id estable (con huecos)
+		public bool IsValidCondition(int condId) { return NQCE3_Catalog.IsActiveId(condId); }
 		public int PeriodLevels(int condId) { return NQCE3_Catalog.PeriodLevels; }
 		public int ThresholdLevels(int condId) { return NQCE3_Rules.ThresholdCount(NQCE3_Catalog.RuleOf(condId)); }
 
 		public INQCE_Condition Create(int condId, int periodLevel, int thresholdLevel, int atrPeriod, int dir)
 		{
-			if (condId < 1 || condId > NQCE3_Catalog.Count) throw new ArgumentOutOfRangeException("condId");
+			if (!NQCE3_Catalog.IsActiveId(condId)) throw new ArgumentOutOfRangeException("condId");
 			if (periodLevel < 0 || periodLevel >= NQCE3_Catalog.PeriodLevels) throw new ArgumentOutOfRangeException("periodLevel");
 			if (thresholdLevel < 0 || thresholdLevel >= ThresholdLevels(condId)) throw new ArgumentOutOfRangeException("thresholdLevel");
 			if (dir != 1 && dir != -1) throw new ArgumentOutOfRangeException("dir");
-			return new NQCE3_Cond(this, condId, NQCE3_Catalog.MinPeriod + periodLevel, thresholdLevel, dir);
+			if (atrPeriod < 1) throw new ArgumentOutOfRangeException("atrPeriod");
+			return new NQCE3_Cond(this, condId, NQCE3_Catalog.MinPeriod + periodLevel, thresholdLevel, atrPeriod, dir);
 		}
 	}
 
 	public sealed class NQCE3_Cond : INQCE_Condition
 	{
-		private NQCE3_Library lib; private int condId, n, dir, family, rule; private double thr;
+		private NQCE3_Library lib; private int condId, n, atrP, dir, family, rule; private double thr;
 
-		public NQCE3_Cond(NQCE3_Library library, int id, int period, int thresholdLevel, int direction)
+		public NQCE3_Cond(NQCE3_Library library, int id, int period, int thresholdLevel, int atrPeriod, int direction)
 		{
-			lib = library; condId = id; n = period; dir = direction;
+			lib = library; condId = id; n = period; atrP = atrPeriod; dir = direction;
 			family = NQCE3_Catalog.FamilyOf(id); rule = NQCE3_Catalog.RuleOf(id);
 			thr = NQCE3_Rules.ThresholdCount(rule) > 1 ? NQCE3_Rules.ThresholdValue(rule, thresholdLevel) : double.NaN;
 		}
 
-		public static int Direction(NQCE3_Series s, int family, int rule, int n, int at, int warmupMode)
+		// p = periodo del ATR de Wilder (gen de salida del miembro), D-031(3).
+		public static int Direction(NQCE3_Series s, int family, int rule, int n, int p, int at, int warmupMode)
 		{
-			return Direction(s, family, rule, n, NQCE3_Rules.DefaultThreshold(rule), at, warmupMode);
+			return Direction(s, family, rule, n, p, NQCE3_Rules.DefaultThreshold(rule), at, warmupMode);
 		}
-		public static int Direction(NQCE3_Series s, int family, int rule, int n, double thr, int at, int warmupMode)
+		public static int Direction(NQCE3_Series s, int family, int rule, int n, int p, double thr, int at, int warmupMode)
 		{
-			int why; return DirectionWhy(s, family, rule, n, thr, at, warmupMode, out why);
+			int why; return DirectionWhy(s, family, rule, n, p, thr, at, warmupMode, out why);
 		}
 
 		// Devuelve 1/-1/0 del predicado en la barra at, o -2 si no hay senal posible. why: 0 ok, 1 calentamiento, 2 volumen ausente, 3 no finito.
-		public static int DirectionWhy(NQCE3_Series s, int family, int rule, int n, double thr, int at, int warmupMode, out int why)
+		public static int DirectionWhy(NQCE3_Series s, int family, int rule, int n, int p, double thr, int at, int warmupMode, out int why)
 		{
 			why = 1;
 			if (at < 2) return -2;
@@ -130,9 +136,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (warmupMode == NQCE3_Library.WarmSameDay && s.DayStart[at] > oldest) return -2;
 			why = 2;
 			if (NQCE3_Catalog.NeedsVolume(family) && !s.HasVolume) return -2;
-			double x = s.Feature(family, n, at);
-			double y = s.Feature(family, n, at - 1);
-			double z = s.Feature(family, n, at - 2);
+			double x = s.Feature(family, n, p, at);
+			double y = s.Feature(family, n, p, at - 1);
+			double z = s.Feature(family, n, p, at - 2);
 			int r = NQCE3_Rules.Resolve(x, y, z, rule, thr);
 			why = r == -2 ? 3 : 0;
 			return r;
@@ -141,7 +147,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Eval(NQCE_Ctx c)
 		{
 			NQCE3_Series s = lib.SeriesFor(c.B);
-			int why; int d = DirectionWhy(s, family, rule, n, thr, c.I, lib.WarmupMode, out why);
+			int why; int d = DirectionWhy(s, family, rule, n, atrP, thr, c.I, lib.WarmupMode, out why);
 			if (why == 1) lib.RejectWarmup++; else if (why == 2) lib.RejectVolume++; else if (why == 3) lib.RejectNonFinite++;
 			return d == dir;
 		}

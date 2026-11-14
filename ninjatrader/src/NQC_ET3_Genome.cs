@@ -10,7 +10,7 @@ using System.Text;
 // Biblioteca PURA (sin API de NinjaTrader). Depende de NQC_ET1_Core.cs.
 //
 // Genes (indice 0..19), todos enteros:
-//   0..15  8 ranuras de entrada: gen 2s = condicion (0 = ranura vacia, 1..N = id de la biblioteca),
+//   0..15  8 ranuras de entrada: gen 2s = condicion (0 = ranura vacia, id estable de la biblioteca (IsValidCondition)),
 //          gen 2s+1 = parametro empaquetado (D-030): nivelPeriodo * ThresholdLevels(cond) + nivelUmbral; periodo y umbral
 //          (este en multiplos de ATR) los mueve el gen. Rango = PeriodLevels * ThresholdLevels (27 * 1/5/10).
 //   16     direccion: 0 = corto (-1), 1 = largo (+1)
@@ -21,12 +21,14 @@ using System.Text;
 //==============================================================================
 namespace NinjaTrader.NinjaScript.Strategies
 {
-	// Interfaz para enchufar la biblioteca de condiciones D-018 (120 formulas / 1.320 condiciones).
+	// Interfaz para enchufar la biblioteca de condiciones D-018 (113 familias activas / 1.243 condiciones; ids estables 1..1320 con huecos).
 	// Implementacion: NQCE3_Library (NQC_ET3_Library.cs, WP1).
 	public interface INQCE3_Library
 	{
 		string Version { get; }                 // identificador/hash de la biblioteca, va al ledger
-		int ConditionCount { get; }             // N: ids validos 1..N
+		int ConditionCount { get; }             // N: numero de condiciones activas (D-031(2): 1.243)
+		int ConditionId(int index);             // indice 0..N-1 -> id estable de condicion (los ids tienen huecos por las familias eliminadas)
+		bool IsValidCondition(int condId);      // true si condId es una condicion activa
 		int PeriodLevels(int condId);           // niveles de periodo (>=1) de la condicion
 		int ThresholdLevels(int condId);        // niveles de umbral en multiplos de ATR (>=1; 1 = la regla no usa umbral)
 		// funcion pura; dir=+1/-1 (direccion del miembro)
@@ -56,7 +58,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		// Limite de cada gen: numero de valores validos (0..n-1).
 		public static int GeneRange(int gene, INQCE3_Library lib)
 		{
-			if (gene < 16) { return (gene % 2 == 0) ? lib.ConditionCount + 1 : 0; }   // gen impar depende de la condicion
+			if (gene < 16) { return (gene % 2 == 0) ? lib.ConditionCount + 1 : 0; }   // gen par: vacio + N condiciones (el valor del gen es un id estable, no un ordinal); impar depende de la condicion
 			if (gene == GDir) return 2;
 			if (gene == GAtr) return AtrMax - AtrMin + 1;
 			if (gene == GKsl) return KslLevels;
@@ -68,7 +70,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			for (int s = 0; s < Slots; s++)
 			{
-				int c = G[2 * s]; if (c < 0) c = 0; if (c > lib.ConditionCount) c = lib.ConditionCount;
+				int c = G[2 * s]; if (c < 0 || !(c == 0 || lib.IsValidCondition(c))) c = 0;
 				for (int p = 0; p < s; p++) if (c != 0 && G[2 * p] == c) { c = 0; break; }
 				G[2 * s] = c;
 				if (c == 0) { G[2 * s + 1] = 0; continue; }

@@ -29,17 +29,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for(int i=start+1;i<=at;i++)x+=k*(sr.C[i]-x);
 			return x;
 		}
-		private static double Atr(NQCE3_Series sr,int at,int n)
-		{
-			double x=0;
-			for(int i=at-n+1;i<=at;i++)
-			{
-				double prev=i==0?sr.C[i]:sr.C[i-1];
-				x+=Math.Max(sr.H[i]-sr.L[i],
-					Math.Max(Math.Abs(sr.H[i]-prev),Math.Abs(sr.L[i]-prev)));
-			}
-			return x/n;
-		}
+		// D-031(3): ATR de Wilder (periodo del gen de salida) en la barra at; el periodo n de la condicion ya NO define el ATR.
+		private static double Atr(NQCE3_Series sr,int at,int n){return sr.AtrAt(at);}
 		private static double Typical(NQCE3_Bar b)
 		{ return (b.High+b.Low+b.Close)/3.0; }
 		private static double Feature(NQCE3_Series sr,int at,int f,int n)
@@ -139,12 +130,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return Math.Max(sr.H[i]-sr.L[i],
 				Math.Max(Math.Abs(sr.H[i]-p),Math.Abs(sr.L[i]-p)));
 		}
-		private static double Atr(NQCE3_Series sr,int at,int n)
-		{
-			double sum=0;
-			for(int k=at-n+1;k<=at;k++)sum+=TrueRange(sr,k);
-			return Math.Max(sum/n,1e-12);
-		}
+		private static double Atr(NQCE3_Series sr,int at,int n){return sr.AtrAt(at);}   // D-031(3): Wilder del gen de salida
 		private static double Sma(NQCE3_Series sr,int at,int n)
 		{
 			double a=0;

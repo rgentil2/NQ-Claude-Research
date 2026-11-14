@@ -71,12 +71,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return Math.Max(c.High-c.Low,Math.Max(
 				Math.Abs(c.High-p),Math.Abs(c.Low-p)));
 		}
+		// D-031(3): ATR de Wilder del gen de salida (n se ignora; se conserva la firma por las llamadas existentes).
 		internal static double ATR(NQCE3_Series sr,int at,int n)
-		{
-			double s=0;
-			for(int k=at-n+1;k<=at;k++)s+=TR(sr,k);
-			return Math.Max(s/n,Eps);
-		}
+		{return sr.AtrAt(at);}
 		internal static double Highest(NQCE3_Series sr,int at,int n,
 									   int kind)
 		{

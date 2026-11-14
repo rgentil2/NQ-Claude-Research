@@ -7,14 +7,16 @@ using System.Globalization;
 //==============================================================================
 // NQC_ET3_Operators - WP3 operadores geneticos (ET3). SOLO DESARROLLO, sin compilar.
 // Todo el azar sale de NQCE_Rng con la semilla declarada; no se usa System.Random ni el reloj.
-// Parametros D-019: poblacion 500, 200 generaciones, torneo 3, cruce uniforme, mutacion 5%/gen, elitismo 5%.
+// Parametros D-019: poblacion 500, 200 generaciones, torneo 3, cruce uniforme, mutacion 5%/gen, elitismo 5%, MAS 5% de inmigrantes
+// aleatorios por generacion (NQCE_Rng, determinista; cuentan como evaluaciones), top-K 2.000 deduplicado.
 //==============================================================================
 namespace NinjaTrader.NinjaScript.Strategies
 {
 	public sealed class NQCE3_Params
 	{
 		public int PopSize = 500, Generations = 200, Tournament = 3, MaxInitTries = 50;
-		public double MutationRate = 0.05, EliteFrac = 0.05;
+		public double MutationRate = 0.05, EliteFrac = 0.05, ImmigrantFrac = 0.05;   // D-019
+		public int TopK = 2000;
 		public int InitMaxActive = 4;       // ranuras activas iniciales 1..InitMaxActive
 		public long Seed = 20261114;        // C1; DEBE declararse en docs/stages/ET3.md antes de correr
 	}
@@ -35,7 +37,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for (int k = 0; k < act; k++)
 			{
 				int s = r.NextInt(NQCE3_Genome.Slots);
-				int c = 1 + r.NextInt(lib.ConditionCount);
+				int c = lib.ConditionId(r.NextInt(lib.ConditionCount));
 				g.G[2 * s] = c; g.G[2 * s + 1] = RandomParamLevel(r, lib, c);
 			}
 			g.G[NQCE3_Genome.GDir] = r.NextInt(2);
@@ -98,7 +100,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					int s = i / 2;
 					if (i % 2 == 0)
 					{
-						int c = r.NextInt(lib.ConditionCount + 1);     // 0 = vaciar ranura
+						int ck = r.NextInt(lib.ConditionCount + 1), c = ck == 0 ? 0 : lib.ConditionId(ck - 1);     // 0 = vaciar ranura
 						g.G[i] = c; g.G[i + 1] = c == 0 ? 0 : RandomParamLevel(r, lib, c);
 					}
 					else if (g.G[2 * s] != 0)
@@ -130,13 +132,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return idx;
 		}
 
-		// Genera la siguiente poblacion: elite + hijos (torneo, cruce, mutacion).
+		// Genera la siguiente poblacion: elite (ceil 5%) + inmigrantes aleatorios (ceil 5%, D-019) + hijos (torneo, cruce, mutacion) hasta PopSize.
+		// Orden de consumo del azar fijo: primero los inmigrantes, luego los hijos. 'accept' es el mismo filtro de senal minima de la inicializacion.
+		public static int EliteCount(NQCE3_Params p) { return (int)Math.Ceiling(p.EliteFrac * p.PopSize); }
+		public static int ImmigrantCount(NQCE3_Params p) { return (int)Math.Ceiling(p.ImmigrantFrac * p.PopSize); }
 		public static List<NQCE3_Genome> NextGeneration(NQCE_Rng r, List<NQCE3_Genome> pop, double[] fit, NQCE3_Params p, INQCE3_Library lib)
+		{ return NextGeneration(r, pop, fit, p, lib, null); }
+		public static List<NQCE3_Genome> NextGeneration(NQCE_Rng r, List<NQCE3_Genome> pop, double[] fit, NQCE3_Params p, INQCE3_Library lib, Func<NQCE3_Genome, bool> accept)
 		{
 			List<NQCE3_Genome> next = new List<NQCE3_Genome>();
 			int[] rank = RankDesc(fit);
-			int elite = (int)Math.Ceiling(p.EliteFrac * p.PopSize);
+			int elite = EliteCount(p), imm = ImmigrantCount(p);
 			for (int i = 0; i < elite && i < rank.Length; i++) next.Add(pop[rank[i]].Clone());
+			for (int i = 0; i < imm && next.Count < p.PopSize; i++) next.Add(InitWithMinSignal(r, lib, p, accept));
 			while (next.Count < p.PopSize)
 			{
 				int ia = Tournament(r, fit, p.Tournament), ib = Tournament(r, fit, p.Tournament);
