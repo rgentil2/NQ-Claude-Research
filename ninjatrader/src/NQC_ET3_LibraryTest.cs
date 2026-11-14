@@ -16,7 +16,7 @@ using NinjaTrader.NinjaScript;
 // ni reporta resultados economicos. Requiere NQC_ET1_Core.cs, NQC_ET1C_AccountSim.cs y NQC_ET3_Genome.cs.
 //
 //   L1  Conteo exacto: 120 familias x 11 reglas = 1.320 condiciones; nombres distintos; auditoria codificada
-//       (clases R5 A53/B44/E4/C17/D2; 24 familias con volumen); version de la biblioteca estable.
+//       (clases R5 tras D-018b: A100/B16/E4; 24 familias con volumen); version de la biblioteca estable.
 //   L2  Tabla de verdad de las 11 reglas con valores calculados a mano (NQCE3_Rules.Resolve).
 //   L3  Valores de familias sobre una rampa sintetica (O=C, H=C+1, L=C-1, C=20000+k) calculados a mano:
 //       familias 0,4,6,7,24,26,36,80,81,115,116,117,118 y su espejo bajista; reglas de la familia 0.
@@ -25,6 +25,10 @@ using NinjaTrader.NinjaScript;
 //   L5  Memoria == calculo directo; sin volumen las 24 familias con volumen no dan senal (264 condiciones).
 //   L6  Calentamiento: SameDay rechaza lookback que cruza al dia anterior; AnyHistory lo acepta; sin historia suficiente no hay senal.
 //   L7  Eval(NQCE_Ctx) coincide con Direction para dir +1 y -1.
+//   L8  D-018b: valores a mano de familias reexpresadas/corregidas a ATR (rampa) y espejo bajista; duplicados conocidos.
+//   L9  D-030: rejilla de umbrales (45 combinaciones, bandas disjuntas), reglas con umbral a mano, Create/periodo+umbral,
+//       empaquetado del gen, TrialId distingue umbral, RandomGenome/Mutate/Crossover siempre validos, espacio por ranura 145.800.
+//   L10 Volumen: NQCE3_Fitness exige volumen y M1 completas; sin volumen las 113-119 no lanzan excepcion; cache LRU respeta el presupuesto.
 // Salida: <Documentos>\NinjaTrader 8\NQC_Results\ET3LIB_<fecha_hora>\LIBRARY_TEST_REPORT.txt y SUMMARY.txt
 // Strategy Analyzer: cualquier instrumento y rango (basta una barra); la prueba no mira los datos de NT8.
 //==============================================================================
@@ -32,7 +36,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class NQC_ET3_LibraryTest : Strategy
 	{
-		private const string ScriptVersion = "ET3LIBTEST-1.0.0";
+		private const string ScriptVersion = "ET3LIBTEST-2.0.0";
 		private bool started, done;
 		private StringBuilder rep = new StringBuilder();
 		private int pass, fail;
@@ -125,11 +129,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 					if (u == 'A') a++; else if (u == 'B') b++; else if (u == 'C') c++; else if (u == 'D') d++; else if (u == 'E') e++;
 					if (NQCE3_Catalog.NeedsVolume(f)) vol++;
 				}
-				Chk("L1.3 auditoria codificada A53 B44 E4 C17 D2, volumen 24", NQCE3_Catalog.UnitClass.Length == 120 && NQCE3_Catalog.VolumeDep.Length == 120 && a == 53 && b == 44 && e == 4 && c == 17 && d == 2 && vol == 24,
+				Chk("L1.3 auditoria codificada tras D-018b A100 B16 E4 (C=0, D=0), volumen 24", NQCE3_Catalog.UnitClass.Length == 120 && NQCE3_Catalog.VolumeDep.Length == 120 && a == 100 && b == 16 && e == 4 && c == 0 && d == 0 && vol == 24,
 					"A=" + I(a) + " B=" + I(b) + " E=" + I(e) + " C=" + I(c) + " D=" + I(d) + " volumen=" + I(vol));
 				NQCE3_Library lib2 = new NQCE3_Library();
-				Chk("L1.4 version estable", lib.Version == lib2.Version && lib.Version.StartsWith("NQCL-1.0.0:"), lib.Version);
-				Chk("L1.5 niveles de parametro 27 (periodo 4..30)", lib.ParamLevels(1) == 27 && lib.ParamLevels(1320) == 27, "niveles=" + I(lib.ParamLevels(7)));
+				Chk("L1.4 version estable", lib.Version == lib2.Version && lib.Version.StartsWith("NQCL-2.0.0:"), lib.Version);
+				Chk("L1.5 niveles de periodo 27 (4..30) para todas las condiciones", lib.PeriodLevels(1) == 27 && lib.PeriodLevels(1320) == 27, "niveles=" + I(lib.PeriodLevels(7)));
 			}
 
 			// ---- L2 tabla de verdad (x,y,z,regla -> esperado), calculada a mano
@@ -162,8 +166,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				NQCE_Bars bars = Make(o, h, l, c, 400); NQCE3_Series s = new NQCE3_Series(bars, v); int at = 300;
 				// (familia, n, esperado)
 				double[][] exp = new double[][] {
-					new double[] { 0, 5, 1.0 }, new double[] { 4, 5, 1.0 }, new double[] { 6, 4, 1.0 }, new double[] { 7, 5, 2.0 / 3.0 }, new double[] { 24, 5, 0.8 },
-					new double[] { 26, 5, 1.0 }, new double[] { 36, 5, 0.75 }, new double[] { 80, 5, 0.0 }, new double[] { 81, 5, 1.0 }, new double[] { 115, 5, 0.0 },
+					new double[] { 0, 5, 1.0 }, new double[] { 4, 5, 0.5 }, new double[] { 6, 4, 1.0 }, new double[] { 7, 5, 1.0 }, new double[] { 24, 5, 0.8 },
+					new double[] { 26, 5, 2.5 }, new double[] { 36, 5, 0.75 }, new double[] { 80, 5, 0.0 }, new double[] { 81, 5, 1.0 }, new double[] { 115, 5, 0.0 },
 					new double[] { 116, 5, 0.0 }, new double[] { 117, 5, 0.0 }, new double[] { 118, 5, 1.0 } };
 				int bad = 0; string first = "";
 				for (int k = 0; k < exp.Length; k++)
@@ -178,7 +182,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Chk("L3.2 11 reglas de la familia 0 (n=5) sobre la rampa (a mano)", badR == 0, "malas=" + I(badR));
 				double[] o2, h2, l2, c2, v2; Ramp(400, -1.0, out o2, out h2, out l2, out c2, out v2);
 				NQCE3_Series s2 = new NQCE3_Series(Make(o2, h2, l2, c2, 400), v2);
-				bool m = Math.Abs(s2.Feature(0, 5, at) + 1.0) < 1e-9 && Math.Abs(s2.Feature(4, 5, at) + 1.0) < 1e-9 && Math.Abs(s2.Feature(7, 5, at) + 2.0 / 3.0) < 1e-9 && Math.Abs(s2.Feature(118, 5, at) + 1.0) < 1e-9
+				bool m = Math.Abs(s2.Feature(0, 5, at) + 1.0) < 1e-9 && Math.Abs(s2.Feature(4, 5, at) + 0.5) < 1e-9 && Math.Abs(s2.Feature(7, 5, at) + 1.0) < 1e-9 && Math.Abs(s2.Feature(118, 5, at) + 1.0) < 1e-9
 					&& NQCE3_Cond.Direction(s2, 0, 0, 5, at, NQCE3_Library.WarmAnyHistory) == -1 && NQCE3_Cond.Direction(s2, 0, 5, 5, at, NQCE3_Library.WarmAnyHistory) == -1;
 				Chk("L3.3 espejo bajista (familias 0,4,7,118 y reglas 0 y 5)", m, "f0=" + F(s2.Feature(0, 5, at)) + " f7=" + F(s2.Feature(7, 5, at)));
 			}
@@ -251,10 +255,174 @@ namespace NinjaTrader.NinjaScript.Strategies
 					{
 						NQCE_Ctx cx = new NQCE_Ctx(); cx.B = full; cx.I = ats[w]; cx.Stamp = full.Stamp[ats[w]]; cx.DayIdx = new List<int>();
 						int dr = NQCE3_Cond.Direction(lb.SeriesFor(full), NQCE3_Catalog.FamilyOf(id), NQCE3_Catalog.RuleOf(id), 9, ats[w], NQCE3_Library.WarmAnyHistory);
-						bool up = lb.Create(id, 5, 14, 1).Eval(cx), dn = lb.Create(id, 5, 14, -1).Eval(cx);
+						int tl = lb.ThresholdLevels(id) > 1 ? 2 : 0; double thv = tl > 0 ? NQCE3_Rules.ThresholdValue(NQCE3_Catalog.RuleOf(id), tl) : double.NaN;
+						int dr2 = NQCE3_Cond.Direction(lb.SeriesFor(full), NQCE3_Catalog.FamilyOf(id), NQCE3_Catalog.RuleOf(id), 9, tl > 0 ? thv : NQCE3_Rules.DefaultThreshold(NQCE3_Catalog.RuleOf(id)), ats[w], NQCE3_Library.WarmAnyHistory);
+						bool up = lb.Create(id, 5, tl, 14, 1).Eval(cx), dn = lb.Create(id, 5, tl, 14, -1).Eval(cx);
+						dr = dr2;
 						evTot++; if (up != (dr == 1) || dn != (dr == -1)) evBad++;
 					}
 				Chk("L7 Eval(NQCE_Ctx) == Direction para dir +1 y -1", evBad == 0 && evTot > 1000, "casos=" + I(evTot) + " distintos=" + I(evBad));
+			}
+
+
+			// ---- L8 D-018b: valores a mano sobre la rampa alcista (O=C, H=C+1, L=C-1, V=1000; ATR simple = 2; n=5, mitad=2)
+			{
+				double[] o, h, l, c, v; Ramp(400, 1.0, out o, out h, out l, out c, out v);
+				NQCE3_Series s = new NQCE3_Series(Make(o, h, l, c, 400), v); int at = 300;
+				double yz = Math.Sqrt((1 - 0.34 / (1.34 + 6.0 / 4.0)) * 2.0) / 2.0;
+				double[][] exp = new double[][] {
+					new double[] { 5, 5, 1.0 },  new double[] { 9, 5, 1.0 },  new double[] { 11, 5, 0.0 }, new double[] { 18, 5, 0.0 }, new double[] { 19, 5, 0.0 },
+					new double[] { 22, 5, 0.5 }, new double[] { 25, 5, 1.0 }, new double[] { 27, 5, 0.5 }, new double[] { 28, 5, 0.5 }, new double[] { 34, 5, 0.0 },
+					new double[] { 76, 5, 0.0 }, new double[] { 35, 5, 0.0 }, new double[] { 57, 5, 0.5 }, new double[] { 58, 5, 0.0 }, new double[] { 61, 5, 1.0 },
+					new double[] { 62, 5, 0.0 }, new double[] { 70, 5, 1.0 }, new double[] { 73, 5, 1.0 / 3.0 }, new double[] { 107, 5, 0.0 }, new double[] { 108, 5, 0.5 },
+					new double[] { 112, 5, 0.0 }, new double[] { 114, 5, 0.0 }, new double[] { 91, 5, 0.0 },
+					new double[] { 20, 5, 0.5 }, new double[] { 104, 5, 0.5 }, new double[] { 100, 5, 1.0 }, new double[] { 111, 5, 1.0 },
+					new double[] { 21, 5, 0.5 }, new double[] { 65, 5, 3.0 }, new double[] { 66, 5, 0.0 }, new double[] { 75, 5, 3.5 },
+					new double[] { 83, 5, Math.Sqrt(2.0) }, new double[] { 86, 5, 0.0 }, new double[] { 87, 5, 0.5 / Math.Sqrt(Math.Log(2.0)) },
+					new double[] { 88, 5, Math.Sqrt(2.0) / 2.0 }, new double[] { 89, 5, Math.Sqrt(2.0) / 2.0 }, new double[] { 90, 5, yz },
+					new double[] { 101, 5, 0.0 }, new double[] { 102, 5, 0.0 } };
+				int bad = 0; string first = "";
+				for (int k = 0; k < exp.Length; k++)
+				{
+					double x = s.Feature((int)exp[k][0], (int)exp[k][1], at);
+					if (double.IsNaN(x) || Math.Abs(x - exp[k][2]) > 1e-9) { bad++; if (first.Length == 0) first = "familia " + I((int)exp[k][0]) + " obtenido " + F(x) + " esperado " + F(exp[k][2]); }
+				}
+				Chk("L8.1 D-018b: " + I(exp.Length) + " familias reexpresadas/corregidas a ATR, valores a mano (rampa alcista)", bad == 0, "malos=" + I(bad) + " " + first);
+				// 92 (ulcer): sin caidas el denominador es el piso 1e-12: positivo y enorme pero finito
+				double u92 = s.Feature(92, 5, at);
+				Chk("L8.2 familia 92 sin caidas: positiva y finita (piso del denominador)", u92 > 1e6 && !double.IsInfinity(u92), "valor=" + u92.ToString("E3", CultureInfo.InvariantCulture));
+				// 118 corregida (1 ATR en vez de 1 punto): colineal => 1
+				Chk("L8.3 familia 118 (delta/ATR): rampa colineal = 1", Math.Abs(s.Feature(118, 5, at) - 1.0) < 1e-9, "f118=" + F(s.Feature(118, 5, at)));
+				// espejo bajista: signo opuesto en familias con signo
+				double[] o2, h2, l2, c2, v2; Ramp(400, -1.0, out o2, out h2, out l2, out c2, out v2);
+				NQCE3_Series s2 = new NQCE3_Series(Make(o2, h2, l2, c2, 400), v2);
+				int[] fm = new int[] { 5, 9, 22, 25, 27, 28, 57, 61, 70, 73, 108, 20, 100, 21, 65, 75, 83, 87, 88, 89 };
+				int badM = 0;
+				for (int k = 0; k < fm.Length; k++)
+				{
+					double a1 = s.Feature(fm[k], 5, at), a2 = s2.Feature(fm[k], 5, at);
+					if (double.IsNaN(a1) || double.IsNaN(a2) || Math.Abs(a1 + a2) > 1e-9) badM++;
+				}
+				Chk("L8.4 espejo bajista: " + I(fm.Length) + " familias dan el valor opuesto", badM == 0, "malas=" + I(badM));
+				// duplicados conocidos (informativo, se verifica que siguen siendo duplicados para que el orquestador los vea)
+				bool dup = Math.Abs(s.Feature(20, 9, at) - s.Feature(104, 9, at)) < 1e-12 && Math.Abs(s.Feature(20, 9, at) - s.Feature(108, 9, at)) < 1e-12;
+				Chk("L8.5 duplicados exactos documentados 20 == 104 == 108 (ATR)", dup, "f20=" + F(s.Feature(20, 9, at)));
+				// 120 familias: todas devuelven un valor finito o NaN sin excepcion sobre una caminata con volumen
+				int N = 1000; double[] ow = new double[N], hw = new double[N], lw = new double[N], cw = new double[N], vw = new double[N];
+				Walk(31L, N, 0, ow, hw, lw, cw, vw);
+				NQCE3_Series sw = new NQCE3_Series(Make(ow, hw, lw, cw, N), vw); int finite = 0, ex = 0;
+				for (int f = 0; f < 120; f++)
+				{
+					try { double x = sw.Feature(f, 12, 700); if (!double.IsNaN(x)) finite++; } catch (Exception) { ex++; }
+				}
+				Chk("L8.6 las 120 familias evaluan sin excepcion (n=12) y devuelven valor finito", ex == 0 && finite == 120, "finitas=" + I(finite) + " excepciones=" + I(ex));
+			}
+
+			// ---- L9 D-030
+			{
+				// rejilla
+				int sumThr = 0; bool grid = true;
+				for (int r = 0; r < 11; r++) sumThr += NQCE3_Rules.ThresholdCount(r);
+				grid &= NQCE3_Rules.ThresholdCount(3) == 5 && NQCE3_Rules.ThresholdCount(6) == 5 && NQCE3_Rules.ThresholdCount(4) == 5 && NQCE3_Rules.ThresholdCount(7) == 5 && NQCE3_Rules.ThresholdCount(5) == 10 && NQCE3_Rules.ThresholdCount(8) == 10;
+				grid &= Math.Abs(NQCE3_Rules.ThresholdValue(3, 0) - 0.05) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(3, 4) - 0.25) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(4, 0) - 0.30) < 1e-12
+					&& Math.Abs(NQCE3_Rules.ThresholdValue(4, 4) - 0.50) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(5, 0) - 0.55) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(5, 9) - 1.00) < 1e-12
+					&& Math.Abs(NQCE3_Rules.ThresholdValue(3, 2) - 0.15) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(4, 1) - 0.35) < 1e-12 && Math.Abs(NQCE3_Rules.ThresholdValue(5, 1) - 0.60) < 1e-12
+					&& double.IsNaN(NQCE3_Rules.ThresholdValue(0, 0));
+				Chk("L9.1 rejilla de umbrales: 45 combinaciones, extremos y valores historicos 0,15/0,35/0,60 presentes", sumThr == 45 && grid, "combinaciones=" + I(sumThr));
+				// bandas disjuntas
+				HashSet<string> seen = new HashSet<string>(); bool disj = true;
+				for (int r = 3; r <= 5; r++) for (int k = 0; k < NQCE3_Rules.ThresholdCount(r); k++) { if (!seen.Add(NQCE3_Rules.ThresholdValue(r, k).ToString("0.00", CultureInfo.InvariantCulture))) disj = false; }
+				Chk("L9.2 las bandas de las reglas 3/4/5 no se solapan (sin condiciones duplicadas)", disj && seen.Count == 20, "valores=" + I(seen.Count));
+				// reglas con umbral explicito a mano
+				double[][] cs = new double[][] {
+					new double[] { 0.06, 0, 0, 3, 0.05, 1 }, new double[] { 0.05, 0, 0, 3, 0.05, 0 }, new double[] { -0.26, 0, 0, 3, 0.25, -1 },
+					new double[] { 0.51, 0, 0, 4, 0.50, 1 }, new double[] { 0.30, 0, 0, 4, 0.30, 0 }, new double[] { 1.01, 0, 0, 5, 1.00, 1 }, new double[] { 0.99, 0, 0, 5, 1.00, 0 },
+					new double[] { 0.30, 0.25, 0, 6, 0.25, 1 }, new double[] { 0.30, 0.26, 0, 6, 0.25, 0 }, new double[] { 0.55, 0.50, 0, 7, 0.50, 1 },
+					new double[] { -0.5, -0.6, 0, 8, 0.55, 1 }, new double[] { 0.5, 0.6, 0, 8, 0.55, -1 }, new double[] { -0.6, -0.6, 0, 8, 0.55, 0 },
+					new double[] { 0.1, 0, 0, 0, 0.05, 1 }, new double[] { 0.1, 0.1, 0, 2, 0.05, 0 } };
+				int bad = 0;
+				for (int k = 0; k < cs.Length; k++)
+					if (NQCE3_Rules.Resolve(cs[k][0], cs[k][1], cs[k][2], (int)cs[k][3], cs[k][4]) != (int)cs[k][5]) bad++;
+				Chk("L9.3 reglas 0,2,3-8 con umbral explicito (" + I(cs.Length) + " casos a mano)", bad == 0, "malos=" + I(bad));
+				// Create con periodo y umbral, Describe y empaquetado
+				NQCE3_Library lb9 = new NQCE3_Library();
+				int idR3 = 6 * 11 + 3 + 1;     // familia 6, regla 3 (umbral bajo)
+				int idR0 = 6 * 11 + 0 + 1;     // familia 6, regla 0 (sin umbral)
+				Chk("L9.4 niveles: regla 3 -> 5, regla 4 -> 5, regla 5 -> 10, regla 0 -> 1; 27 periodos", lb9.ThresholdLevels(idR3) == 5 && lb9.ThresholdLevels(6 * 11 + 4 + 1) == 5 && lb9.ThresholdLevels(6 * 11 + 5 + 1) == 10 && lb9.ThresholdLevels(idR0) == 1 && lb9.PeriodLevels(idR3) == 27, "r3=" + I(lb9.ThresholdLevels(idR3)));
+				INQCE_Condition c1 = lb9.Create(idR3, 3, 2, 14, 1), c2 = lb9.Create(idR3, 3, 4, 14, 1), c3 = lb9.Create(idR0, 3, 0, 14, 1);
+				Chk("L9.5 Describe incluye periodo y umbral (n=7, thr=0.15 / 0.25); la regla 0 no lleva umbral", c1.Describe().Contains("n=7") && c1.Describe().Contains("thr=0.15") && c2.Describe().Contains("thr=0.25") && !c3.Describe().Contains("thr="), c1.Describe() + " | " + c3.Describe());
+				bool thrErr = false; try { lb9.Create(idR0, 0, 1, 14, 1); } catch (ArgumentOutOfRangeException) { thrErr = true; }
+				bool thrErr2 = false; try { lb9.Create(idR3, 0, 5, 14, 1); } catch (ArgumentOutOfRangeException) { thrErr2 = true; }
+				Chk("L9.6 Create rechaza nivel de umbral fuera de rango", thrErr && thrErr2, "ok");
+				int pk = NQCE3_Genome.Pack(lb9, idR3, 7, 3), pl, tl; NQCE3_Genome.Unpack(lb9, idR3, pk, out pl, out tl);
+				Chk("L9.7 empaquetado del gen (periodo,umbral) ida y vuelta; rango = 27 * 5", pk == 7 * 5 + 3 && pl == 7 && tl == 3 && NQCE3_Genome.ParamRange(lb9, idR3) == 135 && NQCE3_Genome.ParamRange(lb9, idR0) == 27 && NQCE3_Genome.ParamRange(lb9, 6 * 11 + 5 + 1) == 270, "gen=" + I(pk));
+				// TrialId distingue el umbral y el periodo, y es estable
+				NQCE3_Genome g1 = new NQCE3_Genome(); g1.G[0] = idR3; g1.G[1] = NQCE3_Genome.Pack(lb9, idR3, 3, 2); g1.G[17] = 14; g1.G[18] = 4; g1.G[19] = 0;
+				NQCE3_Genome g2 = g1.Clone(); g2.G[1] = NQCE3_Genome.Pack(lb9, idR3, 3, 3);
+				NQCE3_Genome g3 = g1.Clone(); g3.G[1] = NQCE3_Genome.Pack(lb9, idR3, 4, 2);
+				Chk("L9.8 TrialId: distinto umbral => distinto id; distinto periodo => distinto id; igual => igual", g1.TrialId(lb9) != g2.TrialId(lb9) && g1.TrialId(lb9) != g3.TrialId(lb9) && g1.TrialId(lb9) == g1.Clone().TrialId(lb9), g1.TrialId(lb9).Substring(0, 12));
+				// operadores: siempre validos
+				NQCE_Rng rg = new NQCE_Rng(12345L); NQCE3_Params pr = new NQCE3_Params(); int badG = 0, tot = 0; bool thrMoved = false, perMoved = false;
+				for (int k = 0; k < 3000; k++)
+				{
+					NQCE3_Genome ga = NQCE3_Operators.RandomGenome(rg, lb9, pr), gb = NQCE3_Operators.RandomGenome(rg, lb9, pr);
+					NQCE3_Genome ch = NQCE3_Operators.Crossover(rg, ga, gb, lb9); NQCE3_Genome before = ch.Clone();
+					NQCE3_Params hi = new NQCE3_Params(); hi.MutationRate = 0.5; NQCE3_Operators.Mutate(rg, ch, hi, lb9);
+					NQCE3_Genome[] all = new NQCE3_Genome[] { ga, gb, ch };
+					for (int q = 0; q < 3; q++)
+					{
+						tot++; NQCE3_Genome g = all[q]; bool ok = true;
+						for (int sl = 0; sl < 8; sl++)
+						{
+							int cc = g.G[2 * sl], pp = g.G[2 * sl + 1];
+							if (cc < 0 || cc > 1320) ok = false;
+							else if (cc == 0 && pp != 0) ok = false;
+							else if (cc > 0 && (pp < 0 || pp >= NQCE3_Genome.ParamRange(lb9, cc))) ok = false;
+						}
+						if (!ok) badG++;
+					}
+					for (int sl = 0; sl < 8; sl++)
+						if (before.G[2 * sl] != 0 && before.G[2 * sl] == ch.G[2 * sl] && before.G[2 * sl + 1] != ch.G[2 * sl + 1])
+						{
+							int c0 = ch.G[2 * sl], p0, t0, p1, t1; NQCE3_Genome.Unpack(lb9, c0, before.G[2 * sl + 1], out p0, out t0); NQCE3_Genome.Unpack(lb9, c0, ch.G[2 * sl + 1], out p1, out t1);
+							if (p0 != p1) perMoved = true; if (t0 != t1) thrMoved = true;
+						}
+				}
+				Chk("L9.9 RandomGenome/Crossover/Mutate: genes siempre validos (9000 genomas); la mutacion mueve periodo y umbral", badG == 0 && thrMoved && perMoved, "invalidos=" + I(badG) + "/" + I(tot) + " umbral_movido=" + thrMoved + " periodo_movido=" + perMoved);
+				// tamano del espacio por ranura
+				long pairs = 0; for (int id = 1; id <= lb9.ConditionCount; id++) pairs += NQCE3_Genome.ParamRange(lb9, id);
+				Chk("L9.10 espacio por ranura (condicion,periodo,umbral) = 145.800 (antes 35.640)", pairs == 145800, "pares=" + I((int)pairs));
+				// decodificacion: miembro con la condicion de umbral
+				NQCE_Member mem = g1.ToMember(lb9, "t");
+				Chk("L9.11 ToMember decodifica periodo y umbral (GenomeText incluye 'thr=0.15')", mem != null && mem.GenomeText().Contains("thr=0.15") && mem.GenomeText().Contains("n=7"), mem == null ? "null" : mem.GenomeText());
+			}
+
+			// ---- L10 volumen, calentamiento, cache
+			{
+				int N = 1500; double[] o = new double[N], h = new double[N], l = new double[N], c = new double[N], v = new double[N];
+				Walk(99L, N, 0, o, h, l, c, v); NQCE_Bars full = Make(o, h, l, c, N);
+				NQCE3_Series sN = new NQCE3_Series(full, null); int exc = 0;
+				for (int f = 113; f < 120; f++) { try { sN.Feature(f, 12, 1200); } catch (Exception) { exc++; } }
+				Chk("L10.1 sin volumen las familias 113-119 evaluan sin excepcion (SumVolume protegido)", exc == 0, "excepciones=" + I(exc));
+				bool badVol = false; try { double[] vb = (double[])v.Clone(); vb[10] = double.NaN; new NQCE3_Series(full, vb); } catch (ArgumentException) { badVol = true; }
+				bool badPx = false; try { double[] cb = (double[])c.Clone(); cb[5] = double.NaN; new NQCE3_Series(Make(o, h, l, cb, N), v); } catch (ArgumentException) { badPx = true; }
+				Chk("L10.2 la serie rechaza OHLC/volumen no finitos (sin Math.Sign(NaN))", badVol && badPx, "volumen=" + badVol + " precio=" + badPx);
+				bool noVolErr = false; try { new NQCE3_Fitness(full, null, new NQCE_Config(), new NQCE3_Library()); } catch (ArgumentException) { noVolErr = true; }
+				Chk("L10.3 NQCE3_Fitness exige volumen enlazado (error explicito)", noVolErr, "ok");
+				// presupuesto LRU: con presupuesto para ~3 series, la cache no crece y no se vacia de golpe
+				long old = NQCE3_Series.MemoBudgetBytes; NQCE3_Series.MemoBudgetBytes = 8L * 124 * 3; int maxCount = 0;
+				NQCE3_Series sL = new NQCE3_Series(full, v);
+				double a0 = sL.Feature(0, 10, 600);
+				for (int f = 1; f < 8; f++) { sL.Feature(f, 10, 600); if (sL.MemoCount > maxCount) maxCount = sL.MemoCount; }
+				double a1 = sL.Feature(0, 10, 600);
+				NQCE3_Series.MemoBudgetBytes = old;
+				Chk("L10.4 cache LRU: respeta el presupuesto (<=3 series), no se vacia de golpe y el valor recalculado es identico", maxCount == 3 && (a0 == a1 || (double.IsNaN(a0) && double.IsNaN(a1))), "max=" + I(maxCount));
+				// MACD memorizado == directo
+				NQCE3_Series sM = new NQCE3_Series(full, v);
+				bool same = true;
+				foreach (int at2 in new int[] { 575, 600, 650 })
+					same &= sM.MacdMemo(6, 12, at2) == NQCE3_M.EMA(sM, at2, 6) - NQCE3_M.EMA(sM, at2, 12) && sM.MacdMemo(6, 12, at2) == NQCE3_M.EMA(sM, at2, 6) - NQCE3_M.EMA(sM, at2, 12);
+				Chk("L10.5 MACD memorizado == calculo directo", same, "ok");
 			}
 
 			string status = fail == 0 ? "PASS" : "FALLA";

@@ -48,7 +48,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double atr=Math.Max(Atr(sr,at,n),1e-12);
 			if(f==0)return (close-AverageClose(sr,at,n))/atr;
 			if(f==1)return (close-EmaClose(sr,at,n,n))/atr;
-			if(f==2)return (AverageClose(sr,at,n)-EmaClose(sr,at,2*n,n))/atr;
+			if(f==2)return (AverageClose(sr,at,n)-EmaClose(sr,at,2*n,2*n))/atr;   // calentamiento 6n+5 para la EMA lenta (antes 3n+5)
 			if(f==3)
 			{
 				double num=0,den=n*(n+1)*0.5;
@@ -72,19 +72,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 					gain=(gain*(n-1)+Math.Max(diff,0))/n;
 					loss=(loss*(n-1)+Math.Max(-diff,0))/n;
 				}
-				if(gain+loss<1e-12)return 0;
-				return (gain-loss)/(gain+loss);
+				// D-018b: promedio Wilder de (alzas - bajas) por barra, en multiplos de ATR (antes razon acotada).
+				return (gain-loss)/atr;
 			}
 			if(f==5)
 			{
 				double mean=0;
 				for(int i=at-n+1;i<=at;i++)mean+=Typical(sr.Bar(i));
 				mean/=n;
-				double dev=0;
-				for(int i=at-n+1;i<=at;i++)
-					dev+=Math.Abs(Typical(sr.Bar(i))-mean);
-				dev/=n;
-				return dev<1e-12?0:(Typical(sr.Bar(at))-mean)/(0.015*dev*150);
+				// D-018b: (precio tipico - media) en multiplos de ATR (antes dividido por la desviacion media).
+				return (Typical(sr.Bar(at))-mean)/atr;
 			}
 			if(f==6)
 				return (close-sr.C[at-n])/(atr*Math.Sqrt(n));
@@ -93,17 +90,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				double hi=Double.NegativeInfinity,lo=Double.PositiveInfinity;
 				for(int i=at-n+1;i<=at;i++)
 				{hi=Math.Max(hi,sr.H[i]);lo=Math.Min(lo,sr.L[i]);}
-				return hi-lo<1e-12?0:2*(close-lo)/(hi-lo)-1;
+				// D-018b: distancia al punto medio del rango n en multiplos de ATR (antes posicion acotada).
+				return (close-(hi+lo)/2)/atr;
 			}
 			if(f==8)
-				return (EmaClose(sr,at,n,n)-EmaClose(sr,at,2*n,n))/atr;
+				return (EmaClose(sr,at,n,n)-EmaClose(sr,at,2*n,2*n))/atr;   // idem: calentamiento 6n+5 para la EMA lenta
 			if(f==9)
 			{
-				double avg=AverageClose(sr,at,n),v=0;
-				for(int i=at-n+1;i<=at;i++)
-					v+=Math.Pow(sr.C[i]-avg,2);
-				double sd=Math.Sqrt(v/n);
-				return sd<1e-12?0:(close-avg)/(2*sd);
+				// D-018b: cierre menos media en multiplos de ATR (antes dividido por 2 desviaciones tipicas).
+				double avg=AverageClose(sr,at,n);
+				return (close-avg)/atr;
 			}
 			if(f==10)
 			{
@@ -122,9 +118,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				double num=0,den=0;
 				for(int i=at-n+1;i<=at;i++)
 				{
-					double range=sr.H[i]-sr.L[i];
-					double clv=range<1e-12?0:
-						(2*sr.C[i]-sr.H[i]-sr.L[i])/range;
+					// D-018b: cierre menos punto medio de la barra en multiplos de ATR, ponderado por volumen.
+					double clv=(sr.C[i]-(sr.H[i]+sr.L[i])/2)/atr;
 					num+=clv*sr.V[i];den+=sr.V[i];
 				}
 				return den<1e-12?0:num/den;
@@ -136,8 +131,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	internal static class NQCE3_FeatExt
 	{
-		private static bool Finite(double x)
-		{return !Double.IsNaN(x)&&!Double.IsInfinity(x);}
 		private static double Div(double n,double d)
 		{return Math.Abs(d)<1e-12?0:n/d;}
 		private static double TrueRange(NQCE3_Series sr,int i)
@@ -196,9 +189,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			return sum/den;
 		}
-		private static double Clv(NQCE3_Bar b)
+		private static double ClvAtr(NQCE3_Series sr,int k,double atr)
 		{
-			return Div(2*b.Close-b.High-b.Low,b.High-b.Low);
+			return (sr.C[k]-(sr.H[k]+sr.L[k])/2)/atr;
 		}
 		private static double RSIFlux(NQCE3_Series sr,int at,int n,
 									  bool plus)
@@ -251,21 +244,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 16: return (close-Dema(sr,at,n))/atr;
 				case 17:
 				{
-					double signed=0,volume=0;
+					double signedSum=0,volume=0;
 					for(int k=start;k<=at;k++)
 					{
-						signed+=Math.Sign(sr.C[k]-sr.C[k-1])*
+						signedSum+=Math.Sign(sr.C[k]-sr.C[k-1])*
 							sr.V[k];
 						volume+=sr.V[k];
 					}
-					return Div(signed,volume);
+					return Div(signedSum,volume);
 				}
 				case 18:
 				{
+					// D-018b: (cierre - punto medio de la barra)/ATR ponderado por volumen (antes CLV acotado).
 					double flow=0,v=0;
 					for(int k=start;k<=at;k++)
 					{
-						flow+=Clv(sr.Bar(k))*sr.V[k];
+						flow+=ClvAtr(sr,k,atr)*sr.V[k];
 						v+=sr.V[k];
 					}
 					return Div(flow,v);
@@ -274,10 +268,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					// ADL slope uses volume flow; unlike CMF it divides
 					// by a rolling mean volume, keeping direction.
+					// D-018b: flujo con (cierre - punto medio)/ATR en lugar de CLV acotado.
 					double current=0,first=0,vol=0;
 					for(int k=start;k<=at;k++)
 					{
-						current+=Clv(sr.Bar(k))*sr.V[k];
+						current+=ClvAtr(sr,k,atr)*sr.V[k];
 						vol+=sr.V[k];
 						if(k==start)first=current;
 					}
@@ -297,9 +292,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					// EOM: midpoint displacement per normalized volume
 					// and range. Zero volume is treated as neutral.
-					double meanV=0;
-					for(int k=start;k<=at;k++)meanV+=sr.V[k];
-					meanV/=n;
+					// D-018b: UN solo factor ATR: desplazamiento del punto medio en ATR, ponderado por
+					// rango relativo (rango / rango medio) y volumen inverso relativo (volumen medio / volumen).
+					double meanV=0,meanR=0;
+					for(int k=start;k<=at;k++){meanV+=sr.V[k];meanR+=sr.H[k]-sr.L[k];}
+					meanV/=n;meanR/=n;
 					double sum=0;
 					for(int k=start;k<=at;k++)
 					{
@@ -307,7 +304,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						double mid=(sr.H[k]+sr.L[k])/2;
 						double prev=(sr.H[k-1]+sr.L[k-1])/2;
 						sum+=(mid-prev)/atr*
-							(sr.H[k]-sr.L[k])/atr*
+							Div(sr.H[k]-sr.L[k],meanR)*
 							Div(meanV,sr.V[k]);
 					}
 					return sum/n;
@@ -324,7 +321,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						m+=d>u && d>0?d:0;
 						tr+=TrueRange(sr,k);
 					}
-					double dmi=Div(p-m,tr);
+					// D-018b: tr = suma de TR = n*ATR, asi que dmi es el movimiento direccional neto medio por barra en ATR.
+					double dmi=Div(p-m,n*atr);
 					if(family==22)return dmi;
 					// Wilder/ADX-inspired finite window signed strength
 					// term: DX magnitude applied to prevailing DI sign.
@@ -360,45 +358,44 @@ namespace NinjaTrader.NinjaScript.Strategies
 						minus+=Math.Abs(sr.L[k]-sr.H[k-1]);
 						tr+=TrueRange(sr,k);
 					}
-					return Div(plus-minus,tr);
+					// D-018b: tr = suma de TR = n*ATR (se explicita; mismo valor), vortex neto por barra en ATR.
+					return Div(plus-minus,n*atr);
 				}
 				case 26:
 				{
-					double changes=0;
-					for(int k=start;k<=at;k++)
-						changes+=Math.Abs(sr.C[k]-sr.C[k-1]);
-					return Div(close-sr.C[at-n],changes);
+					// D-018b: desplazamiento neto de n barras en ATR (antes dividido por el camino recorrido).
+					return (close-sr.C[at-n])/atr;
 				}
 				case 27:
 				{
+					// D-018b: (alzas - bajas) = desplazamiento neto; por barra y en ATR (antes razon acotada).
 					double gain=RSIFlux(sr,at,n,true);
 					double loss=RSIFlux(sr,at,n,false);
-					return Div(gain-loss,gain+loss);
+					return (gain-loss)/(n*atr);
 				}
 				case 28:
 				{
 					// TSI from two cascaded EMA smoothings of momenta
 					// using the SAME n, denominator uses abs momentum.
-					int from=Math.Max(1,at-3*n-5);
+					int startIdx=Math.Max(1,at-3*n-5);
 					double alpha=2.0/(n+1);
-					double s=sr.C[from]-sr.C[from-1];
-					double a=Math.Abs(s),d=s,e=a;
-					for(int k=from+1;k<=at;k++)
+					double s=sr.C[startIdx]-sr.C[startIdx-1];
+					double d=s;
+					for(int k=startIdx+1;k<=at;k++)
 					{
 						double change=sr.C[k]-sr.C[k-1];
 						s+=alpha*(change-s);
-						a+=alpha*(Math.Abs(change)-a);
 						d+=alpha*(s-d);
-						e+=alpha*(a-e);
 					}
-					return Div(d,e);
+					// D-018b: momento doble suavizado en ATR (antes dividido por el |momento| doble suavizado).
+					return d/atr;
 				}
 				case 29:
 				{
 					double alpha=2.0/(n+1);
-					int from=Math.Max(0,at-3*n-5);
-					double e1=sr.C[from],e2=e1,e3=e2,prior=e3;
-					for(int k=from+1;k<=at;k++)
+					int startIdx=Math.Max(0,at-3*n-5);
+					double e1=sr.C[startIdx],e2=e1,e3=e2,prior=e3;
+					for(int k=startIdx+1;k<=at;k++)
 					{
 						prior=e3;
 						e1+=alpha*(sr.C[k]-e1);
@@ -420,16 +417,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 					// MACD histogram: EMA(n)-EMA(2n)-EMA(n) of their
 					// past MACD sequence; normalized by ATR.
 					double signal=0,a=2.0/(n+1);
-					int from=at-n+1;
-					for(int k=from;k<=at;k++)
+					int startIdx=at-n+1;
+					for(int k=startIdx;k<=at;k++)
 					{
-						double macd=EMA(sr,k,n,j=>sr.C[j])-
-							EMA(sr,k,2*n,j=>sr.C[j]);
-						if(k==from)signal=macd;
+						double macd=sr.MacdMemo(n,2*n,k);
+						if(k==startIdx)signal=macd;
 						else signal+=a*(macd-signal);
 					}
-					double last=EMA(sr,at,n,k=>sr.C[k])-
-						EMA(sr,at,2*n,k=>sr.C[k]);
+					double last=sr.MacdMemo(n,2*n,at);
 					return (last-signal)/atr;
 				}
 				case 32:
@@ -458,27 +453,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				case 34:
 				{
-					double num=0,den=0;
-					for(int k=start;k<=at;k++)
-					{
-						num+=sr.C[k]-sr.O[k];
-						den+=sr.H[k]-sr.L[k];
-					}
-					return Div(num,den);
+					// D-018b: cuerpo medio (C-O) en ATR (antes Sum(C-O)/Sum(H-L)).
+					double num=0;
+					for(int k=start;k<=at;k++)num+=sr.C[k]-sr.O[k];
+					return Div(num,n*atr);
 				}
 				case 35:
 				{
-					double expansion=0,direction=0;
+					// D-018b: impulso direccional medio por barra en ATR (antes dividido por la expansion total).
+					double direction=0;
 					for(int k=start;k<=at;k++)
 					{
 						double range=sr.H[k]-sr.L[k];
 						double prev=sr.H[k-1]-sr.L[k-1];
 						double impulse=Math.Max(0,range-prev);
-						expansion+=impulse;
 						direction+=Math.Sign(sr.C[k]-sr.C[k-1])*
 							impulse;
 					}
-					return Div(direction,expansion);
+					return Div(direction,n*atr);
 				}
 			}
 			throw new ArgumentOutOfRangeException("family");
@@ -492,7 +484,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public static double Compute(NQCE3_Series sr,int at,int n,int f)
 		{
 			double p=sr.C[at],atr=NQCE3_M.ATR(sr,at,n);
-			int half=Math.Max(2,n/2),slow=Math.Max(3,2*n);
+			int half=Math.Max(2,n/2);
 			switch(f)
 			{
 				case 36: // fast / slow simple-average spread
@@ -525,11 +517,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 							NQCE3_M.LinSlope(sr,at-n/2,n))/atr;
 				case 44: // KAMA recursive smoothed trend displacement
 				{
-					int from=at-2*n;
-					double kama=sr.C[from];
-					for(int k=from+1;k<=at;k++)
+					int startIdx=at-2*n;
+					double kama=sr.C[startIdx];
+					for(int k=startIdx+1;k<=at;k++)
 					{
-						int t=Math.Max(from,k-n),diffs=0;
+						int t=Math.Max(startIdx,k-n),diffs=0;
 						double travel=0;
 						for(int j=t+1;j<=k;j++)
 						{
@@ -568,15 +560,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				case 46: // McGinley Dynamic adaptivity using price ratio
 				{
-					double dynamic=sr.C[at-2*n];
+					double mcg=sr.C[at-2*n];
 					for(int k=at-2*n+1;k<=at;k++)
 					{
-						double ratio=NQCE3_M.Div(sr.C[k],dynamic);
+						double ratio=NQCE3_M.Div(sr.C[k],mcg);
 						double denom=n*Math.Pow(NQCE3_M.Clip(ratio,0.5,2),4);
-						dynamic+=NQCE3_M.Div(sr.C[k]-dynamic,
+						mcg+=NQCE3_M.Div(sr.C[k]-mcg,
 							Math.Max(1,denom));
 					}
-					return (p-dynamic)/atr;
+					return (p-mcg)/atr;
 				}
 				case 47: // Tillson T3, six EMA cascades, fixed vfactor=.7
 				{
@@ -665,42 +657,40 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return NQCE3_M.Div(2*sr.C[at]-hi-lo,hi-lo);
 		}
 		private static double MACD(NQCE3_Series sr,int at,int n)
-		{return NQCE3_M.EMA(sr,at,Math.Max(2,n/2))-
-				NQCE3_M.EMA(sr,at,Math.Max(3,2*n));}
+		{return sr.MacdMemo(Math.Max(2,n/2),Math.Max(3,2*n),at);}   // memorizado por barra (mismos valores)
 		private static double TRIX(NQCE3_Series sr,int at,int n)
 		{
-			int from=Math.Max(0,at-3*n-4);
-			double alpha=2.0/(n+1),e1=sr.C[from],e2=e1,e3=e2,
+			int startIdx=Math.Max(0,at-3*n-4);
+			double alpha=2.0/(n+1),e1=sr.C[startIdx],e2=e1,e3=e2,
 				   prior=e3;
-			for(int k=from+1;k<=at;k++)
+			for(int k=startIdx+1;k<=at;k++)
 			{
 				prior=e3;
 				e1+=alpha*(sr.C[k]-e1);
 				e2+=alpha*(e1-e2);
 				e3+=alpha*(e2-e3);
 			}
-			return NQCE3_M.Div(e3-prior,Math.Abs(e3));
+			return e3-prior;   // D-018b: cambio de la triple EMA en puntos (antes en % de la EMA); se divide por ATR al usarlo
 		}
 		private static double SMI(NQCE3_Series sr,int at,int n)
 		{
-			int from=at-n+1;
+			int startIdx=at-n+1;
 			double alpha=2.0/(Math.Max(2,n/2)+1);
-			double d=0,r=0,d2=0,r2=0;
-			for(int k=from;k<=at;k++)
+			double d=0,d2=0;
+			for(int k=startIdx;k<=at;k++)
 			{
 				int look=Math.Min(n,k+1);
 				double hi=NQCE3_M.Highest(sr,k,look,2),
 					   lo=NQCE3_M.Lowest(sr,k,look,3);
 				double x=sr.C[k]-(hi+lo)/2;
-				double half=(hi-lo)/2;
-				if(k==from){d=x;r=half;d2=d;r2=r;}
+				if(k==startIdx){d=x;d2=d;}
 				else
 				{
-					d+=alpha*(x-d);r+=alpha*(half-r);
-					d2+=alpha*(d-d2);r2+=alpha*(r-r2);
+					d+=alpha*(x-d);
+					d2+=alpha*(d-d2);
 				}
 			}
-			return NQCE3_M.Div(d2,r2);
+			return d2;   // D-018b: en puntos; se divide por ATR al usarlo (antes dividido por el medio rango suavizado)
 		}
 		public static double Compute(NQCE3_Series sr,int at,int n,int f)
 		{
@@ -710,7 +700,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				case 57: // Williams accumulation/distribution (WAD)
 				{
-					double ad=0,scale=0;
+					double ad=0;
 					for(int k=start;k<=at;k++)
 					{
 						double prev=sr.C[k-1];
@@ -719,16 +709,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 							sr.C[k]<prev?Math.Max(sr.H[k],prev):
 							sr.C[k];
 						ad+=sr.C[k]-reference;
-						scale+=NQCE3_M.TR(sr,k);
 					}
-					return NQCE3_M.Div(ad,scale);
+					// D-018b: suma de TR = n*ATR; WAD medio por barra en ATR.
+					return NQCE3_M.Div(ad,n*atr);
 				}
 				case 58: // Ultimate oscillator with 7/14/28 scaled by n
 				{
 					double value=0;
-					for(int group=0;group<3;group++)
+					for(int grp=0;grp<3;grp++)
 					{
-						int lag=group==0?half:group==1?n:2*n;
+						int lag=grp==0?half:grp==1?n:2*n;
 						double bp=0,tr=0;
 						for(int k=at-lag+1;k<=at;k++)
 						{
@@ -737,10 +727,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 							tr+=Math.Max(sr.H[k],prev)-
 								Math.Min(sr.L[k],prev);
 						}
-						value+=(group==0?4:group==1?2:1)*
-							NQCE3_M.Div(bp,tr);
+						// D-018b: (2*bp - tr)/(lag*ATR); identico al oscilador centrado con tr -> lag*ATR.
+						value+=(grp==0?4:grp==1?2:1)*
+							NQCE3_M.Div(2*bp-tr,lag*atr);
 					}
-					return 2*value/7-1;
+					return value/7;
 				}
 				case 59: // stochastic RSI with rolling RSI extrema
 				{
@@ -781,13 +772,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 						double d=sr.C[k]-sr.C[k-half];
 						up+=Math.Max(d,0);down+=Math.Max(-d,0);
 					}
-					return NQCE3_M.Div(up-down,up+down);
+					// D-018b: momento neto por barra en ATR (antes razon acotada).
+					return NQCE3_M.Div(up-down,n*atr);
 				}
-				case 62: // Difference between short and long RSI, signed
-					return NQCE3_M.RSI(sr,at,half)-NQCE3_M.RSI(sr,at,n);
-				case 63: // Percentage price oscillator
-					return NQCE3_M.Div(MACD(sr,at,n),
-						NQCE3_M.EMA(sr,at,2*n));
+				case 62: // Difference between short and long momentum balance, signed
+					// D-018b: (alzas-bajas) de n barras = C-C[n]; diferencia corto-largo por barra en ATR.
+					return NQCE3_M.Div(p-sr.C[at-half],half*atr)-
+						NQCE3_M.Div(p-sr.C[at-n],n*atr);
+				case 63: // MACD (EMA n/2 - EMA 2n) en ATR
+					// D-018b: antes PPO = MACD / EMA(2n) (porcentaje de precio).
+					return NQCE3_M.Div(MACD(sr,at,n),atr);
 				case 64: // Percentage volume oscillator
 					return NQCE3_M.Div(NQCE3_M.EMA(sr,at,half,4)-
 						NQCE3_M.EMA(sr,at,n,4),NQCE3_M.EMA(sr,at,n,4));
@@ -799,7 +793,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						int lag=level*half;
 						double avg=0;
 						for(int j=0;j<half;j++)
-							avg+=NQCE3_M.ROC(sr,at-j,lag);
+							avg+=(sr.C[at-j]-sr.C[at-j-lag])/atr;   // D-018b: cambio de precio en ATR (antes ROC %)
 						kst+=level*avg/half;
 					}
 					return kst/10;
@@ -813,8 +807,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						double a=0,z=0;
 						for(int j=0;j<half;j++)
 						{
-							a+=NQCE3_M.ROC(sr,at-j,lag);
-							z+=NQCE3_M.ROC(sr,at-j-1,lag);
+							a+=(sr.C[at-j]-sr.C[at-j-lag])/atr;       // D-018b: cambio de precio en ATR (antes ROC %)
+							z+=(sr.C[at-j-1]-sr.C[at-j-1-lag])/atr;
 						}
 						current+=level*a/half;
 						previous+=level*z/half;
@@ -822,7 +816,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					return (current-previous)/10;
 				}
 				case 67: // TRIX momentum acceleration
-					return (TRIX(sr,at,n)-TRIX(sr,at-1,n))*100;
+					return (TRIX(sr,at,n)-TRIX(sr,at-1,n))/atr;   // D-018b: aceleracion en ATR (antes *100 sobre %)
 				case 68: // Inverse Fisher transform of RSI
 					return Math.Tanh(2.5*NQCE3_M.RSI(sr,at,n));
 				case 69: // STC-like double stochastic normalization MACD
@@ -849,7 +843,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					return 2*(0.5*stoch+0.5*mean/n)-1;
 				}
 				case 70: // Double-smoothed stochastic momentum index
-					return SMI(sr,at,n);
+					return SMI(sr,at,n)/atr;
 				case 71: // Choppiness index with directional trend sign
 				{
 					double sum=0;
@@ -863,20 +857,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				case 72: // CCI of typical price, EMA center versus SMA
 				{
-					double t=NQCE3_M.P(sr,at,5),mean=NQCE3_M.EMA(sr,at,n,5),dev=0;
-					for(int k=start;k<=at;k++)
-						dev+=Math.Abs(NQCE3_M.P(sr,k,5)-mean);
-					return NQCE3_M.Div(t-mean,0.015*dev/n*150);
+					// D-018b: (tipico - EMA del tipico) en ATR (antes dividido por la desviacion media).
+					double t=NQCE3_M.P(sr,at,5),mean=NQCE3_M.EMA(sr,at,n,5);
+					return NQCE3_M.Div(t-mean,atr);
 				}
 				case 73: // Ehlers center of gravity weighted-price oscillator
 				{
-					double weighted=0,total=0;
-					for(int j=0;j<n;j++)
-					{
-						double x=sr.C[at-j];
-						weighted+=(n-j)*x;total+=x;
-					}
-					return 2*NQCE3_M.Div(weighted,total)/(n+1)-1;
+					// D-018b: WMA - SMA en ATR (antes (WMA-SMA)/SMA, es decir porcentaje de precio).
+					return (NQCE3_M.WMA(sr,at,n)-NQCE3_M.SMA(sr,at,n))/atr;
 				}
 				case 74: // Laguerre RSI 4-filter, gamma 0.5
 				{
@@ -890,11 +878,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						l2=-0.5*l1+bb+0.5*c;
 						l3=-0.5*l2+c+0.5*d;
 					}
-					double cu=Math.Max(0,l0-l1)+Math.Max(0,l1-l2)+
-						Math.Max(0,l2-l3);
-					double cd=Math.Max(0,l1-l0)+Math.Max(0,l2-l1)+
-						Math.Max(0,l3-l2);
-					return NQCE3_M.Div(cu-cd,cu+cd);
+					// D-018b: cu-cd = l0-l3 (telescopico); en ATR (antes razon acotada cu/(cu+cd)).
+					return (l0-l3)/atr;
 				}
 				case 75: // Coppock: WMA of dual ROC
 				{
@@ -902,18 +887,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 					for(int j=0;j<n;j++)
 					{
 						int k=at-j;double w=n-j;
-						sum+=w*(NQCE3_M.ROC(sr,k,half)+NQCE3_M.ROC(sr,k,n));
+						sum+=w*((sr.C[k]-sr.C[k-half])+(sr.C[k]-sr.C[k-n]))/atr;   // D-018b: cambio de precio en ATR (antes ROC %)
 						weight+=w;
 					}
 					return NQCE3_M.Div(sum,weight);
 				}
 				case 76: // Balance of Power, SMA normalized candle body/range
 				{
+					// D-018b: cuerpo medio (C-O) en ATR (antes C-O sobre el rango de cada barra).
 					double sum=0;
 					for(int k=start;k<=at;k++)
-						sum+=NQCE3_M.Div(sr.C[k]-sr.O[k],
-								   sr.H[k]-sr.L[k]);
-					return sum/n;
+						sum+=sr.C[k]-sr.O[k];
+					return NQCE3_M.Div(sum,n*atr);
 				}
 				case 77: // Elder bull/bear power, full range above/below EMA
 				{
@@ -941,12 +926,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			return Math.Sqrt(s/n);
 		}
+		// D-018b: estimadores de volatilidad en PUNTOS (precio), se dividen por ATR al usarlos (antes en log-retorno).
 		private static double Parkinson(NQCE3_Series sr,int at,int n)
 		{
 			double v=0;
 			for(int k=at-n+1;k<=at;k++)
 			{
-				double x=Math.Log(sr.H[k]/sr.L[k]);
+				double x=sr.H[k]-sr.L[k];
 				v+=x*x;
 			}
 			return Math.Sqrt(v/(4*n*Math.Log(2)));
@@ -956,8 +942,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double v=0;
 			for(int k=at-n+1;k<=at;k++)
 			{
-				double hl=Math.Log(sr.H[k]/sr.L[k]),
-					co=Math.Log(sr.C[k]/sr.O[k]);
+				double hl=sr.H[k]-sr.L[k],
+					co=sr.C[k]-sr.O[k];
 				v+=0.5*hl*hl-(2*Math.Log(2)-1)*co*co;
 			}
 			return Math.Sqrt(Math.Max(0,v/n));
@@ -968,8 +954,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for(int k=at-n+1;k<=at;k++)
 			{
 				var c=sr.Bar(k);
-				v+=Math.Log(c.High/c.Close)*Math.Log(c.High/c.Open)+
-					Math.Log(c.Low/c.Close)*Math.Log(c.Low/c.Open);
+				v+=(c.High-c.Close)*(c.High-c.Open)+
+					(c.Low-c.Close)*(c.Low-c.Open);
 			}
 			return Math.Sqrt(Math.Max(0,v/n));
 		}
@@ -978,18 +964,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double meanOvernight=0,meanDay=0,overnight=0,day=0,rs=0;
 			for(int k=at-n+1;k<=at;k++)
 			{
-				meanOvernight+=Math.Log(sr.O[k]/sr.C[k-1]);
-				meanDay+=Math.Log(sr.C[k]/sr.O[k]);
+				meanOvernight+=sr.O[k]-sr.C[k-1];
+				meanDay+=sr.C[k]-sr.O[k];
 			}
 			meanOvernight/=n;meanDay/=n;
 			for(int k=at-n+1;k<=at;k++)
 			{
-				double o=Math.Log(sr.O[k]/sr.C[k-1])-meanOvernight;
-				double d=Math.Log(sr.C[k]/sr.O[k])-meanDay;
+				double o=sr.O[k]-sr.C[k-1]-meanOvernight;
+				double d=sr.C[k]-sr.O[k]-meanDay;
 				overnight+=o*o;day+=d*d;
 				var c=sr.Bar(k);
-				rs+=Math.Log(c.High/c.Close)*Math.Log(c.High/c.Open)+
-					Math.Log(c.Low/c.Close)*Math.Log(c.Low/c.Open);
+				rs+=(c.High-c.Close)*(c.High-c.Open)+
+					(c.Low-c.Close)*(c.Low-c.Open);
 			}
 			double w=0.34/(1.34+(n+1.0)/Math.Max(1,n-1));
 			return Math.Sqrt(Math.Max(0,
@@ -1034,7 +1020,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						atr)*w;
 				}
 				case 83: // Bollinger bandwidth regime weighted by trend
-					return trend*NQCE3_M.Div(4*NQCE3_M.Std(sr,at,n),p);
+					// D-018b: ancho de banda en ATR (antes dividido por el precio)
+					return trend*NQCE3_M.Div(4*NQCE3_M.Std(sr,at,n),atr);
 				case 84: // signed change in realized price deviation
 					return NQCE3_M.Direction(sr,at,h)*
 						(NQCE3_M.Std(sr,at,n)-NQCE3_M.Std(sr,at-1,n))/atr;
@@ -1042,22 +1029,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 					return NQCE3_M.Direction(sr,at,h)*
 						NQCE3_M.Div(StdLog(sr,at,n)-StdLog(sr,at-1,n),
 							  Math.Max(StdLog(sr,at-1,n),NQCE3_M.Eps));
-				case 86: // normalized ATR change in price-normalized units
+				case 86: // ATR change in ATR units
+					// D-018b: variacion de ATR en multiplos de ATR (antes ATR/precio)
 					return NQCE3_M.Direction(sr,at,h)*
-						(atr/p-NQCE3_M.ATR(sr,at-1,n)/sr.C[at-1]);
+						(atr-NQCE3_M.ATR(sr,at-1,n))/atr;
 				case 87: // Parkinson high-low volatility signed by trend
-					return Math.Sign(trend)*Parkinson(sr,at,n);
+					return Math.Sign(trend)*Parkinson(sr,at,n)/atr;
 				case 88: // Garman-Klass OHLC volatility signed by trend
-					return Math.Sign(trend)*GarmanKlass(sr,at,n);
+					return Math.Sign(trend)*GarmanKlass(sr,at,n)/atr;
 				case 89: // Rogers-Satchell stochastic OHLC volatility
-					return Math.Sign(trend)*RogersSatchell(sr,at,n);
+					return Math.Sign(trend)*RogersSatchell(sr,at,n)/atr;
 				case 90: // Yang-Zhang overnight + intrabar volatility
-					return Math.Sign(trend)*YangZhang(sr,at,n);
+					return Math.Sign(trend)*YangZhang(sr,at,n)/atr;
 				case 91: // Chaikin volatility of EMA high-low spread
 				{
 					double current=NQCE3_M.EMA(sr,at,n,9);
 					double old=NQCE3_M.EMA(sr,at-h,n,9);
-					return NQCE3_M.Direction(sr,at,h)*NQCE3_M.Div(current-old,old);
+					// D-018b: cambio del EMA del rango en ATR (antes cambio relativo %)
+					return NQCE3_M.Direction(sr,at,h)*NQCE3_M.Div(current-old,atr);
 				}
 				case 92: // downside ulcer drawdown scaled by trend
 				{
@@ -1065,7 +1054,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					for(int k=start;k<=at;k++)
 					{
 						double hi=NQCE3_M.Highest(sr,k,Math.Min(n,k+1),0);
-						double dd=NQCE3_M.Div(sr.C[k]-hi,hi);
+						double dd=NQCE3_M.Div(sr.C[k]-hi,atr);   // D-018b: caida en ATR (antes % del maximo)
 						ulcer+=dd*dd;
 					}
 					return NQCE3_M.Div(trend,
@@ -1165,9 +1154,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			// edge case uses close, never a future quote.
 			double a=NQCE3_M.EMA(sr,at,n,4);
 			double alpha=2.0/(n+1);
-			int from=Math.Max(0,at-3*n-5);
-			double numerator=sr.C[from]*sr.V[from];
-			for(int k=from+1;k<=at;k++)
+			int startIdx=Math.Max(0,at-3*n-5);
+			double numerator=sr.C[startIdx]*sr.V[startIdx];
+			for(int k=startIdx+1;k<=at;k++)
 				numerator+=alpha*(sr.C[k]*sr.V[k]-numerator);
 			return a>NQCE3_M.Eps?numerator/a:sr.C[at];
 		}
@@ -1188,14 +1177,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 						NQCE3_M.SMA(sr,at,half,4)-NQCE3_M.SMA(sr,at,n,4),
 						NQCE3_M.SMA(sr,at,n,4));
 				case 100: // relative volume surprise weighted price ROC
-					return NQCE3_M.ROC(sr,at,half)*
+					// D-018b: cambio de precio en ATR (antes ROC %)
+					return NQCE3_M.Div(price-sr.C[at-half],atr)*
 						NQCE3_M.Div(sr.V[at],NQCE3_M.SMA(sr,at,n,4));
 				case 101: // NVI: cumulative return on declining volume days
 				{
 					double value=0;
 					for(int k=start;k<=at;k++)
 						if(sr.V[k]<sr.V[k-1])
-							value+=NQCE3_M.ROC(sr,k,1);
+							value+=(sr.C[k]-sr.C[k-1])/atr;   // D-018b: ATR en vez de retorno %
 					return value;
 				}
 				case 102: // PVI: cumulative return on rising volume days
@@ -1203,7 +1193,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					double value=0;
 					for(int k=start;k<=at;k++)
 						if(sr.V[k]>sr.V[k-1])
-							value+=NQCE3_M.ROC(sr,k,1);
+							value+=(sr.C[k]-sr.C[k-1])/atr;   // D-018b: ATR en vez de retorno %
 					return value;
 				}
 				case 103: // VFI: capped typical change times traded volume
@@ -1232,26 +1222,26 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					double a=0;
 					for(int k=start;k<=at;k++)
-						a+=NQCE3_M.ROC(sr,k,1)*sr.V[k];
-					return NQCE3_M.Div(a,volume);
+						a+=(sr.C[k]-sr.C[k-1])*sr.V[k];
+					return NQCE3_M.Div(a,volume*atr);   // D-018b: cambio en ATR ponderado por volumen (antes retorno %)
 				}
 				case 105: // PVT smoothed momentum, not raw PVT
 				{
-					int from=at-2*n,alphaN=n;
+					int startIdx=at-2*n,alphaN=n;
 					double alpha=2.0/(alphaN+1),raw=0,smoothed=0;
-					for(int k=from+1;k<=at;k++)
+					for(int k=startIdx+1;k<=at;k++)
 					{
-						raw+=NQCE3_M.ROC(sr,k,1)*sr.V[k];
+						raw+=(sr.C[k]-sr.C[k-1])*sr.V[k];   // D-018b: puntos*volumen (antes retorno % * volumen)
 						smoothed+=alpha*(raw-smoothed);
 					}
-					return NQCE3_M.Div(raw-smoothed,volume);
+					return NQCE3_M.Div(raw-smoothed,volume*atr);
 				}
 				case 106: // Klinger-like dual EMA volume-force oscillator
 				{
-					int from=Math.Max(1,at-3*n-5);
-					double eShort=Flow(sr,from),eLong=eShort;
+					int startIdx=Math.Max(1,at-3*n-5);
+					double eShort=Flow(sr,startIdx),eLong=eShort;
 					double ashort=2.0/(half+1),along=2.0/(n+1);
-					for(int k=from+1;k<=at;k++)
+					for(int k=startIdx+1;k<=at;k++)
 					{
 						double force=Flow(sr,k);
 						eShort+=ashort*(force-eShort);
@@ -1262,19 +1252,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				case 107: // Twiggs-like smoothed money flow
 				{
-					int from=at-2*n;
+					int startIdx=at-2*n;
 					double numerator=0,den=0,alpha=2.0/(n+1);
-					for(int k=from;k<=at;k++)
+					for(int k=startIdx;k<=at;k++)
 					{
 						var x=sr.Bar(k);
-						double spread=Math.Max(x.High,
-							sr.C[Math.Max(0,k-1)])-
-							Math.Min(x.Low,sr.C[Math.Max(0,k-1)]);
-						double mf=NQCE3_M.Div(2*x.Close-
-							Math.Max(x.High,sr.C[k-1])-
-							Math.Min(x.Low,sr.C[k-1]),spread)*
+						// D-018b: (cierre - punto medio del rango verdadero)/ATR (antes acotado por el rango verdadero)
+						double pc=sr.C[Math.Max(0,k-1)];
+						double mf=(x.Close-(Math.Max(x.High,pc)+Math.Min(x.Low,pc))/2)/atr*
 							x.Volume;
-						if(k==from){numerator=mf;den=x.Volume;}
+						if(k==startIdx){numerator=mf;den=x.Volume;}
 						else
 						{
 							numerator+=alpha*(mf-numerator);
@@ -1292,7 +1279,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						up+=Math.Max(0,d)*sr.V[k];
 						down+=Math.Max(0,-d)*sr.V[k];
 					}
-					return NQCE3_M.Div(up-down,up+down);
+					// D-018b: cambio de cierre ponderado por volumen en ATR (antes razon acotada)
+					return NQCE3_M.Div(up-down,volume*atr);
 				}
 				case 109: // VEMA fast-slow volume-adjusted MACD / ATR
 					return (Vema(sr,at,half)-Vema(sr,at,n))/atr;
@@ -1313,18 +1301,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 112: // tick-free proportional body/volume delta
 				{
 					double delta=0;
-					for(int k=start;k<=at;k++)
-						delta+=NQCE3_M.Div(sr.C[k]-sr.O[k],
-							sr.H[k]-sr.L[k])*sr.V[k];
+					for(int k=start;k<=at;k++)   // D-018b: cuerpo en ATR (antes cuerpo/rango de la barra)
+						delta+=NQCE3_M.Div(sr.C[k]-sr.O[k],atr)*sr.V[k];
 					return NQCE3_M.Div(delta,volume);
 				}
 				case 113: // Heikin Ashi causal candle body strength
 				{
-					int from=at-n+1;
-					double haOpen=(sr.O[from]+sr.C[from])/2;
-					double haClose=(sr.O[from]+sr.H[from]+
-						sr.L[from]+sr.C[from])/4;
-					for(int k=from+1;k<=at;k++)
+					int startIdx=at-n+1;
+					double haOpen=(sr.O[startIdx]+sr.C[startIdx])/2;
+					double haClose=(sr.O[startIdx]+sr.H[startIdx]+
+						sr.L[startIdx]+sr.C[startIdx])/4;
+					for(int k=startIdx+1;k<=at;k++)
 					{
 						double prevOpen=haOpen,prevClose=haClose;
 						haOpen=(prevOpen+prevClose)/2;
@@ -1338,8 +1325,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					double body=price-sr.O[at];
 					double upper=sr.H[at]-Math.Max(price,sr.O[at]);
 					double lower=Math.Min(price,sr.O[at])-sr.L[at];
-					return NQCE3_M.Div(body+lower-upper,
-						sr.H[at]-sr.L[at]);
+					// D-018b: presion cuerpo-mechas en ATR (antes dividida por el rango de la barra)
+					return NQCE3_M.Div(body+lower-upper,atr);
 				}
 				case 115: // two-candle engulfing body pattern
 				{
@@ -1378,10 +1365,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 					double path=0;
 					for(int k=start;k<=at;k++)
 					{
-						double delta=sr.C[k]-sr.C[k-1];
+						// D-018b: la constante 1 punto se vuelve 1 ATR (delta en ATR)
+						double delta=(sr.C[k]-sr.C[k-1])/atr;
 						path+=Math.Sqrt(delta*delta+1);
 					}
-					double net=price-sr.C[at-n];
+					double net=(price-sr.C[at-n])/atr;
 					double direct=Math.Sqrt(net*net+n*n);
 					return Math.Sign(net)*NQCE3_M.Div(direct,path);
 				}

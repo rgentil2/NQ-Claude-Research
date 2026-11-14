@@ -104,6 +104,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 		internal static double SumVolume(NQCE3_Series sr,int at,int n)
 		{
+			if(sr.V==null)return 0;   // sin volumen enlazado (familias 113-119 no lo usan)
 			double s=0;for(int k=at-n+1;k<=at;k++)s+=sr.V[k];
 			return s;
 		}

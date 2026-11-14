@@ -23,20 +23,26 @@ namespace NinjaTrader.NinjaScript.Strategies
 	}
 
 	// Serie OHLCV (arreglos de NQCE_Bars + volumen opcional). El volumen NO esta en NQCE_Bars (ET1 Core).
+	// Memoria: series (familia,periodo) y MACD auxiliares en una cache con presupuesto en bytes y expulsion LRU.
+	// El umbral (D-030) NO forma parte de la clave: se compara contra la MISMA serie de la familia.
 	public sealed class NQCE3_Series
 	{
 		public double[] O, H, L, C, V; public int Count; public bool HasVolume;
 		public int[] DayStart;             // indice de la primera barra del dia calendario de cada barra
 		public NQCE_Bars Src;
-		public const int MaxMemoSeries = 300;       // tope de series (familia,periodo) en memoria; al superarlo se vacia
-		private int[] pos; private int winCount;
-		private Dictionary<int, double[]> memo = new Dictionary<int, double[]>();
-		private const double Unset = double.NaN, NonFinite = double.MaxValue;
+		public static long MemoBudgetBytes = 256L * 1024 * 1024;   // presupuesto de la cache por serie de barras
+		private sealed class Entry { public double[] A; public long Used; }
+		private int[] pos; private int winCount; private long tick;
+		private Dictionary<int, Entry> memo = new Dictionary<int, Entry>();
+		private static readonly double NonFiniteMark = double.NegativeInfinity;   // Clean() nunca devuelve infinitos: marca "calculado, no finito"
 
 		public NQCE3_Series(NQCE_Bars b, double[] volume)
 		{
 			Src = b; O = b.O; H = b.H; L = b.L; C = b.C; Count = b.Count;
 			if (volume != null && volume.Length != Count) throw new ArgumentException("volumen: longitud distinta de las barras");
+			for (int i = 0; i < Count; i++)
+				if (!Fin(O[i]) || !Fin(H[i]) || !Fin(L[i]) || !Fin(C[i]) || (volume != null && (!Fin(volume[i]) || volume[i] < 0)))
+					throw new ArgumentException("barra " + i.ToString(CultureInfo.InvariantCulture) + ": valor no finito (OHLC) o volumen negativo/no finito");
 			V = volume; HasVolume = volume != null;
 			DayStart = new int[Count]; pos = new int[Count]; winCount = 0;
 			for (int i = 0; i < Count; i++)
@@ -46,6 +52,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (st >= NQCE_Const.StampLoadFrom && st <= NQCE_Const.StampLoadTo) pos[i] = winCount++; else pos[i] = -1;
 			}
 		}
+		private static bool Fin(double x) { return !double.IsNaN(x) && !double.IsInfinity(x); }
 
 		public NQCE3_Bar Bar(int k)
 		{
@@ -53,22 +60,44 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return r;
 		}
 
+		private double[] GetArr(int key)
+		{
+			Entry e;
+			if (memo.TryGetValue(key, out e)) { e.Used = ++tick; return e.A; }
+			long each = 8L * Math.Max(1, winCount);
+			while (memo.Count > 0 && (memo.Count + 1) * each > MemoBudgetBytes)
+			{
+				int lru = 0; long best = long.MaxValue;
+				foreach (KeyValuePair<int, Entry> kv in memo) if (kv.Value.Used < best) { best = kv.Value.Used; lru = kv.Key; }
+				memo.Remove(lru);                                  // LRU: se expulsa la menos usada, no se vacia todo
+			}
+			e = new Entry(); e.A = new double[winCount]; for (int i = 0; i < winCount; i++) e.A[i] = double.NaN;
+			e.Used = ++tick; memo[key] = e; return e.A;
+		}
+		public int MemoCount { get { return memo.Count; } }
+
 		// Valor de la familia f con periodo n en la barra at (memorizado si at cae en la ventana de carga).
 		// Devuelve NaN si el valor no es finito.
 		public double Feature(int f, int n, int at)
 		{
 			int p = pos[at];
 			if (p < 0) return Clean(NQCE3_Features.Compute(this, at, f, n));
-			int key = f * 64 + n; double[] arr;
-			if (!memo.TryGetValue(key, out arr))
-			{
-				if (memo.Count >= MaxMemoSeries) memo.Clear();
-				arr = new double[winCount]; for (int i = 0; i < winCount; i++) arr[i] = Unset;
-				memo[key] = arr;
-			}
+			double[] arr = GetArr(f * 64 + n);
 			double v = arr[p];
-			if (double.IsNaN(v)) { v = Clean(NQCE3_Features.Compute(this, at, f, n)); arr[p] = double.IsNaN(v) ? NonFinite : v; }
-			else if (v == NonFinite) v = double.NaN;
+			if (double.IsNaN(v)) { v = Clean(NQCE3_Features.Compute(this, at, f, n)); arr[p] = double.IsNaN(v) ? NonFiniteMark : v; }
+			else if (double.IsNegativeInfinity(v)) v = double.NaN;
+			return v;
+		}
+
+		// MACD EMA(fast)-EMA(slow) de cierres, MISMOS valores que el calculo directo (ventana fija 3n+5 por barra),
+		// pero memorizado por barra: evita recalcularlo ~n*n/2 veces en las familias 31 y 69.
+		public double MacdMemo(int fast, int slow, int at)
+		{
+			int p = pos[at];
+			if (p < 0) return NQCE3_M.EMA(this, at, fast) - NQCE3_M.EMA(this, at, slow);
+			double[] arr = GetArr(1000000 + fast * 1000 + slow);
+			double v = arr[p];
+			if (double.IsNaN(v)) { v = NQCE3_M.EMA(this, at, fast) - NQCE3_M.EMA(this, at, slow); arr[p] = v; }
 			return v;
 		}
 		private static double Clean(double x) { return (double.IsNaN(x) || double.IsInfinity(x)) ? double.NaN : x; }
@@ -88,18 +117,45 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 	}
 
-	// Las 11 reglas direccionales (identicas a la referencia). Umbrales 0,15 / 0,35 / 0,60 en unidades DE LA
-	// FAMILIA (R5: son multiplos de ATR solo en las familias de clase A; ver NQCE3_Catalog.UnitClass).
+	// Las 11 reglas direccionales. D-030: el umbral de las reglas 3-8 es un GEN (rejilla en multiplos de ATR).
+	// Rejilla (paso 0,05 ATR; tres bandas disjuntas para que 3/4/5 (y 6/7/8) no sean la misma condicion):
+	//   reglas 3 y 6 ("bajo")  : 0,05 .. 0,25  (5 niveles; contiene el 0,15 historico)
+	//   reglas 4 y 7 ("medio") : 0,30 .. 0,50  (5 niveles; contiene el 0,35 historico)
+	//   reglas 5 y 8 ("alto")  : 0,55 .. 1,00  (10 niveles; contiene el 0,60 historico)
+	//   reglas 0,1,2,9,10 no usan umbral (1 nivel).  Combinaciones de umbral por (familia,periodo) = 45.
 	public static class NQCE3_Rules
 	{
 		public const int Count = 11;
+		public const double ThrStep = 0.05;
 		public static readonly string[] Names = new string[] {
-			"Positive/negative", "Rising/falling", "Zero cross", "Threshold 0.15", "Threshold 0.35", "Threshold 0.60",
-			"Threshold 0.15 cross", "Threshold 0.35 cross", "Reversion from +/-0.60", "Positive/negative acceleration",
+			"Positive/negative", "Rising/falling", "Zero cross", "Threshold low (0.05-0.25 ATR)", "Threshold mid (0.30-0.50 ATR)", "Threshold high (0.55-1.00 ATR)",
+			"Threshold low cross", "Threshold mid cross", "Reversion from +/-high", "Positive/negative acceleration",
 			"Two-bar directional persistence" };
 
-		// Devuelve 1 (alcista), -1 (bajista), 0 (ninguna) o -2 (no finito / ambiguo: sin senal).
-		public static int Resolve(double x, double y, double z, int rule)
+		public static int ThresholdCount(int rule)
+		{
+			switch (rule) { case 3: case 6: return 5; case 4: case 7: return 5; case 5: case 8: return 10; default: return 1; }
+		}
+		public static double ThresholdFirst(int rule)
+		{
+			switch (rule) { case 3: case 6: return 0.05; case 4: case 7: return 0.30; case 5: case 8: return 0.55; default: return double.NaN; }
+		}
+		// Valor del umbral (multiplos de ATR) del nivel idx; NaN si la regla no usa umbral.
+		public static double ThresholdValue(int rule, int idx)
+		{
+			if (ThresholdCount(rule) <= 1) return double.NaN;
+			return Math.Round(ThresholdFirst(rule) + ThrStep * idx, 2);
+		}
+		// Umbral historico (0,15/0,35/0,60), usado por la sobrecarga sin umbral y por las pruebas.
+		public static double DefaultThreshold(int rule)
+		{
+			switch (rule) { case 3: case 6: return 0.15; case 4: case 7: return 0.35; case 5: case 8: return 0.60; default: return double.NaN; }
+		}
+
+		public static int Resolve(double x, double y, double z, int rule) { return Resolve(x, y, z, rule, DefaultThreshold(rule)); }
+
+		// Devuelve 1 (alcista), -1 (bajista), 0 (ninguna) o -2 (no finito / ambiguo: sin senal). thr en multiplos de ATR.
+		public static int Resolve(double x, double y, double z, int rule, double thr)
 		{
 			if (double.IsNaN(x) || double.IsNaN(y) || double.IsNaN(z) || double.IsInfinity(x) || double.IsInfinity(y) || double.IsInfinity(z) || rule < 0 || rule >= Count) return -2;
 			bool bull = false, bear = false;
@@ -108,12 +164,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 0: bull = x > 0; bear = x < 0; break;
 				case 1: bull = x > y; bear = x < y; break;
 				case 2: bull = y <= 0 && x > 0; bear = y >= 0 && x < 0; break;
-				case 3: bull = x > 0.15; bear = x < -0.15; break;
-				case 4: bull = x > 0.35; bear = x < -0.35; break;
-				case 5: bull = x > 0.60; bear = x < -0.60; break;
-				case 6: bull = y <= 0.15 && x > 0.15; bear = y >= -0.15 && x < -0.15; break;
-				case 7: bull = y <= 0.35 && x > 0.35; bear = y >= -0.35 && x < -0.35; break;
-				case 8: bull = y < -0.60 && x >= -0.60; bear = y > 0.60 && x <= 0.60; break;
+				case 3: case 4: case 5: bull = x > thr; bear = x < -thr; break;
+				case 6: case 7: bull = y <= thr && x > thr; bear = y >= -thr && x < -thr; break;
+				case 8: bull = y < -thr && x >= -thr; bear = y > thr && x <= thr; break;
 				case 9: bull = x - 2 * y + z > 1e-9; bear = x - 2 * y + z < -1e-9; break;
 				case 10: bull = x > 0 && y > 0; bear = x < 0 && y < 0; break;
 			}
@@ -126,6 +179,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		public const int Families = 120, Rules = 11, Count = Families * Rules;   // 1.320
 		public const int MinPeriod = 4, MaxPeriod = 30, PeriodLevels = MaxPeriod - MinPeriod + 1;   // 27
+		// niveles de umbral por condicion = ThresholdCount(regla); parametros por (familia,periodo): 45 combinaciones de umbral
 
 		public static int RequiredBars(int n) { return 7 * n + 10; }
 
@@ -169,22 +223,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 			"Two-candle body engulfing signal", "Inside-outside bar directional range", "NR7 narrow-range breakout",
 			"Polarized fractal efficiency", "Hurst rescaled-range trend persistence" };
 
-		// Auditoria R5 de la unidad de cada familia (120 caracteres, una por familia):
-		//  A = multiplos de ATR (cumple); B = razon adimensional acotada/autonormalizada, sin nivel ni porcentaje de precio (cumple;
-		//      el umbral es una fraccion, no un multiplo de ATR literal);
-		//  E = dudosa: se calcula con retornos/porcentajes pero el resultado final es una razon o equivale a ATR;
-		//  C = INCUMPLE: unidades de porcentaje/retorno de precio (la serie es back-adjusted);  D = INCUMPLE: escala mixta/arbitraria.
+		// Auditoria R5 de la unidad de cada familia tras D-018b (120 caracteres, una por familia):
+		//  A = magnitud en multiplos de ATR (100 familias: 53 originales + 17 C + EOM(21) corregidas + 29 de clase B reexpresadas);
+		//  B = razon/indicador acotado SIN reexpresion honesta en ATR (16 familias, pendientes de decision del usuario):
+		//      10,17,24,33,42,59,64,68,69,71,99,106,110,115,118,119;
+		//  E = dudosa (4 familias, sin cambios; pendientes): 32,60,85,103.
 		public const string UnitClass =
-			"AAAABBABABBB" +	// 0..11
-			"AAAAABBBADBB" +	// 12..23
-			"BBBBBAAAEBBB" +	// 24..35
-			"AAAAAABAAAAA" +	// 36..47
-			"AAAAAAAAABBB" +	// 48..59
-			"EBBCBCCCBBBB" +	// 60..71
-			"BBBCBAAAAAAC" +	// 72..83
-			"AECCCCCBCAAA" +	// 84..95
-			"AAABCCCECCBB" +	// 96..107
-			"BABABABBAADB";	// 108..119
+			"AAAAAAAAAABA"+	// 0..11
+			"AAAAABAAAAAA"+	// 12..23
+			"BAAAAAAAEBAA"+	// 24..35
+			"AAAAAABAAAAA"+	// 36..47
+			"AAAAAAAAAAAB"+	// 48..59
+			"EAAABAAABBAB"+	// 60..71
+			"AAAAAAAAAAAA"+	// 72..83
+			"AEAAAAAAAAAA"+	// 84..95
+			"AAABAAAEAABA"+	// 96..107
+			"AABAAAABAABB";	// 108..119
 
 		// 1 = la familia usa volumen (NT8 M1 lo entrega, pero NQCE_Bars de ET1 Core no lo guarda: hay que pasarlo a NQCE3_Library.Bind).
 		public const string VolumeDep =

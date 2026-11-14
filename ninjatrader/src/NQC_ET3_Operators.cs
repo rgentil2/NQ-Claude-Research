@@ -23,7 +23,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		public static int RandomParamLevel(NQCE_Rng r, INQCE3_Library lib, int condId)
 		{
-			int lv = lib.ParamLevels(condId); if (lv < 1) lv = 1; return r.NextInt(lv);
+			// D-030: periodo y umbral se sortean por separado y se empaquetan (2 NextInt por llamada, orden fijo)
+			int pl = r.NextInt(Math.Max(1, lib.PeriodLevels(condId))), tl = r.NextInt(Math.Max(1, lib.ThresholdLevels(condId)));
+			return NQCE3_Genome.Pack(lib, condId, pl, tl);
 		}
 
 		public static NQCE3_Genome RandomGenome(NQCE_Rng r, INQCE3_Library lib, NQCE3_Params p)
@@ -99,7 +101,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 						int c = r.NextInt(lib.ConditionCount + 1);     // 0 = vaciar ranura
 						g.G[i] = c; g.G[i + 1] = c == 0 ? 0 : RandomParamLevel(r, lib, c);
 					}
-					else if (g.G[2 * s] != 0) g.G[i] = RandomParamLevel(r, lib, g.G[2 * s]);
+					else if (g.G[2 * s] != 0)
+					{
+						// D-030: un solo componente muta por vez, el periodo o el umbral (siempre 2 sorteos: dimension y valor)
+						int c = g.G[2 * s], pl, tl; NQCE3_Genome.Unpack(lib, c, g.G[i], out pl, out tl);
+						int dim = r.NextInt(2);
+						int nvP = r.NextInt(Math.Max(1, lib.PeriodLevels(c))), nvT = r.NextInt(Math.Max(1, lib.ThresholdLevels(c)));
+						if (dim == 0 || lib.ThresholdLevels(c) <= 1) pl = nvP; else tl = nvT;
+						g.G[i] = NQCE3_Genome.Pack(lib, c, pl, tl);
+					}
 				}
 				else if (i == NQCE3_Genome.GDir) g.G[i] = 1 - g.G[i];
 				else if (i == NQCE3_Genome.GAtr) g.G[i] = NQCE3_Genome.AtrMin + r.NextInt(NQCE3_Genome.AtrMax - NQCE3_Genome.AtrMin + 1);
@@ -125,7 +135,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			List<NQCE3_Genome> next = new List<NQCE3_Genome>();
 			int[] rank = RankDesc(fit);
-			int elite = (int)Math.Ceiling(p.EliteFrac * pop.Count);
+			int elite = (int)Math.Ceiling(p.EliteFrac * p.PopSize);
 			for (int i = 0; i < elite && i < rank.Length; i++) next.Add(pop[rank[i]].Clone());
 			while (next.Count < p.PopSize)
 			{

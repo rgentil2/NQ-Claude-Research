@@ -84,18 +84,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for (int i = 0; i < p.PopSize; i++) pop.Add(NQCE3_Operators.InitWithMinSignal(r, lib, p, minSignal));
 			for (int gen = 0; gen < p.Generations; gen++)
 			{
-				double[] f = new double[pop.Count]; double sum = 0; int valid = 0; double best = double.MinValue;
+				double[] f = new double[pop.Count]; double sum = 0; int valid = 0, evaluated = 0; double best = double.NaN;
 				for (int i = 0; i < pop.Count; i++)
 				{
 					int before = fit.FreshEvaluations;
-					if (before >= MaxEvaluations) { f[i] = double.MinValue; continue; }      // tope duro de evaluaciones
+					if (before >= MaxEvaluations) { f[i] = double.NegativeInfinity; continue; }      // tope duro de evaluaciones
 					NQCE3_Eval e = fit.Evaluate(pop[i]);
 					if (fit.FreshEvaluations > before) Ledger.Add(Name, gen, e);            // solo evaluaciones nuevas son ensayos
 					Bank.Offer(e);
-					f[i] = e.Fitness; sum += e.Fitness; if (e.Valid) valid++; if (e.Fitness > best) best = e.Fitness;
+					f[i] = e.Fitness; sum += e.Fitness; evaluated++; if (e.Valid) valid++; if (double.IsNaN(best) || e.Fitness > best) best = e.Fitness;
 				}
-				Curve.Append(gen.ToString(CultureInfo.InvariantCulture)).Append('\t').Append(best.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t')
-				     .Append((sum / pop.Count).ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(((double)valid / pop.Count).ToString("0.000", CultureInfo.InvariantCulture)).Append('\t')
+				Curve.Append(gen.ToString(CultureInfo.InvariantCulture)).Append('\t').Append(double.IsNaN(best) ? "NA" : best.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t')
+				     .Append(evaluated == 0 ? "NA" : (sum / evaluated).ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(evaluated == 0 ? "NA" : ((double)valid / evaluated).ToString("0.000", CultureInfo.InvariantCulture)).Append('\t')
 				     .Append(fit.FreshEvaluations.ToString(CultureInfo.InvariantCulture)).Append('\n');
 				if (fit.FreshEvaluations >= MaxEvaluations || gen == p.Generations - 1) break;
 				pop = NQCE3_Operators.NextGeneration(r, pop, f, p, lib);
