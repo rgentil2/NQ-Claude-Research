@@ -6,3 +6,6 @@
 - Paridad motor vs libros nativos N1-N9: 8,110 operaciones, 8,110 iguales.
 - SHA256 PARITY_REPORT original: 15c0da5fbb817a1c401a3d822df28dfc8e151539cca6f094d48b4f13cc1754d1.
 - Efecto: P1 de ET1 cumplido para N1-N9. Pendiente: simulador de cuenta, capa protectora, P2-P6.
+- Trazabilidad (master §9, añadida 2026-11-14): contrato NQC 2.0.0; EXECUTOR_SPEC 2.3.0; script `NQC_ET1B_EngineParity.cs` SHA256 `fe4a058f4df1a588173945435c3af7e15fff8eb7a7bf833789c6cc166972b40a` (archivo del repo, un solo commit `968b498`, anterior a la corrida); instrumento NQ DEC26; rango IS 2020-01-01 a 2022-12-31; 1,054,234 barras; 8,110 operaciones.
+- El `PARITY_REPORT.txt` de esta carpeta es una versión abreviada; el SHA256 de `SUMMARY.txt` es el del informe original. El `SUMMARY.txt` es el que escribió la corrida (3 líneas) y no se reescribe.
+- Limitación: las 8,110 operaciones no contienen saltos sobre el stop; ese caso se cierra con ET1B2 (`runs/*_ET1B2_*`).
