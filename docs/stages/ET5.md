@@ -32,3 +32,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · NQC_ET5_Robust.cs (filtro anios + PBO/CSCV) y NQC_ET5_RobustTest.cs: 13/13 PASS con mcs+stub (sintetico, NO NT8). Hash pool R9 ae1efcea..., informe d40518b4... · falta: corrida en NT8, datos reales tras ET2/ET4 · pregunta abierta D5-6.
+- 2026-11-14 · Orquestador: verificado independientemente (mcs+stub) 13/13. Decisiones de diseño registradas como D-033 (propuesta con valor por defecto; el usuario puede objetar antes de ET5 real).

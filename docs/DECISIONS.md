@@ -51,6 +51,7 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 |---|---|---|
 | D-015 | Fitness de ET3 | t de la expectativa neta por operación en el IS, mínimo 100 operaciones |
 | D-016 | Prioridad entre miembros | Por fitness en el IS, no por ID |
+| D-033 | Método del PBO en ET5 (por defecto vigente, objetable por el usuario) | Trimestres 0–11 = 2020Q1–2022Q4; filtro exige neto anual > 0 en ≥ 2 de 3 años. Ranking del PBO por **P&L neto total** (un trimestre sin operaciones aporta 0). CSCV con las 924 particiones, mejor en entrenamiento = argmax (empate: menor índice); omega = rango medio en prueba / (N+1); lambda = ln(omega/(1−omega)); **PBO = fracción de particiones con lambda ≤ 0** (omega = 0,5 cuenta como sobreajuste). El PBO del gate se calcula sobre el pool que pasa el filtro de años; el del pool completo de ET4 es solo informativo. Si quedan **menos de 2 candidatos**, la campaña se cierra (PBO no evaluable; falla cerrada). Si ET4 entrega series diarias, se extiende la interfaz. |
 | D-017 | Umbrales [B] | Heredados de PF1 como punto de partida; se fijan al cerrar ET2 |
 | D-020 | Edge de referencia de ET2 | +US$20 netos por operación a ~0,5 operaciones por sesión |
 
