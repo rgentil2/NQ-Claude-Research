@@ -15,7 +15,7 @@
 
 ## Pendientes y notas vigentes
 - Compilar en NT8 el paquete (el ZIP NO se ha regenerado: lo genera el orquestador tras la revision) y correr NQC_ET3_LibraryTest en NT8 (evidencia log+hash). Compilado y ejecutado solo con mcs/mono y un stub de NT8 (sintetico): no cuenta como EJECUTADA.
-- Decisiones D-031 y D-019 (aceptadas 2026-11-14) APLICADAS: ver la seccion "D-031 y D-019 aplicadas". Siguen sin decidir: las 4 familias E dudosas (32, 60, 85, 103) y los colineales (solo documentados).
+- Decisiones D-031 y D-019 (aceptadas 2026-11-14) APLICADAS: ver la seccion "D-031 y D-019 aplicadas". D-032: las 4 familias E (32, 60, 85, 103) quedan ACTIVAS como X (excepción R5); aplicar en código (UnitClass E→X y conteos A=93, X=20, E=0 en LibraryTest) en el próximo paquete, no antes. Los colineales siguen solo documentados.
 - Tras compilar en NT8 correr tambien NQC_ET3_GaTest. El runner debe fijar NQCE3_Series.MemoBudgetBytes segun la RAM (ver costos medidos).
 - El runner (WP6, no escrito) DEBE entregar el volumen: ver "Volumen" abajo. NQCE3_Fitness lo exige y lanza error explicito si falta o si las barras no son M1 completas desde 00:00.
 - ET2 aprobada antes de cualquier corrida real. Cada evaluacion cuenta como ensayo en el ledger.
