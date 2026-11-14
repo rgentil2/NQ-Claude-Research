@@ -20,3 +20,7 @@
 - El usuario fijó: MLL comprobado durante la sesión (D-025), día de operación = ≥1 operación (D-026), blackout T1 de ±5 minutos (D-027), reset US$0.
 - El calendario T1 2026 tiene todos los eventos a las 8:30 o 14:00: ninguno cae en la ventana 09:30–11:30 ET.
 - Siguiente: ET1.
+
+## 2026-11-14 — ET1 aprobada
+- Aprobación condicionada del usuario a C1 y C2. C1: motor C# frente a NT8 en 46 saltos sobre el stop, 46/46 iguales y 46/46 con salto (`runs/2026-11-14_ET1B2_run1/`). C2: hashes y trazabilidad de B1 y C anotados. ET1C repetida con el mismo hash de informe.
+- Abierto: C3 (chequeos extra opcionales en ET1C). Siguiente: motor genérico + ejecutor de portafolio, con regresión de ET1 antes de ET2.

@@ -5,3 +5,4 @@
 - Cubre P3 (costos), P4 (capa protectora con guardia de DD), P5 (14 trayectorias), P6 (determinismo). P2 queda cubierto por la paridad B1 (8,110/8,110).
 - Pendiente de ET1: cierre formal y aprobacion; luego ET2 (calibracion ciega).
 - Trazabilidad (master §9, añadida 2026-11-14): contrato NQC 2.0.0; EXECUTOR_SPEC 2.3.0; pruebas sobre escenarios sintéticos (sin instrumento ni rango de datos de mercado). El `SUMMARY.txt` es el que escribió la corrida (3 líneas) y no se reescribe.
+- Repetición 2026-11-14 (carpeta `ET1C_20261114_141926`): `NQC_ET1C_END status=PASS ok=22 falla=0 sha=b9f84a4e6a75`, mismo hash de informe que la corrida del 2026-11-13 (`b9f84a4e...`).

@@ -1,7 +1,7 @@
 # ET1 — Acta de cierre (PROPUESTA, sin firmar)
 
 **Contrato:** NQC 2.0.0 (Nivel A congelado) · **Ejecutor:** EXECUTOR_SPEC 2.3.0 · **Fecha del borrador:** 2026-11-14
-**Estado:** `EJECUTADA` — **aprobación condicionada firmada el 2026-11-14** (§8). Pasa a `APROBADA` cuando se ejecute C1 (ZIP `NQC_ET1B2_GapParity` entregado, pendiente de correr) y se complete C2 (hecho; ver §5).
+**Estado:** `APROBADA` el 2026-11-14 — C1 ejecutada (`NQC_ET1B2_END status=PASS equal=46/46 gapped=46/46`, `runs/2026-11-14_ET1B2_run1/`) y C2 completada, según la aprobación condicionada firmada en el §8. P1–P6 al 100%. C3 sigue abierta y no bloquea.
 **Gate del contrato:** P1–P6 al 100%. Esta acta no relaja el gate: marca con claridad qué está demostrado y qué no.
 
 ---
@@ -49,7 +49,7 @@
 
 | ID | Qué | Tipo | Esfuerzo |
 |---|---|---|---|
-| **C1** | **B2 — gap adverso contra el motor.** Correr el motor C# sobre los 46 casos de la sonda y exigir 46/46 con salida a la apertura de la barra. Cierra P1 al 100% | **Bloqueante** del gate | Una corrida corta en Strategy Analyzer |
+| **C1** | **B2 — gap adverso contra el motor.** Correr el motor C# sobre los 46 casos de la sonda y exigir 46/46 con salida a la apertura de la barra. Cierra P1 al 100% | **Bloqueante** del gate | **Hecho: PASS 46/46 (2026-11-14)** |
 | **C2** | Registrar el SHA256 de `NQC_ET1B_EngineParity.cs` y completar la trazabilidad de B1 y C con los campos que exige el master §9. Los `SUMMARY.txt` ya ejecutados no se reescriben (son los de la corrida): el hash y los campos van en sus `RUN_NOTES.md`. **Hecho en el commit de esta acta.** Queda anotado que el `PARITY_REPORT` de B1 en el repo es una versión abreviada (el SHA256 es el del original) | Documental | Hecho |
 | **C3** | Decisión del usuario sobre las observaciones: aceptar, o pedir 3 chequeos extra en ET1C — (a) fricción aplicada una vez por operación, (b) liberación de la protección en la sesión siguiente, (c) caso de cruce de sesión | Decisión | Opcional; barato |
 
@@ -82,4 +82,4 @@ Al firmar: el master pasa ET1 a `APROBADA`, se corrige su cabecera (dice EXECUTO
 
 Usuario: Rodrigo (aprobación dada por comentario en el documento)  Fecha: 2026-11-14
 
-**Nota de registro:** la aprobación es condicionada. ET1 pasa a `APROBADA` en el master solo cuando C1 esté ejecutada (46/46). C2 completada. C3 sin elegir todavía.
+**Nota de registro:** la aprobación era condicionada a C1 y C2. Ambas cumplidas el 2026-11-14; ET1 pasa a `APROBADA`. C3 sin elegir todavía (no bloquea).
