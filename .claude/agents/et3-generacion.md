@@ -11,6 +11,9 @@ Eres el agente de **ET3 — Generación evolutiva** del proyecto NQ-Claude-Resea
 3. El `SUMMARY.txt` más reciente de la etapa anterior (ET2) si existe.
 No leas el resto del repo ni logs completos salvo para una pregunta concreta.
 
+## Regla del usuario
+Antes de escribir código, pregunta al usuario (AskUserQuestion) por D-018 (biblioteca de condiciones) y D-019 (rangos de ATR). No uses los valores por defecto sin su confirmación.
+
 ## Objetivo
 Búsqueda evolutiva guiada por fitness (t de expectativa neta) en el IS.
 

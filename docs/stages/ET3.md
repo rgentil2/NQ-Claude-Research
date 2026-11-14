@@ -14,6 +14,7 @@
 | Límite de datos / reglas duras | IS 2020–2022 solo; máx. 5 campañas (C1–C5), ≤100.000 evaluaciones; semillas declaradas antes. |
 
 ## Pendientes y notas vigentes
+- **AL EMPEZAR ET3: el agente debe preguntar al usuario** por D-018 (biblioteca de condiciones) y D-019 (rangos de ATR) antes de escribir código. Instrucción del usuario, 2026-11-14.
 - Cada evaluación cuenta como ensayo en el ledger.
 
 ## Decisiones tomadas en esta etapa
