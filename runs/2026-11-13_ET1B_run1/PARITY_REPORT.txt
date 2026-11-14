@@ -1,0 +1,28 @@
+NQC ET1B - PARITY_REPORT
+script_version : ET1B-1.0.0
+instrument     : NQ DEC26
+bars           : 1054234
+
+[Indicadores: motor propio frente a NT8, todas las barras]
+ATR5  max|dif| 0.000000000  barras>1e-7: 0
+ATR14 max|dif| 0.000000000  barras>1e-7: 0
+ATR20 max|dif| 0.000000000  barras>1e-7: 0
+ATR50 max|dif| 0.000000000  barras>1e-7: 0
+EMA5  max|dif| 0.000000000  barras>1e-7: 0
+EMA13 max|dif| 0.000000000  barras>1e-7: 0
+
+[Calendario] OK 3954 eventos
+
+[Paridad con los libros nativos]
+N1  OK  nativo=766 motor=766 iguales=766
+N2  OK  nativo=705 motor=705 iguales=705
+N3  OK  nativo=1941 motor=1941 iguales=1941
+N4  OK  nativo=492 motor=492 iguales=492
+N5  OK  nativo=766 motor=766 iguales=766
+N6  OK  nativo=762 motor=762 iguales=762
+N7  OK  nativo=705 motor=705 iguales=705
+N8  OK  nativo=1207 motor=1207 iguales=1207
+N9  OK  nativo=766 motor=766 iguales=766
+(todas con soloNat=0 soloMotor=0 y dir/ent/stop/nom/hora/px iguales; versión abreviada del informe original, cuyo SHA256 es el de SUMMARY)
+
+status: PASS
