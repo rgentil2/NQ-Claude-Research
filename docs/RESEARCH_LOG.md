@@ -24,3 +24,7 @@
 ## 2026-11-14 — ET1 aprobada
 - Aprobación condicionada del usuario a C1 y C2. C1: motor C# frente a NT8 en 46 saltos sobre el stop, 46/46 iguales y 46/46 con salto (`runs/2026-11-14_ET1B2_run1/`). C2: hashes y trazabilidad de B1 y C anotados. ET1C repetida con el mismo hash de informe.
 - Abierto: C3 (chequeos extra opcionales en ET1C). Siguiente: motor genérico + ejecutor de portafolio, con regresión de ET1 antes de ET2.
+
+## 2026-11-14 — Nuevo modelo de trabajo: agentes por etapa
+- Decisión del usuario: un agente por etapa, con archivo de traspaso propio, para no perder contexto ni repetir. No cambia el contrato (NQC 2.0.0 sigue congelado).
+- Añadidos `docs/WORK_MODEL.md`, `docs/stages/ET0–ET10.md` y `.claude/agents/` (11 de etapa + auditor de contrato, revisor C# y escriba).

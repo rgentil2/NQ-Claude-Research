@@ -132,6 +132,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 | `contract/NQC_RULES_2.0.0.json` | Versión legible por máquina de los parámetros (vigente) |
 | `docs/DECISIONS.md` | Registro de decisiones (firmes, propuestas, pendientes) |
 | `docs/WORK_PLAN.md` | Mapa de trabajo y entregables por etapa |
+| `docs/WORK_MODEL.md` · `docs/stages/` · `.claude/agents/` | Modelo de agentes por etapa, memoria viva de cada etapa y definición de los agentes |
 | `docs/ACCOUNT_RULES_MFFU.md` | Reglas de la cuenta, perfiles del simulador y verificación |
 | `docs/NEWS_BLACKOUT.md` | Regla del blackout de noticias, fuente de datos y aceptación |
 | `docs/EXECUTOR_SPEC.md` | Semántica del ejecutor (2.3.0), costos, capa protectora, simulador de cuenta, auditoría |
@@ -158,4 +159,4 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 10. Cómo retomar (para cualquier sesión nueva)
 
-Leer en este orden y **solo** esto: este master → `docs/CONTRACT_NQC_2.0.0.md` → `docs/DECISIONS.md` → el último `SUMMARY.txt` en `runs/`. No leer logs completos salvo que haga falta para una pregunta concreta.
+Leer en este orden y **solo** esto: este master → `docs/CONTRACT_NQC_2.0.0.md` → `docs/DECISIONS.md` → el último `SUMMARY.txt` en `runs/` → `docs/WORK_MODEL.md` y el `docs/stages/ETN.md` de la etapa en curso. No leer logs completos salvo que haga falta para una pregunta concreta.
