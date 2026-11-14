@@ -28,7 +28,11 @@
 - Pendiente D-018 (biblioteca de condiciones) y D-019 (rangos de ATR).
 
 ## Decisiones tomadas en esta etapa
-(ninguna). Interpretaciones propuestas al master: cierre diario como salida forzada; guardia DD con cuenta continua; MAE/MFE como proxy.
+Aceptadas por el usuario el 2026-11-14 (interpretaciones del motor que EXECUTOR_SPEC 2.3.0 no fijaba):
+1. Cierre diario de -US$750: se dispara con la marca M2M al cierre de barra y sale como salida forzada (ejecucion en la apertura siguiente).
+2. Guardia de DD: cuenta continua desde la primera sesion, con reinicio tras PASS o FAIL.
+3. MAE/MFE como proxy (extremos de barra sin cronologia): columnas `mae_proxy_usd` y `mfe_proxy_usd`.
+Regla del usuario: toda entrega para instalar en NT8 se da como ZIP (generado con `tools/installer/build_zip.py`).
 
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
