@@ -1,7 +1,7 @@
 # ET1 — Acta de cierre (PROPUESTA, sin firmar)
 
 **Contrato:** NQC 2.0.0 (Nivel A congelado) · **Ejecutor:** EXECUTOR_SPEC 2.3.0 · **Fecha del borrador:** 2026-11-14
-**Estado:** `APROBADA` el 2026-11-14 — C1 ejecutada (`NQC_ET1B2_END status=PASS equal=46/46 gapped=46/46`, `runs/2026-11-14_ET1B2_run1/`) y C2 completada, según la aprobación condicionada firmada en el §8. P1–P6 al 100%. C3 sigue abierta y no bloquea.
+**Estado:** `APROBADA` el 2026-11-14 — C1 ejecutada (`NQC_ET1B2_END status=PASS equal=46/46 gapped=46/46`, `runs/2026-11-14_ET1B2_run1/`) y C2 completada, según la aprobación condicionada firmada en el §8. P1–P6 al 100%. C3 resuelta: el usuario acepta las observaciones y no pide chequeos extra (2026-11-14).
 **Gate del contrato:** P1–P6 al 100%. Esta acta no relaja el gate: marca con claridad qué está demostrado y qué no.
 
 ---
@@ -82,4 +82,4 @@ Al firmar: el master pasa ET1 a `APROBADA`, se corrige su cabecera (dice EXECUTO
 
 Usuario: Rodrigo (aprobación dada por comentario en el documento)  Fecha: 2026-11-14
 
-**Nota de registro:** la aprobación era condicionada a C1 y C2. Ambas cumplidas el 2026-11-14; ET1 pasa a `APROBADA`. C3 sin elegir todavía (no bloquea).
+**Nota de registro:** la aprobación era condicionada a C1 y C2. Ambas cumplidas el 2026-11-14; ET1 pasa a `APROBADA`. C3: el usuario aceptó las observaciones el 2026-11-14 (prefiere pasar a ET2 sin chequeos extra).
