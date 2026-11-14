@@ -27,6 +27,8 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-029 | **Presupuesto de campañas:** solo C1 por ahora; C2–C5 reservadas. | 2026-11-14 | Usuario ACEPTADA |
 | D-018b | **Biblioteca de ET3, cumplimiento de R5 estricto (auditoría 2026-11-14):** (1) las 19 familias que miden en % o retorno de precio (209 condiciones) se **corrigen a ATR** (dividir por ATR, no por precio); (2) las 44 familias de razón adimensional (484 condiciones) deben expresarse en **ATR literal**; las que no admitan reexpresión honesta se listan al usuario, no se excluyen sin decisión; (3) las 24 familias que usan volumen **entran en el primer corte** (el runner exporta el volumen). | 2026-11-14 | Usuario ACEPTADA |
 | D-030 | **Genes de condición:** el gen mueve **periodo y umbral en múltiplos de ATR** (no solo el periodo). Consecuencia asumida: espacio de búsqueda y N efectivo mayores; ET2 mide falsos positivos con esta configuración. | 2026-11-14 | Usuario ACEPTADA |
+| D-031 | **Biblioteca de ET3, cierre de la auditoría R5 (2026-11-14):** (1) las 16 familias no reexpresables en ATR se **mantienen** como razones adimensionales sin escala de precio, documentadas como excepción de R5; (2) **duplicados exactos: se deja una familia por grupo**; (3) el ATR de cada condición es el **ATR de Wilder del gen de salida** (no un ATR simple propio). | 2026-11-14 | Usuario ACEPTADA |
+| D-019 | **Parámetros genéticos (delegado al asistente por el usuario el 2026-11-14):** población 500, 200 generaciones (100.000 evaluaciones), torneo de 3, cruce uniforme, mutación 5% por gen, elitismo 5%, **más 5% de inmigrantes aleatorios por generación** (diversidad en un espacio de ~1e41 genomas), top-K 2.000 deduplicado, ≥100 operaciones, semilla C1 = 20261114 declarada antes de correr. Ajustable solo dentro de ET2. | 2026-11-14 | Asistente (delegado) ACEPTADA |
 | D-021 | Salidas solo por ATR: stop obligatorio y objetivo opcional; periodo del ATR, k_sl y k_tp generados por la evolución. | 2026-11-11 | Usuario (NQC 2.0.0) |
 | D-022 | Stability y Symmetry son propiedades del portafolio (restricción dura en ET6 y gate). Cierra la duda sobre el punto de ET6: no hay requisito adicional; la paridad con NT8 es D-023. | 2026-11-12 | Usuario (NQC 2.0.0) |
 | D-023 | Paridad nativa **después** del OOS: ET8 = OOS evaluado por el motor con el portafolio ya congelado (en ET7); ET9 = paridad nativa; NT8 manda en el veredicto final. | 2026-11-11 | Usuario (NQC 2.0.0) |
@@ -48,7 +50,6 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 |---|---|---|
 | D-015 | Fitness de ET3 | t de la expectativa neta por operación en el IS, mínimo 100 operaciones |
 | D-016 | Prioridad entre miembros | Por fitness en el IS, no por ID |
-| D-019 | Resto de parámetros genéticos | Población 500, 200 generaciones (~100.000 evaluaciones), cruce uniforme, mutación 5% por gen, elitismo 5%, torneo de 3 |
 | D-017 | Umbrales [B] | Heredados de PF1 como punto de partida; se fijan al cerrar ET2 |
 | D-020 | Edge de referencia de ET2 | +US$20 netos por operación a ~0,5 operaciones por sesión |
 
