@@ -62,6 +62,8 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-028 | Fuente del calendario: el **método del 2026-10-05** (páginas mensuales de Forex Factory), rehecho para 2020–2026 con `tools/news/`. |
 | D-018 | **Biblioteca de condiciones de ET3: la completa anterior (120 fórmulas, 1.320 condiciones), umbrales en múltiplos de ATR** (2026-11-14). ET2 debe medir los falsos positivos con ella. |
 | D-029 | Presupuesto: **solo C1 por ahora**; C2–C5 reservadas (2026-11-14). |
+| D-018b | Biblioteca de ET3 con R5 estricto: 19 familias a ATR; 44 razones adimensionales a ATR literal (las no reexpresables se listan al usuario); las 24 de volumen entran (2026-11-14). |
+| D-030 | Genes de condición: periodo **y** umbral en múltiplos de ATR (2026-11-14). |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
 | R3 | **Motor propio dentro de NinjaScript**, lanzado desde Strategy Analyzer, para ET3–ET8. Órdenes nativas en ET1 (referencia) y ET9 (paridad). |
