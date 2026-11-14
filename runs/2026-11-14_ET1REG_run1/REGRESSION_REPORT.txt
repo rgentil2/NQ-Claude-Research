@@ -1,0 +1,59 @@
+NQC ET1 REGRESSION - REGRESSION_REPORT
+script_version : ET1REG-1.0.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+executor_spec  : 2.3.0
+instrument     : NQ DEC26
+zona plantilla horario (informativo, no es la zona de las horas de barra): Central Standard Time
+R2 zona de barras (empirico): pico de volumen 09:16-10:00 en barra 09:31/09:32 en 546/774 sesiones = 70.54% (exigido >= 70%)
+bars           : 1054234
+first_bar      : 2020-01-01 18:01:00
+last_bar       : 2022-12-30 16:59:00
+
+[R1 indicadores: motor generico frente a NT8, todas las barras]
+ATR5  max|dif| 0.000000000 barras>1e-7: 0
+ATR14 max|dif| 0.000000000 barras>1e-7: 0
+ATR20 max|dif| 0.000000000 barras>1e-7: 0
+ATR50 max|dif| 0.000000000 barras>1e-7: 0
+EMA5  max|dif| 0.000000000 barras>1e-7: 0
+EMA13 max|dif| 0.000000000 barras>1e-7: 0
+
+[Calendario] OK 3954 eventos sha=93d837ac323c6f144786c507606b0b77f25c2fa33fba6d21bb941d2d4d9c377d
+
+[R2 paridad N1..N9 con el motor generico, capa protectora apagada]
+N1  OK  nativo=766 motor=766 iguales=766 soloNat=0 soloMotor=0 dir=766 ent=766 stop=766 nom=766 hora=766 px=766 abiertas_al_fin=0
+N2  OK  nativo=705 motor=705 iguales=705 soloNat=0 soloMotor=0 dir=705 ent=705 stop=705 nom=705 hora=705 px=705 abiertas_al_fin=0
+N3  OK  nativo=1941 motor=1941 iguales=1941 soloNat=0 soloMotor=0 dir=1941 ent=1941 stop=1941 nom=1941 hora=1941 px=1941 abiertas_al_fin=0
+N4  OK  nativo=492 motor=492 iguales=492 soloNat=0 soloMotor=0 dir=492 ent=492 stop=492 nom=492 hora=492 px=492 abiertas_al_fin=0
+N5  OK  nativo=766 motor=766 iguales=766 soloNat=0 soloMotor=0 dir=766 ent=766 stop=766 nom=766 hora=766 px=766 abiertas_al_fin=0
+N6  OK  nativo=762 motor=762 iguales=762 soloNat=0 soloMotor=0 dir=762 ent=762 stop=762 nom=762 hora=762 px=762 abiertas_al_fin=0
+N7  OK  nativo=705 motor=705 iguales=705 soloNat=0 soloMotor=0 dir=705 ent=705 stop=705 nom=705 hora=705 px=705 abiertas_al_fin=0
+N8  OK  nativo=1207 motor=1207 iguales=1207 soloNat=0 soloMotor=0 dir=1207 ent=1207 stop=1207 nom=1207 hora=1207 px=1207 abiertas_al_fin=0
+N9  OK  nativo=766 motor=766 iguales=766 soloNat=0 soloMotor=0 dir=766 ent=766 stop=766 nom=766 hora=766 px=766 abiertas_al_fin=0
+TOTAL N1..N9: nativo=8110 iguales=8110 esperado=8110  OK
+
+[R4 determinismo] hash corrida 1 = 760227dcdeb99d64dbd1c47c7d5b5c75ef1722025cba5e0740592ccf7878ecbf
+                  hash corrida 2 = 760227dcdeb99d64dbd1c47c7d5b5c75ef1722025cba5e0740592ccf7878ecbf  OK
+
+[R3 saltos sobre el stop: motor generico frente al libro nativo de la sonda]
+libro nativo: sha256=e2aab0565b45ea228ecd38fedcf5ea38031d647a7291f9a47d299182f41475ca sha_ok=SI
+probes=46 motor=46 nativo=46 iguales=46 con_salto=46  OK
+
+[R5 capa protectora y costos en el ejecutor (sinteticos)]
+OK    R5.1 sesiones y operaciones  sesiones=2 ops=2 abiertas_al_fin=0
+OK    R5.2 cierre diario: motivo y precio (salida a la apertura 19963)  DAILY_CLOSE@19963.00
+OK    R5.3 neto de la operacion con cierre = -37 pts x 20 - 24,68  -764.68
+OK    R5.4 liberacion: la sesion siguiente vuelve a operar (D-007)  20220105 TIME
+OK    R5.5 friccion exactamente una vez: salida plana 11:30 = -24,68  -24.68
+OK    R5.6 cascada: B bloqueada por cierre diario el dia 1 y BUSY el dia 2  DAILY_CLOSE=1 BUSY=1
+OK    R5.7 eventos protectores del dia 1: DAILY_CLOSE y PAUSE una vez; ninguno el dia 2  eventos=2
+OK    R5.8 guardia de DD (colchon 5000 > room 2000): sin operaciones, una vez por sesion  ops=0 guard_A=2 eventos=2
+OK    R5.9 estres 1,5x: salida plana = -37,02  -37.02
+OK    R5.10 sin capa protectora no hay eventos ni bloqueos (regresion N1..N9 corre asi)  ops=2 eventos=0
+
+[R6 cuenta continua]
+OK    R6 tracker continuo == RunFrom encadenado (400 sesiones, semilla 7)  tramos decididos=9
+
+[ET1C] Los 22 chequeos de NQC_ET1C_AccountSim NO se ejecutan aqui: correr ET1C sin cambios (runbook). El motor usa esa misma clase.
+
+status: PASS
