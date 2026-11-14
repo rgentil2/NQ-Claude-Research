@@ -28,3 +28,7 @@
 ## 2026-11-14 — Nuevo modelo de trabajo: agentes por etapa
 - Decisión del usuario: un agente por etapa, con archivo de traspaso propio, para no perder contexto ni repetir. No cambia el contrato (NQC 2.0.0 sigue congelado).
 - Añadidos `docs/WORK_MODEL.md`, `docs/stages/ET0–ET10.md` y `.claude/agents/` (11 de etapa + auditor de contrato, revisor C# y escriba).
+
+## 2026-11-14 — Regresión del motor genérico PASS
+- NT8: N1–N9 8.110/8.110, saltos 46/46, ET1C 22/22 (hash `b9f84a4e…` igual al de ET1). El primer intento abortó por un falso positivo de R2 en el propio código (zona de la plantilla de horario ≠ zona de las barras); corregido.
+- Siguiente: código de ET3–ET7 (y WP8) → ET2. Registro parcial: falta el `REGRESSION_REPORT.txt`.

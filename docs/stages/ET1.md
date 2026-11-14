@@ -48,3 +48,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 - Redondeo bancario en empates exactos: identico a ET1B.
 
 - Leccion (2026-11-14): la zona de la plantilla de horario (TradingHours.TimeZoneInfo) no es la zona de las barras; no usarla para R2. Verificar la zona empiricamente (pico de volumen 09:31 como ET0 G4).
+- 2026-11-14 · Usuario corrió la regresión en NT8: ET1REG PASS 8.110/8.110, 46/46 (sha c7ec614192ae); ET1C 22/22 x5 con sha b9f84a4e6a75. Registro en `runs/2026-11-14_ET1REG_run1/`. Queda: WP8, y pedir `REGRESSION_REPORT.txt` para completar el registro.

@@ -103,6 +103,7 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
 | Calendario de noticias | **APROBADO** (3.954 eventos; reproduce exactamente los 2.856 de 2020–2024) | `runs/2026-11-12_NEWS_run1/`; CSV SHA256 `93d837ac…377d` | 2026-11-12 |
 | ET1 | **APROBADA** (P1–P6 al 100%; acta `docs/ET1_ACTA_CIERRE.md`). A (referencias nativas N1–N9), B1 (motor propio = NT8, 8.110/8.110 operaciones, indicadores exactos), B2 (saltos sobre el stop, 46/46 y 46/46 con salto) y C (simulador de cuenta, capa protectora, 22/22) EJECUTADAS/PASS | `runs/2026-11-12_ET1A_*`, `runs/2026-11-13_ET1B_run1/` (informe SHA `15c0da5f…54d1`), `runs/2026-11-14_ET1B2_run1/`, `runs/2026-11-13_ET1C_run1/` (`b9f84a4e…`; script `aebe6fb1…061e`) | 2026-11-14 |
+| Motor genérico (ET1 WP1–WP7) | **Regresión PASS** (`NQC_ET1REG_END status=PASS n1n9=8110/8110 gaps=46/46 sha=c7ec614192ae`; ET1C 22/22, `b9f84a4e…`). Registro parcial: falta `REGRESSION_REPORT.txt` | `runs/2026-11-14_ET1REG_run1/`; Core `fb4ca71f…`, Regression `e285352f…` | 2026-11-14 |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
@@ -116,7 +117,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 7. Próximas acciones
 
-1. Desarrollo: construir el motor genérico + ejecutor de portafolio para ET2/ET3 (`docs/WORK_PLAN.md`). Antes de usarlo debe reproducir N1–N9 (8.110), los 46 saltos y los 22 chequeos de ET1C (regresión, acta de ET1 §6).
+1. Desarrollo: motor genérico + ejecutor de portafolio (ET1 WP1–WP7) con la regresión **PASS** (8.110/8.110, 46/46, ET1C 22/22; `runs/2026-11-14_ET1REG_run1/`). Pendientes: WP8 (runner de portafolio, necesita formato de genoma de ET3 y D-018), código de ET3–ET7 y completar el registro con el `REGRESSION_REPORT.txt`.
 2. Usuario: dejar `usd_high_medium_2020_2026.csv` en `Documents/NinjaTrader 8/NQC_Data/` (el motor verificará su SHA256 `93d837ac…`).
 3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
 4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
