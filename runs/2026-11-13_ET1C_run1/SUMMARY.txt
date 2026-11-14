@@ -1,0 +1,4 @@
+NQC ET1C - SUMMARY
+script_version : ET1C-1.0.0
+status : PASS
+report_sha256 : b9f84a4e6a7509b4fc774bd460b1c7345d4323171a763135d63d89d2c2ce8aa1

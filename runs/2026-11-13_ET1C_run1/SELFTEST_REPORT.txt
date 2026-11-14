@@ -1,0 +1,35 @@
+NQC ET1C - SELFTEST_REPORT
+script_version : ET1C-1.0.0
+
+[P3 costos]
+OK   costo_RT  24.68
+OK   costo_estres_1.5x  37.02
+
+[P5 trayectorias sinteticas de resultado conocido]
+OK   pass_simple  PASS/ esperado PASS/
+OK   consistency_wait  PASS/ esperado PASS/
+OK   consistency_censored  CENSORED/ esperado CENSORED/*
+OK   min_days_block  CENSORED/ esperado CENSORED/*
+OK   intraday_mll_exact  FAIL/MLL esperado FAIL/MLL
+OK   intraday_mll_over  FAIL/MLL esperado FAIL/MLL
+OK   above_level  CENSORED/ esperado CENSORED/*
+OK   trailing_raise_survive  CENSORED/ esperado CENSORED/*
+OK   trailing_raise_fail  FAIL/MLL esperado FAIL/MLL
+OK   lock_cap_survive  CENSORED/ esperado CENSORED/*
+OK   lock_cap_fail  FAIL/MLL esperado FAIL/MLL
+OK   no_trade_day_not_counted  CENSORED/ esperado CENSORED/*
+OK   eod_profile_min4  CENSORED/ esperado CENSORED/*
+OK   eod_profile_pass  PASS/ esperado PASS/
+
+[P4 capa protectora]
+OK   prot_pause  -500,-500,1
+OK   prot_close  -750,-750,1
+OK   prot_none  300,-50,2
+OK   guard_start  0,0,0
+OK   guard_mid  -450,-450,1
+
+[P6 determinismo]
+OK   determinismo  P_pass=0.1931 n=378
+
+checks_ok=22 checks_falla=0
+status: PASS

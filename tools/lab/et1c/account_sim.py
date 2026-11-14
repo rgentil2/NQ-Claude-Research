@@ -27,11 +27,12 @@ def rolling(rows,p):
     ps=sum(r[0]=="PASS" for r in dec)
     return res,(ps/len(dec) if dec else None),len(dec)
 
-def protect(trades,pause=-500,close=-750,cushion=400,dd_room=2000):
-    """trades: list of (pnl_net, min_run_after_entry) inside ONE session. Pause: realized<=pause blocks new entries; close: running equity<=close closes at that level and blocks the day."""
+def protect(trades,pause=-500,close=-750,cushion=400,room=2000):
+    """trades: list of (pnl_net, min_run_after_entry) inside ONE session. pause: realized<=pause blocks new entries; close: running equity<=close closes at that level and blocks the day; cushion: room+real<=cushion blocks new entries (room = balance - MLL level at session start)."""
     real=0.0; mn=0.0; kept=0
     for pnl,mr in trades:
         if real<=pause: break
+        if room+real<=cushion: break
         if real+mr<=close:
             real=close; mn=min(mn,close); kept+=1; break
         mn=min(mn,real+mr); real+=pnl; mn=min(mn,real); kept+=1
