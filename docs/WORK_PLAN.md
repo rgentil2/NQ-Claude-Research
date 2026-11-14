@@ -46,5 +46,5 @@ Estrategias triviales con órdenes nativas de NT8, solo para comparar fills oper
 | N10 | Día de roll y días excluidos (cobertura por el rango de fechas) |
 
 ## Pendientes que bloquean
-- **D-018** biblioteca de condiciones y **D-019** rangos de ATR (bloquean ET3; por defecto vigentes hasta que el usuario los ajuste).
+- ~~D-018 y rangos de ATR~~: resueltos el 2026-11-14 (biblioteca completa, umbrales en ATR; rangos D-019a confirmados; solo C1 por ahora, D-029). Queda D-019 (parámetros genéticos: propuesta del agente de ET3, pendiente).
 - Antes de ET8: `OOS_EXPOSURE.md`. Antes de ET10: plazo global y tope de intentos.

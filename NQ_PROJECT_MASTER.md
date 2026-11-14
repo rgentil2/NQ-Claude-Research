@@ -60,6 +60,8 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-027 | **Blackout de ±5 minutos** en noticias USD de Forex Factory (impacto alto y medio) más T1 de MFFU; costo de reset US$0. |
 | D-027b | Alcance: **fuera del mercado** (cierre a `t−5:00`, sin entradas hasta `t+5:00`) y **sin eliminar barras**; igual que en `PDCSmallGapParity.cs`. |
 | D-028 | Fuente del calendario: el **método del 2026-10-05** (páginas mensuales de Forex Factory), rehecho para 2020–2026 con `tools/news/`. |
+| D-018 | **Biblioteca de condiciones de ET3: la completa anterior (120 fórmulas, 1.320 condiciones), umbrales en múltiplos de ATR** (2026-11-14). ET2 debe medir los falsos positivos con ella. |
+| D-029 | Presupuesto: **solo C1 por ahora**; C2–C5 reservadas (2026-11-14). |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
 | R3 | **Motor propio dentro de NinjaScript**, lanzado desde Strategy Analyzer, para ET3–ET8. Órdenes nativas en ET1 (referencia) y ET9 (paridad). |
@@ -119,7 +121,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 1. Desarrollo: motor genérico + ejecutor de portafolio (ET1 WP1–WP7) con la regresión **PASS** (8.110/8.110, 46/46, ET1C 22/22; `runs/2026-11-14_ET1REG_run1/`). Pendientes: WP8 (runner de portafolio, necesita formato de genoma de ET3 y D-018), y código de ET3–ET7.
 2. Usuario: dejar `usd_high_medium_2020_2026.csv` en `Documents/NinjaTrader 8/NQC_Data/` (el motor verificará su SHA256 `93d837ac…`).
-3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
+3. Usuario: confirmar la interpretación de ET6. D-018 (biblioteca completa, umbrales en ATR), rangos de ATR (D-019a) y presupuesto (solo C1, D-029) resueltos el 2026-11-14.
 4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
 5. Usuario, antes de ET8: completar `docs/OOS_EXPOSURE.md`; antes de ET10: plazo global y tope de intentos.
 

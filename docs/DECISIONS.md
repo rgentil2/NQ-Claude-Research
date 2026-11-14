@@ -22,7 +22,9 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 | D-011 | Máximo 5 campañas de búsqueda y criterio de parada global (contrato §4). | 2026-11-11 | Usuario |
 | D-012 | Política de OOS tras un fallo en ET8 (contrato §4). | 2026-11-11 | Usuario APROBADA |
 | D-013 | Código C# fuente en `ninjatrader/src/`; ZIP derivado con hash. Formato: ZIP con `.cs` + instalador + archivo de ruta. | 2026-11-11 | Usuario APROBADA |
-| D-019a | **Rangos de búsqueda de las salidas ATR (ET3):** periodo del ATR 5–100; k_sl 0,5–6,0 (paso 0,25); k_tp 0,5–8,0 (paso 0,25) **u opcional**. | 2026-11-12 | Usuario ACEPTADA |
+| D-019a | **Rangos de búsqueda de las salidas ATR (ET3):** periodo del ATR 5–100; k_sl 0,5–6,0 (paso 0,25); k_tp 0,5–8,0 (paso 0,25) **u opcional**. | 2026-11-12 | Usuario ACEPTADA; reconfirmada 2026-11-14 |
+| D-018 | **Biblioteca de condiciones (ET3): la biblioteca completa anterior (120 fórmulas, 1.320 condiciones), con umbrales en múltiplos de ATR (R5).** Riesgo asumido por el usuario: mayor espacio de búsqueda, más falsos positivos y N efectivo mayor (DSR más exigente). ET2 debe medir los falsos positivos con esta biblioteca. | 2026-11-14 | Usuario ACEPTADA |
+| D-029 | **Presupuesto de campañas:** solo C1 por ahora; C2–C5 reservadas. | 2026-11-14 | Usuario ACEPTADA |
 | D-021 | Salidas solo por ATR: stop obligatorio y objetivo opcional; periodo del ATR, k_sl y k_tp generados por la evolución. | 2026-11-11 | Usuario (NQC 2.0.0) |
 | D-022 | Stability y Symmetry son propiedades del portafolio (restricción dura en ET6 y gate). Cierra la duda sobre el punto de ET6: no hay requisito adicional; la paridad con NT8 es D-023. | 2026-11-12 | Usuario (NQC 2.0.0) |
 | D-023 | Paridad nativa **después** del OOS: ET8 = OOS evaluado por el motor con el portafolio ya congelado (en ET7); ET9 = paridad nativa; NT8 manda en el veredicto final. | 2026-11-11 | Usuario (NQC 2.0.0) |
@@ -44,7 +46,6 @@ Una decisión FIRME solo cambia con versión mayor del contrato.
 |---|---|---|
 | D-015 | Fitness de ET3 | t de la expectativa neta por operación en el IS, mínimo 100 operaciones |
 | D-016 | Prioridad entre miembros | Por fitness en el IS, no por ID |
-| D-018 | Biblioteca de condiciones | Revisar la anterior (120 fórmulas, 1.320 condiciones) y proponer subconjunto coherente con 09:30–11:30, en unidades de ATR |
 | D-019 | Resto de parámetros genéticos | Población 500, 200 generaciones (~100.000 evaluaciones), cruce uniforme, mutación 5% por gen, elitismo 5%, torneo de 3 |
 | D-017 | Umbrales [B] | Heredados de PF1 como punto de partida; se fijan al cerrar ET2 |
 | D-020 | Edge de referencia de ET2 | +US$20 netos por operación a ~0,5 operaciones por sesión |
