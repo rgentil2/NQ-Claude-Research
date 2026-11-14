@@ -350,7 +350,36 @@ namespace NinjaTrader.NinjaScript.Strategies
 			NQCE_Config c4 = new NQCE_Config(); c4.Protect = false; c4.Excluded = new HashSet<int>();
 			NQCE_Result r4 = NQCE_Executor.Run(SynthBars(), SynthPortfolio(), c4, null);
 			Chk("R5.10 sin capa protectora no hay eventos ni bloqueos (regresion N1..N9 corre asi)", r4.Protect.Count == 0 && r4.Trades.Count >= 2, "ops=" + I(r4.Trades.Count) + " eventos=" + I(r4.Protect.Count));
+			SynthM2mCheck();
 			return synFail == 0;
+		}
+
+		// R5.11 (correccion DdM2m, ET1 2.0.0-r2): sesion con una operacion cerrada (A, stop) y otra abierta (B) en el mismo dia, valores a mano.
+		// Dia 1: A entra 20000, stop 19960 (10 x ATR 4) -> -40 x 20 - 24,68 = -824,68. B entra 19960 (comision incluida en M2M: -24,68). Valle M2M = -849,36.
+		// Dia 2: A abierta plana todo el dia: eq = -24,68; M2M acumulado = -849,36 - 24,68 = -874,04. Pico = 0 -> DdM2m = 874,04 (con el defecto cuenta doble el cierre del dia 1: >1600).
+		private void SynthM2mCheck()
+		{
+			List<long> t = new List<long>(); List<double> o = new List<double>(), h = new List<double>(), l = new List<double>(), c = new List<double>();
+			int[] daysD = new int[] { 4, 5 };
+			for (int d = 0; d < 2; d++)
+			{
+				DateTime day = new DateTime(2022, 1, daysD[d]);
+				for (int st = NQCE_Const.StampLoadFrom; st <= NQCE_Const.StampLoadTo; st++)
+				{
+					double bo = 20000, bh = 20002, bl = 19998, bc = 20000;
+					if (d == 0 && st == 577) { bo = 20000; bh = 20000; bl = 19990; bc = 19990; }
+					if (d == 0 && st == 578) { bo = 19990; bh = 19990; bl = 19955; bc = 19960; }
+					if (d == 0 && st > 578) { bo = 19960; bh = 19962; bl = 19958; bc = 19960; }
+					if (d == 0 && st == 600) { bo = 19960; bh = 19972; bl = 19960; bc = 19970; }
+					t.Add(day.AddMinutes(st).Ticks); o.Add(bo); h.Add(bh); l.Add(bl); c.Add(bc);
+				}
+			}
+			NQCE_Config cfg = new NQCE_Config(); cfg.Protect = false; cfg.News = null; cfg.Excluded = new HashSet<int>();
+			NQCE_Result r = NQCE_Executor.Run(new NQCE_Bars(t.ToArray(), o.ToArray(), h.ToArray(), l.ToArray(), c.ToArray()), SynthPortfolio(), cfg, null);
+			bool ok = r.Trades.Count == 3 && Math.Abs(r.Trades[0].Net - (-824.68)) < 1e-6;
+			Chk("R5.11a sesion con cierre y operacion abierta: A cerrada por stop = -824,68", ok, r.Trades.Count == 3 ? r.Trades[0].Net.ToString("0.00", CultureInfo.InvariantCulture) : "ops=" + I(r.Trades.Count));
+			Chk("R5.11b DdM2m del nucleo = 874,04 (sin doble conteo del P&L cerrado)", Math.Abs(r.DdM2m - 874.04) < 1e-6, r.DdM2m.ToString("0.00", CultureInfo.InvariantCulture));
+			Chk("R5.11c DD cerrado = 874,04 (trayectoria cerrada -824,68, -849,36, -874,04; no cambia con la correccion)", Math.Abs(r.DdClosed - 874.04) < 1e-6, r.DdClosed.ToString("0.00", CultureInfo.InvariantCulture));
 		}
 
 		private bool TrackerCheck()

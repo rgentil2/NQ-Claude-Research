@@ -551,7 +551,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				double eq = sessReal;
 				if (hasPos) eq += P.Dir * (c - P.Entry) * NQCE_Const.PointValue - cfg.Cost();
 				if (eq < sessMin) sessMin = eq;
-				double cumM2m = cumReal + eq;
+				double cumM2m = (cumReal - sessReal) + eq;   // M2M acumulado = realizado al inicio de la sesion + eq de la sesion (eq ya incluye sessReal; cumReal se actualiza al cerrar: no sumar dos veces)
 				if (cumM2m > peakM2m) peakM2m = cumM2m;
 				if (peakM2m - cumM2m > res.DdM2m) res.DdM2m = peakM2m - cumM2m;
 				hk.OnBarMark(dayKey, ct, eq, hasPos);
@@ -643,7 +643,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			NQCE_ProtectEvent e = new NQCE_ProtectEvent();
 			e.Kind = kind; e.Tick = tick; e.DayKey = dayKey; e.SessionPnl = sessPnl;
-			e.Balance = acct.Bal; e.Peak = acct.Hi; e.DdClosed = peakClosed - cumReal; e.DdM2m = peakM2m - (cumReal + eq); e.Cushion = room0 + sessPnl;
+			e.Balance = acct.Bal; e.Peak = acct.Hi; e.DdClosed = peakClosed - cumReal; e.DdM2m = peakM2m - ((cumReal - sessPnl) + eq); e.Cushion = room0 + sessPnl;
 			res.Protect.Add(e); hk.OnProtect(e);
 		}
 	}

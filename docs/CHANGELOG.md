@@ -1,5 +1,8 @@
 # Changelog del contrato
 
+## NQC 2.0.0 — correccion de defecto en ET1 (DdM2m del motor) — 2026-11-14
+Sin resultados vistos. `NQCE_Executor.DdM2m` sumaba dos veces el P&L ya cerrado de la sesion; corregido a (realizado al inicio de la sesion) + eq. No cambia ninguna operacion, TRADES, DdClosed, umbral ni etapa; era un dato informativo (ET6 mide su DD M2M con hook propio). Se agrega R5.11 y la regresion de ET1 debe repetirse en NT8 (cambia el hash de `NQC_ET1_Core.cs`).
+
 ## NQC 2.0.0 — aclaración de ET1 (P3) — 2026-11-12
 - **P3, paridad en precios brutos.** NT8 no cobra slippage en órdenes límite, así que no puede igualar un costo fijo de US$24,68 operación por operación. La paridad se mide con Slippage 0 y comisión ninguna en Strategy Analyzer, y el costo fijo se aplica después, igual en ambos lados. No cambia ninguna etapa, dato, orden ni umbral. Detalle en `docs/ET1_REFERENCES.md`.
 - Las convenciones de fills (entrada, salidas forzadas, stop contra objetivo, límites) se fijan con las referencias nativas de ET1 antes de congelar el motor. Ya estaba previsto en P1 para las órdenes límite; se extiende a las demás.
