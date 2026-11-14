@@ -21,13 +21,13 @@ using System.Text;
 namespace NinjaTrader.NinjaScript.Strategies
 {
 	// Interfaz para enchufar la biblioteca de condiciones D-018 (120 formulas / 1.320 condiciones).
-	// La implementacion NO existe todavia (WP1 bloqueado: ver docs/stages/ET3.md).
+	// Implementacion: NQCE3_Library (NQC_ET3_Library.cs, WP1).
 	public interface INQCE3_Library
 	{
 		string Version { get; }                 // identificador/hash de la biblioteca, va al ledger
 		int ConditionCount { get; }             // N: ids validos 1..N
 		int ParamLevels(int condId);            // niveles discretos del umbral (>=1) de la condicion
-		INQCE_Condition Create(int condId, int paramLevel, int atrPeriod);   // funcion pura; umbrales en ATR
+		INQCE_Condition Create(int condId, int paramLevel, int atrPeriod, int dir);   // funcion pura; dir=+1/-1 (direccion del miembro)
 	}
 
 	public sealed class NQCE3_Genome
@@ -82,7 +82,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			m.Ksl = KslValue(G[GKsl]); m.Ktp = KtpValue(G[GKtp]);
 			m.MaxPerDay = 1; m.TimeExitStamp = -1;
 			for (int s = 0; s < Slots; s++)
-				if (G[2 * s] != 0) m.Conditions.Add(lib.Create(G[2 * s], G[2 * s + 1], m.AtrPeriod));
+				if (G[2 * s] != 0) m.Conditions.Add(lib.Create(G[2 * s], G[2 * s + 1], m.AtrPeriod, m.Dir));
 			return m;
 		}
 
