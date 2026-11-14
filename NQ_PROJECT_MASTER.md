@@ -60,7 +60,7 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-027 | **Blackout de ±5 minutos** en noticias USD de Forex Factory (impacto alto y medio) más T1 de MFFU; costo de reset US$0. |
 | D-027b | Alcance: **fuera del mercado** (cierre a `t−5:00`, sin entradas hasta `t+5:00`) y **sin eliminar barras**; igual que en `PDCSmallGapParity.cs`. |
 | D-028 | Fuente del calendario: el **método del 2026-10-05** (páginas mensuales de Forex Factory), rehecho para 2020–2026 con `tools/news/`. |
-| D-018 | **Biblioteca de condiciones de ET3: la completa anterior (120 fórmulas, 1.320 condiciones), umbrales en múltiplos de ATR** (2026-11-14). ET2 debe medir los falsos positivos con ella. |
+| D-018 | **Biblioteca de condiciones de ET3: la completa anterior (120 fórmulas, 1.320 condiciones), umbrales en múltiplos de ATR** (2026-11-14). ET2 debe medir los falsos positivos con ella. **Tras D-031 la biblioteca activa es NQCL-3.0.0: 113 familias × 11 reglas = 1.243 condiciones** (7 familias duplicadas eliminadas). |
 | D-029 | Presupuesto: **solo C1 por ahora**; C2–C5 reservadas (2026-11-14). |
 | D-018b | Biblioteca de ET3 con R5 estricto: 19 familias a ATR; 44 razones adimensionales a ATR literal (las no reexpresables se listan al usuario); las 24 de volumen entran (2026-11-14). |
 | D-030 | Genes de condición: periodo **y** umbral en múltiplos de ATR (2026-11-14). |
