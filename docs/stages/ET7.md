@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | NO INICIADA (el estado oficial vive en el master §6) |
+| Estado | NO INICIADA (el estado oficial vive en el master §6; propuesto: EN DESARROLLO, solo sintético) |
 | Depende de | ET6, ET2 |
 | Objetivo | Demostrar que el resultado es distinguible de la suerte de la búsqueda y congelar el portafolio. |
 | Entradas | Finalistas de ET6; TRIALS_LEDGER; distribución nula de ET2. |
@@ -14,12 +14,23 @@
 | Límite de datos / reglas duras | IS + ET2. Congela hash de spec + motor + commit ANTES de abrir OOS. |
 
 ## Pendientes y notas vigentes
-- (ninguna)
+- Código y prueba sintética listos (`ninjatrader/src/NQC_ET7_*.cs`). ET7 REAL bloqueada: exige ET2 aprobada (vector nulo, umbral de P_pass) y finalistas reales de ET6. Estado propuesto: EN DESARROLLO (código compilado + prueba sintética; NO ejecutada con datos).
+- Pendiente: ET6 debe exportar la serie de P&L diario (IS) de cada ensayo evaluado y de cada finalista, y la lista de operaciones ejecutadas (sesión, neto, mínimo abierto); ET2 debe entregar el vector «mejor portafolio por campaña» con la MISMA métrica de fitness que se pasa a ET7.
+- Preguntas abiertas: ver «Decisiones» (corte del N_eff, cobertura de series, métrica de fitness del percentil).
 
 ## Decisiones tomadas en esta etapa
-(ninguna registrada con este modelo de trabajo todavía)
+Recomendaciones conservadoras (INTERPRETACIÓN; el orquestador/usuario confirma):
+1. **N bruto del ledger acumulado** = ET3 (100.000 por campaña, todas las evaluaciones de genoma, también las descartadas) + ET4 (30–60 mil vecinos, D-034: cada vecino evaluado es un ensayo) + ET6 (D-035: cada combinación única evaluada, parciales incluidos, sin recontar la corrida a 1,5×). Se suman sin descuento; el bruto se reporta siempre.
+2. **N_eff**: agrupamiento jerárquico, linkage PROMEDIO, distancia √(0,5(1−ρ)), corte por defecto 0,40 (ρ ≥ 0,68) declarado en `ET7_CONFIG.txt` ANTES de correr y sellado por `config_sha256` en el informe. Los vecinos de ET4/ET6 (muy correlacionados con su padre) se funden con él: eso es el tratamiento de la correlación; un corte menor da más N_eff (DSR más duro). Series con varianza cero = grupo propio.
+3. **Cobertura**: no se guardan series de los 100.000 ensayos. Si solo una fracción c del N bruto tiene serie, N_eff = grupos / c (conservador); c < `neff_coverage_min` (defecto 1,0) falla cerrado. Más de `neff_max_series` (4.000, matriz O(n²)) falla cerrado: reducir antes (p. ej. series de los supervivientes de ET3 más representantes).
+4. **Retorno diario del portafolio** = P&L neto de la sesión en US$ (días sin operación = 0, todas las sesiones no excluidas del IS). SR diario; anualizado solo informativo ×√252. El DSR usa el SR diario (no anualizado), asimetría y curtosis no exceso, T días.
+5. **V del SR** = varianza entre grupos del SR diario (representante: serie de menor índice); con <2 grupos V=0 y SR0=0.
+6. **Percentil nulo** = 100·#{nulo < x}/n (empates no suman); exige n ≥ `null_min_n` (20). Fitness del portafolio y del nulo deben ser la misma métrica.
+7. **Monte Carlo**: bloques circulares de 8 operaciones, la posición i conserva la sesión de la operación original i; DD por operación incluyendo el mínimo abierto; P95 = cuantil ceil(0,95·K); P_pass bootstrap = media de `NQC_AccountSim.Rolling` por trayectoria; solo se reporta salvo que `ppass_boot_min` esté fijado. Semilla defecto 20261114.
+8. **Congelado**: hash de bytes (sin normalizar CRLF/LF: fijar eol=lf); ET8 debe llamar `NQCE7_Freeze.Verify` con commit actual (`git rev-parse HEAD`), spec y TODOS los .cs del motor; cualquier discrepancia, archivo de más/de menos o sello roto = no abrir el OOS.
 
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
+- 2026-11-14 · Implementado Stats/MonteCarlo/Freeze/Evidence + EvidenceTest (35 PASS/0 FALLA, referencias en Python). report_sha256 prueba=4eca95fe38be59ea5b49e606c5dd4661552dbce66a578aa7819b1236db0fbf52 (determinista 2 corridas). Sin datos de mercado. Queda: ET7 real tras ET2+ET6 · bloqueo: series/trades de ET6 y vector nulo de ET2.
