@@ -123,6 +123,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private EMA nE5, nE13;
 		private List<long> tT = new List<long>();
 		private List<double> tO = new List<double>(), tH = new List<double>(), tL = new List<double>(), tC = new List<double>();
+		private List<double> tV = new List<double>();
 		private List<double> v5 = new List<double>(), v14 = new List<double>(), v20 = new List<double>(), v50 = new List<double>();
 		private List<double> vE5 = new List<double>(), vE13 = new List<double>();
 		private bool done;
@@ -171,7 +172,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			DateTime c = Time[0];
 			if (c > new DateTime(2022, 12, 31, 23, 59, 59)) return;
 			tT.Add(c.Ticks);
-			tO.Add(Open[0]); tH.Add(High[0]); tL.Add(Low[0]); tC.Add(Close[0]);
+			tV.Add(Volume[0]); tO.Add(Open[0]); tH.Add(High[0]); tL.Add(Low[0]); tC.Add(Close[0]);
 			v5.Add(a5[0]); v14.Add(a14[0]); v20.Add(a20[0]); v50.Add(a50[0]);
 			vE5.Add(nE5[0]); vE13.Add(nE13[0]);
 		}
@@ -388,15 +389,40 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (done || tT.Count == 0) return;
 			done = true;
 			int n = tT.Count;
-			if (tzId != "Eastern Standard Time")
+			// R2 empirico de zona horaria (coherente con ET0 G4): el maximo de volumen 09:16-10:00 debe caer en la barra 09:31/09:32.
+			// TradingHours.TimeZoneInfo es la zona de la plantilla de horario, NO la de Time[0]; no se usa para abortar.
+			int tzSess = 0, tzHit = 0; double tzVol = 0;
 			{
-				string msg = "ABORTADO (R2): la zona horaria del grafico es '" + tzId + "' y se exige 'Eastern Standard Time'. Reconfigura la sesion del grafico a Eastern y repite.";
+				long curDay = -1; double bestV = -1; int bestM = -1;
+				for (int i = 0; i <= n; i++)
+				{
+					long day = i < n ? new DateTime(tT[i]).Date.Ticks : -2;
+					if (day != curDay)
+					{
+						if (bestM >= 0) { tzSess++; if (bestM == 571 || bestM == 572) tzHit++; }
+						curDay = day; bestV = -1; bestM = -1;
+					}
+					if (i >= n) break;
+					DateTime dt = new DateTime(tT[i]);
+					int mm = dt.Hour * 60 + dt.Minute;
+					tzVol += tV[i];
+					if (mm >= 556 && mm <= 600 && tV[i] > bestV && tV[i] > 0) { bestV = tV[i]; bestM = mm; }
+				}
+			}
+			bool tzUsable = tzVol > 0 && tzSess >= 20;
+			double tzFrac = tzUsable ? 100.0 * tzHit / tzSess : 0;
+			string tzLine = "zona plantilla horario (informativo, no es la zona de las horas de barra): " + tzId;
+			string tzRes = tzUsable ? "R2 zona de barras (empirico): pico de volumen 09:16-10:00 en barra 09:31/09:32 en " + tzHit.ToString(CultureInfo.InvariantCulture) + "/" + tzSess.ToString(CultureInfo.InvariantCulture) + " sesiones = " + tzFrac.ToString("0.00", CultureInfo.InvariantCulture) + "% (exigido >= 70%)"
+				: "R2 zona de barras (empirico): NO VERIFICABLE (serie sin volumen utilizable, sesiones=" + tzSess.ToString(CultureInfo.InvariantCulture) + "); se continua sin abortar";
+			if (tzUsable && tzFrac < 70.0)
+			{
+				string msg = "ABORTADO (R2): la hora de las barras no parece Eastern (" + tzRes + "). Revisa Tools > Options > General > Time zone de NT8 y repite.";
 				Print("NQC_ET1REG_ERROR " + msg);
 				try
 				{
 					string ed = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "NQC_Results");
 					Directory.CreateDirectory(ed);
-					File.WriteAllText(Path.Combine(ed, "ET1REG_ABORT_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".txt"), msg + "\ntimezone       : " + tzId + "\n");
+					File.WriteAllText(Path.Combine(ed, "ET1REG_ABORT_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".txt"), msg + "\n" + tzLine + "\n");
 				}
 				catch { }
 				return;
@@ -405,7 +431,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 			rep.Append("NQC ET1 REGRESSION - REGRESSION_REPORT\n");
 			rep.Append("script_version : " + ScriptVersion + "\ncore_version   : " + NQCE_Const.CoreVersion + "\ncontract       : " + NQCE_Const.ContractVersion + "\nexecutor_spec  : " + NQCE_Const.SpecVersion + "\n");
-			rep.Append("instrument     : " + instName + "\ntimezone       : " + tzId + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n\n");
+			rep.Append("instrument     : " + instName + "\n" + tzLine + "\n" + tzRes + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n\n");
 
 			// ---- R1 indicadores
 			rep.Append("[R1 indicadores: motor generico frente a NT8, todas las barras]\n");
@@ -542,7 +568,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			StringBuilder su = new StringBuilder();
 			su.Append("NQC ET1 REGRESSION - SUMMARY\n");
 			su.Append("script_version : " + ScriptVersion + "\ncore_version   : " + NQCE_Const.CoreVersion + "\ncontract       : " + NQCE_Const.ContractVersion + "\nexecutor_spec  : " + NQCE_Const.SpecVersion + "\n");
-			su.Append("instrument     : " + instName + "\ntimezone       : " + tzId + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n");
+			su.Append("instrument     : " + instName + "\n" + tzLine + "\n" + tzRes + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n");
 			su.Append("indicators_ok  : " + (indOk ? "SI" : "NO") + "\nnews           : " + news.Status + "\n");
 			su.Append("n1n9_native    : " + I(natTotal) + "\nn1n9_equal     : " + I(eqTotal) + "\nn1n9_expected  : " + I(ExpectedN1N9) + "\n");
 			su.Append("gaps_equal     : " + I(gEqual) + "\ngaps_gapped    : " + I(gGapped) + "\ngaps_expected  : " + I(ExpectedGaps) + "\ngap_native_sha : " + (gsha ?? "") + "\n");

@@ -39,9 +39,12 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · WP1–WP7 escritos: `NQC_ET1_Core.cs` (motor genérico puro) + `NQC_ET1_Regression.cs` + runbook; sin compilar ni ejecutar (no hay compilador aquí) · hashes en el commit · queda WP8/WP9 · bloquea: compilar/correr en NT8 (usuario).
-- 2026-11-14 · Correcciones de revision estatica: zona Eastern exigida y registrada (aborta si no), instName copiado en DataLoaded, estado PARCIAL, NEWS evaluado antes de OUT_WINDOW (no altera trades ni R5), hash sin nombre de carpeta, NextInt valida n, MAE/MFE en dos lineas. Sin compilar · ZIP `dist/NQC_ET1_Regression_pack.zip` · Core fb4ca71f…8208, Regression d3928f57…a8c4, ET1C aebe6fb1 sin cambios · bloquea: compilar/correr en NT8.
+- 2026-11-14 · Correcciones de revision estatica: zona Eastern exigida y registrada (aborta si no), instName copiado en DataLoaded, estado PARCIAL, NEWS evaluado antes de OUT_WINDOW (no altera trades ni R5), hash sin nombre de carpeta, NextInt valida n, MAE/MFE en dos lineas. Sin compilar · ZIP `dist/NQC_ET1_Regression_pack.zip` · Core fb4ca71f…8208, Regression e285352f…373a, ET1C aebe6fb1 sin cambios · bloquea: compilar/correr en NT8.
+- 2026-11-14 · Falso positivo R2 en NT8 (aborto por zona 'Central'): Bars.TradingHours.TimeZoneInfo es la zona de la plantilla de horario, no la de Time[0]. Quitado el aborto (valor solo informativo); sustituido por chequeo empirico: pico de volumen 09:16-10:00 en barra 09:31/09:32 >= 70% de sesiones (como ET0 G4), sin volumen utilizable se reporta sin abortar. Sin compilar · Regression e285352f…373a, Core fb4ca71f sin cambios, ET1C aebe6fb1 sin cambios (ET1C ya PASS ok=22 sha b9f84a4e6a75) · bloquea: recompilar/correr en NT8.
 
 ## Notas para el orquestador (sin cambio de codigo)
 - Precedencia de salida forzada TIME > NEWS > DAILY_CLOSE: el motor la aplica asi; EXECUTOR_SPEC 2.3.0 no la fija. Proponer fijarla.
 - Etiqueta `NEWS` (TRADES, linea 62) vs `NEWS_FLAT` (linea 30) inconsistente en la spec.
 - Redondeo bancario en empates exactos: identico a ET1B.
+
+- Leccion (2026-11-14): la zona de la plantilla de horario (TradingHours.TimeZoneInfo) no es la zona de las barras; no usarla para R2. Verificar la zona empiricamente (pico de volumen 09:31 como ET0 G4).
