@@ -21,3 +21,4 @@ Regresión PASS: N1–N9 8.110/8.110 operaciones iguales, 46/46 saltos, ET1C 22/
 - El usuario entregó solo las líneas de consola de ET1REG (hash truncado a 12 caracteres), no `SUMMARY.txt` ni `REGRESSION_REPORT.txt` de esa corrida. Faltan por ver los indicadores, los 10 chequeos del ejecutor, el chequeo empírico de zona y el determinismo interno. Se piden para completar el registro.
 - Primer intento de ET1REG abortó por un falso positivo de R2 (zona de la plantilla de horario, 'Central Standard Time'); se corrigió (ver `docs/stages/ET1.md`).
 - Archivos ET1C copiados de esta corrida: `ET1C_SUMMARY.txt`, `ET1C_SELFTEST_REPORT.txt`.
+- `ET1REG_ABORT_primer_intento_151221.txt`: aborto del primer intento (falso positivo de R2), conservado como evidencia.

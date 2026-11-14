@@ -1,0 +1,2 @@
+ABORTADO (R2): la zona horaria del grafico es 'Central Standard Time' y se exige 'Eastern Standard Time'. Reconfigura la sesion del grafico a Eastern y repite.
+timezone       : Central Standard Time
