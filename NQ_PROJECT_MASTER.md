@@ -2,7 +2,7 @@
 
 **Fuente única de verdad.** Si otro documento contradice este, manda este (y se corrige el otro).
 **Límite de tamaño:** este archivo no supera ~300 líneas. El detalle vive en `docs/`; los resultados, en `runs/`.
-**Última actualización:** 2026-11-12 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0). Ejecutor: EXECUTOR_SPEC 2.1.0.
+**Última actualización:** 2026-11-13 · **Contrato vigente:** NQC 2.0.0 — **CONGELADO (Nivel A)** (reemplaza a 1.0.0). Ejecutor: EXECUTOR_SPEC 2.1.0.
 
 ---
 
@@ -102,7 +102,7 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 | Contrato NQC 2.0.0 | **CONGELADO (Nivel A)** | `docs/CONTRACT_NQC_2.0.0.md` | 2026-11-11 |
 | ET0 | **APROBADA** (G0–G6 PASS, 2 corridas con el mismo hash) | `runs/2026-11-12_ET0_run1/`; script SHA256 `73e937b5…b0eed`; DAYS `9bd25f76…`; MONTHS `79f61c6d…` | 2026-11-12 |
 | Calendario de noticias | **APROBADO** (3.954 eventos; reproduce exactamente los 2.856 de 2020–2024) | `runs/2026-11-12_NEWS_run1/`; CSV SHA256 `93d837ac…377d` | 2026-11-12 |
-| ET1 | **NO INICIADA, desbloqueada.** Todos los datos y reglas necesarios están fijados | — | — |
+| ET1 | **EN DESARROLLO.** A (referencias nativas N1–N9) y B1 (motor propio = NT8, 8.110/8.110 operaciones, indicadores exactos) **EJECUTADAS/PASS**; C (simulador de cuenta, capa protectora, P3–P6) **EJECUTADA/PASS 22/22**. Falta cierre formal (P2 cubierto por B1) y aprobación | `runs/2026-11-12_ET1A_*`, `runs/2026-11-13_ET1B_run1/` (informe SHA `15c0da5f…54d1`), `runs/2026-11-13_ET1C_run1/` (`b9f84a4e…`; script `aebe6fb1…061e`) | 2026-11-13 |
 | ET2–ET10 | NO INICIADAS | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
@@ -116,7 +116,7 @@ Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8
 
 ## 7. Próximas acciones
 
-1. Desarrollo: **ET1** — motor, simulador de cuenta con perfil RAPID_INTRADAY_50K, blackout de noticias y las referencias nativas (`docs/WORK_PLAN.md`).
+1. Desarrollo: cerrar ET1 (acta con P1–P6) y construir el motor genérico + ejecutor de portafolio para ET2/ET3 (`docs/WORK_PLAN.md`).
 2. Usuario: dejar `usd_high_medium_2020_2026.csv` en `Documents/NinjaTrader 8/NQC_Data/` (el motor verificará su SHA256 `93d837ac…`).
 3. Usuario: confirmar la interpretación de ET6 y los rangos de ATR por defecto (D-019); opcional, revisar la biblioteca de condiciones (D-018) antes de ET3.
 4. Usuario (opcional): revisar 2020-10-23 en el gráfico de NT8.
