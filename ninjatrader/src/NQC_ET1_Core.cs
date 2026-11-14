@@ -78,7 +78,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 		}
 		public double NextDouble() { return (Next() >> 11) * (1.0 / 9007199254740992.0); }
-		public int NextInt(int n) { return (int)(Next() % (ulong)n); }
+		public int NextInt(int n) { if (n <= 0) throw new ArgumentOutOfRangeException("n"); return (int)(Next() % (ulong)n); }
 	}
 
 	// ------------------------------------------------------------------ barras e indicadores propios
@@ -536,7 +536,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (hasPos)
 				{
 					double adv = P.Dir == 1 ? P.Entry - l : h - P.Entry, fav = P.Dir == 1 ? h - P.Entry : P.Entry - l;
-					if (adv > P.Mae) P.Mae = adv; if (fav > P.Mfe) P.Mfe = fav;
+					if (adv > P.Mae) P.Mae = adv;
+					if (fav > P.Mfe) P.Mfe = fav;
 					string nmx; double px; bool gp;
 					if (NQCE_Fill.Check(P.Dir, o, h, l, P.Stop, P.Tp, out nmx, out px, out gp))
 					{
@@ -588,8 +589,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					if (!mem.Signal(ctx)) continue;
 					int[] w = Wf(dayKey, m);
 					w[cRaw]++;
-					if (!inWin) { w[cOut]++; hk.OnSignal(dayKey, ct, mem.Id, "OUT_WINDOW"); continue; }
 					if (inb) { w[cNews]++; hk.OnSignal(dayKey, ct, mem.Id, "NEWS"); continue; }
+					if (!inWin) { w[cOut]++; hk.OnSignal(dayKey, ct, mem.Id, "OUT_WINDOW"); continue; }
 					if (busy || taken) { w[cBusy]++; hk.OnSignal(dayKey, ct, mem.Id, "BUSY"); continue; }
 					if (cfg.Protect)
 					{

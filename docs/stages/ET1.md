@@ -39,3 +39,9 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · WP1–WP7 escritos: `NQC_ET1_Core.cs` (motor genérico puro) + `NQC_ET1_Regression.cs` + runbook; sin compilar ni ejecutar (no hay compilador aquí) · hashes en el commit · queda WP8/WP9 · bloquea: compilar/correr en NT8 (usuario).
+- 2026-11-14 · Correcciones de revision estatica: zona Eastern exigida y registrada (aborta si no), instName copiado en DataLoaded, estado PARCIAL, NEWS evaluado antes de OUT_WINDOW (no altera trades ni R5), hash sin nombre de carpeta, NextInt valida n, MAE/MFE en dos lineas. Sin compilar · ZIP `dist/NQC_ET1_Regression_pack.zip` · Core fb4ca71f…8208, Regression d3928f57…a8c4, ET1C aebe6fb1 sin cambios · bloquea: compilar/correr en NT8.
+
+## Notas para el orquestador (sin cambio de codigo)
+- Precedencia de salida forzada TIME > NEWS > DAILY_CLOSE: el motor la aplica asi; EXECUTOR_SPEC 2.3.0 no la fija. Proponer fijarla.
+- Etiqueta `NEWS` (TRADES, linea 62) vs `NEWS_FLAT` (linea 30) inconsistente en la spec.
+- Redondeo bancario en empates exactos: identico a ET1B.

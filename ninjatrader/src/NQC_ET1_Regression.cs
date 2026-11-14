@@ -126,6 +126,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private List<double> v5 = new List<double>(), v14 = new List<double>(), v20 = new List<double>(), v50 = new List<double>();
 		private List<double> vE5 = new List<double>(), vE13 = new List<double>();
 		private bool done;
+		private string instName = "";
+		private string tzId = "";
 		private StringBuilder rep = new StringBuilder();
 
 		protected override void OnStateChange()
@@ -143,6 +145,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				a5 = ATR(5); a14 = ATR(14); a20 = ATR(20); a50 = ATR(50);
 				nE5 = EMA(5); nE13 = EMA(13);
+				instName = Instrument.FullName;
+				try { tzId = Bars.TradingHours.TimeZoneInfo.Id; } catch { tzId = ""; }
 			}
 			else if (State == State.Terminated)
 			{
@@ -384,11 +388,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (done || tT.Count == 0) return;
 			done = true;
 			int n = tT.Count;
+			if (tzId != "Eastern Standard Time")
+			{
+				string msg = "ABORTADO (R2): la zona horaria del grafico es '" + tzId + "' y se exige 'Eastern Standard Time'. Reconfigura la sesion del grafico a Eastern y repite.";
+				Print("NQC_ET1REG_ERROR " + msg);
+				try
+				{
+					string ed = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "NQC_Results");
+					Directory.CreateDirectory(ed);
+					File.WriteAllText(Path.Combine(ed, "ET1REG_ABORT_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".txt"), msg + "\ntimezone       : " + tzId + "\n");
+				}
+				catch { }
+				return;
+			}
 			NQCE_Bars bars = new NQCE_Bars(tT.ToArray(), tO.ToArray(), tH.ToArray(), tL.ToArray(), tC.ToArray());
 
 			rep.Append("NQC ET1 REGRESSION - REGRESSION_REPORT\n");
 			rep.Append("script_version : " + ScriptVersion + "\ncore_version   : " + NQCE_Const.CoreVersion + "\ncontract       : " + NQCE_Const.ContractVersion + "\nexecutor_spec  : " + NQCE_Const.SpecVersion + "\n");
-			rep.Append("instrument     : " + Instrument.FullName + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n\n");
+			rep.Append("instrument     : " + instName + "\ntimezone       : " + tzId + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n\n");
 
 			// ---- R1 indicadores
 			rep.Append("[R1 indicadores: motor generico frente a NT8, todas las barras]\n");
@@ -476,7 +493,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			else
 			{
 				gNat = gnat.Count;
-				rep.Append("libro nativo: " + Path.GetFileName(gfolder) + " sha256=" + gsha + " sha_ok=" + (gshaOk ? "SI" : "NO") + "\n");
+				rep.Append("libro nativo: sha256=" + gsha + " sha_ok=" + (gshaOk ? "SI" : "NO") + "\n");
 				double[] atr14 = bars.Atr(14);
 				StringBuilder gt = new StringBuilder();
 				gt.Append("ref\tdir\tsignalTime\tentryPrice\tstopPrice\texitName\texitExecTime\texitPrice\tgapped\n");
@@ -515,7 +532,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (!synOk || !trkOk) allOk = false;
 
 			rep.Append("\n[ET1C] Los 22 chequeos de NQC_ET1C_AccountSim NO se ejecutan aqui: correr ET1C sin cambios (runbook). El motor usa esa misma clase.\n");
-			string status = allOk ? "PASS" : "FALLA";
+			bool partial = new DateTime(bars.T[n - 1]) < new DateTime(2022, 12, 29);
+			string status = partial ? "PARCIAL" : (allOk ? "PASS" : "FALLA");
+			if (partial) rep.Append("\nNOTA: ultimo Time lejos de 2022-12-31 (corrida abortada o datos incompletos); resultado PARCIAL, no es FALLA del motor.\n");
 			rep.Append("\nstatus: " + status + "\n");
 			string text = rep.ToString();
 			File.WriteAllText(Path.Combine(outDir, "REGRESSION_REPORT.txt"), text, enc);
@@ -523,7 +542,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			StringBuilder su = new StringBuilder();
 			su.Append("NQC ET1 REGRESSION - SUMMARY\n");
 			su.Append("script_version : " + ScriptVersion + "\ncore_version   : " + NQCE_Const.CoreVersion + "\ncontract       : " + NQCE_Const.ContractVersion + "\nexecutor_spec  : " + NQCE_Const.SpecVersion + "\n");
-			su.Append("instrument     : " + Instrument.FullName + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n");
+			su.Append("instrument     : " + instName + "\ntimezone       : " + tzId + "\nbars           : " + I(n) + "\nfirst_bar      : " + F(new DateTime(bars.T[0])) + "\nlast_bar       : " + F(new DateTime(bars.T[n - 1])) + "\n");
 			su.Append("indicators_ok  : " + (indOk ? "SI" : "NO") + "\nnews           : " + news.Status + "\n");
 			su.Append("n1n9_native    : " + I(natTotal) + "\nn1n9_equal     : " + I(eqTotal) + "\nn1n9_expected  : " + I(ExpectedN1N9) + "\n");
 			su.Append("gaps_equal     : " + I(gEqual) + "\ngaps_gapped    : " + I(gGapped) + "\ngaps_expected  : " + I(ExpectedGaps) + "\ngap_native_sha : " + (gsha ?? "") + "\n");
