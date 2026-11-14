@@ -14,14 +14,24 @@
 | Límite de datos / reglas duras | IS solo técnico, sin mirar PF/beneficio. |
 
 ## Pendientes y notas vigentes
-- Tarea viva: construir el motor genérico + ejecutor de portafolio para ET2/ET3.
+- Tarea viva: construir el motor genérico + ejecutor de portafolio para ET2/ET3. **Paquetes (2026-11-14):**
+  - WP1 núcleo de datos/indicadores/noticias/RNG (`NQC_ET1_Core.cs`): ESCRITO, sin compilar.
+  - WP2 genoma de entradas + genes de salida ATR (condiciones de referencia; la biblioteca D-018 sigue pendiente): ESCRITO.
+  - WP3 ejecutor central de 1 NQ con prioridad, costos y salidas §3: ESCRITO.
+  - WP4 capa protectora + hooks de cuenta (cuenta continua, `NQC_AccountSim` reutilizado): ESCRITO.
+  - WP5 auditoría §9 (TRADES, WATERFALL, PROTECT_EVENTS, ACCOUNT_SIM) y métricas Stability/Symmetry/DD: ESCRITO (SUMMARY.txt lo arma el runner, WP8).
+  - WP6 determinismo con semilla (`NQCE_Rng`): ESCRITO.
+  - WP7 arnés de regresión (`NQC_ET1_Regression.cs`, runbook `ninjatrader/runbooks/ET1_REGRESSION_RUNBOOK.md`): ESCRITO, NO EJECUTADO.
+  - WP8 runner de portafolio en NT8 (lee `PORTFOLIO_SPEC`, escribe las salidas): PENDIENTE (necesita formato de genoma de ET3 y D-018).
+  - WP9 compilar y ejecutar la regresión en NT8 (usuario): PENDIENTE.
 - Antes de usarlo debe reproducir N1–N9 (8.110 operaciones), los 46 saltos y los 22 chequeos de ET1C (acta ET1 §6).
 - Pendiente D-018 (biblioteca de condiciones) y D-019 (rangos de ATR).
 
 ## Decisiones tomadas en esta etapa
-(ninguna registrada con este modelo de trabajo todavía)
+(ninguna). Interpretaciones propuestas al master: cierre diario como salida forzada; guardia DD con cuenta continua; MAE/MFE como proxy.
 
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
+- 2026-11-14 · WP1–WP7 escritos: `NQC_ET1_Core.cs` (motor genérico puro) + `NQC_ET1_Regression.cs` + runbook; sin compilar ni ejecutar (no hay compilador aquí) · hashes en el commit · queda WP8/WP9 · bloquea: compilar/correr en NT8 (usuario).
