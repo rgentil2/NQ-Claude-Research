@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | NO INICIADA (el estado oficial vive en el master §6) |
+| Estado | EN DESARROLLO (WP2-WP5 escritos sin compilar; WP1 bloqueado) (el estado oficial vive en el master §6) |
 | Depende de | ET2 |
 | Objetivo | Búsqueda evolutiva guiada por fitness (t de expectativa neta) en el IS. |
 | Entradas | NQC 2.1.0; biblioteca de condiciones (D-018); rangos ATR (D-019). |
@@ -14,22 +14,19 @@
 | Límite de datos / reglas duras | IS 2020–2022 solo; máx. 5 campañas (C1–C5), ≤100.000 evaluaciones; semillas declaradas antes. |
 
 ## Pendientes y notas vigentes
-- **AL EMPEZAR ET3: el agente debe preguntar al usuario** por D-018 (biblioteca de condiciones) y D-019 (rangos de ATR) antes de escribir código. Instrucción del usuario, 2026-11-14.
+- Preguntas D-018/D-019a ya respondidas (ver Decisiones). Pendiente: entregar la biblioteca (WP1); compilar en NT8 los NQC_ET3_*; ET2 aprobada antes de cualquier corrida real.
 - Cada evaluación cuenta como ensayo en el ledger.
 
 ## Decisiones tomadas en esta etapa
-**Ninguna del usuario todavía.** AskUserQuestion no está disponible para este agente (2026-11-14); las preguntas quedan redactadas abajo para que el orquestador las plantee. No se escribe código hasta tener respuesta.
+Registradas en docs/DECISIONS.md (2026-11-14), preguntas P1-P4 CERRADAS:
+- P1/P2 = D-018: biblioteca completa anterior (120 formulas, 1.320 condiciones), umbrales en multiplos de ATR (R5).
+- P3 = D-019a: periodo ATR 5-100; k_sl 0,5-6,0 paso 0,25 (23 valores); k_tp 0,5-8,0 paso 0,25 (31 valores, ver nota) o ausente.
+- P4 = D-029: solo C1 por ahora; C2-C5 reservadas.
+- D-019 (parametros geneticos): propuesta del agente, no objetada: poblacion 500, 200 gen., torneo 3, cruce uniforme, mutacion 5%/gen, elitismo 5%, top-K 2.000 dedup. Semilla C1 = 20261114 (DECLARADA aqui antes de correr; fijada en NQCE3_Params.Seed).
+- Nota: 0,5..8,0 paso 0,25 son 31 valores (no 32 como decia mi texto previo); el codigo usa 31 + ausente = 32 niveles del gen.
 
-Nota de numeración: DECISIONS.md tiene D-019a (rangos ATR, ACEPTADA por el usuario 2026-11-12) y D-019 (parámetros genéticos, pendiente). La instrucción del usuario pide reconfirmar rangos ATR; se pregunta igualmente.
-
-### Preguntas pendientes para el usuario (recomendada primero)
-- **P1 (D-018) Biblioteca de condiciones.** (a) Recomendada: núcleo coherente con 09:30–11:30, ~40–60 fórmulas / ~400–600 condiciones: rango de apertura (cierre vs máx/mín del rango 09:30–09:45), distancia a VWAP de sesión, EMA cruces/pendiente, momentum de N barras, tamaño de barra y rango reciente, volumen relativo, sello horario. Menos ensayos por espacio, menos riesgo de sobreajuste. (b) Biblioteca completa anterior (120 fórmulas, 1.320 condiciones): más cobertura, espacio mucho mayor, más falsos positivos con 100.000 evaluaciones. (c) Mínimo (~15 fórmulas, solo apertura/EMA/momentum): muy restringido, riesgo de no encontrar nada.
-- **P2 (D-018) Unidades.** (a) Recomendada: todo umbral en múltiplos de ATR (distancias, rangos, momentum), tick/puntos solo para filtros de precio absoluto (R5). (b) Mezcla libre ATR/ticks/puntos por condición: más genes de unidad, más ensayos efectivos, más sobreajuste. (c) Solo puntos fijos: no escala con volatilidad; no recomendada.
-- **P3 (D-019) Rangos ATR.** (a) Recomendada: los ya aceptados: periodo 5–100 (entero), k_sl 0,5–6,0 paso 0,25 (23 valores), k_tp 0,5–8,0 paso 0,25 o ausente (32 valores + ausente). (b) Rango reducido (periodo 5–50, k_sl 0,5–4, k_tp 0,5–6): menos combinaciones, menor riesgo de sobreajuste, pero puede excluir salidas válidas. (c) Paso 0,5 en k: espacio de salidas ~4 veces menor.
-- **P4 Presupuesto de campañas.** (a) Recomendada: usar solo C1 (100.000 evaluaciones) y reservar C2–C5 para rediseño si falla; (b) planificar 2 campañas con semillas distintas para medir estabilidad de la búsqueda (200.000 ensayos en total, penaliza más el ajuste por múltiples pruebas); (c) planificar las 5 desde ahora: no recomendado, cada campaña adicional encarece la corrección por ensayos.
-
-### Recomendaciones propias (no son preguntas)
-Población 500, 200 generaciones (=100.000 evaluaciones, D-019 de DECISIONS), torneo de 3, cruce uniforme, mutación 5% por gen, elitismo 5%; genoma de 20 genes; población inicial con frecuencia mínima de señal; semillas declaradas en este archivo antes de correr (propuesta: C1 = 20261114 y derivadas por generación vía NQCE_Rng); fitness t con mínimo 100 operaciones, penalización a 0 por debajo; top-K 2.000 con deduplicación por huella de operaciones.
+### BLOQUEO WP1: la biblioteca D-018 NO esta en este repo
+Solo hay menciones (LESSONS_FROM_PREVIOUS_REPOS.md l.14, DECISIONS D-018). No hay lista de formulas ni codigo en docs/, tools/ ni ninjatrader/src/. No se reconstruye de memoria. Se necesita del usuario: el archivo/lista de las 120 formulas y 1.320 condiciones (con sus umbrales/niveles y definicion exacta) del repo MES-Trading-Research, o permiso para adjuntar ese repo con add_repo. Mientras tanto la interfaz INQCE3_Library (en NQC_ET3_Genome.cs) define el enchufe.
 
 ### Formato de genoma propuesto (20 genes, sobre NQCE_Member)
 Genes 1–16: pares (familia/condición de la biblioteca, parámetro discretizado en unidades de ATR) de entrada, con ranura vacía permitida; se combinan con AND (INQCE_Condition). Gen 17: dirección (+1/-1). Gen 18: periodo ATR. Gen 19: k_sl. Gen 20: k_tp (o ausente). MaxPerDay=1 y TimeExitStamp=-1 por defecto (no evolucionan). Serialización: GenomeText() existente + hash SHA256 (NQCE_Const.Sha256Text) como id de ensayo en el ledger.
@@ -48,3 +45,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · Arranque: lectura de contrato/ET1 Core; AskUserQuestion no disponible, 4 preguntas (D-018, D-019, presupuesto) redactadas, WP1–WP7 y genoma propuestos. Sin código. Bloqueo: respuestas del usuario. Pide al orquestador registrar D-018/D-019.
+- 2026-11-14 · Decisiones D-018/D-019a/D-029 registradas; biblioteca NO encontrada en el repo (WP1 bloqueado, pide archivo al usuario). Escritos sin compilar: NQC_ET3_Genome.cs (WP2 + interfaz INQCE3_Library), _Operators.cs (WP3), _Fitness.cs (WP4), _Ledger.cs (WP5 + bucle NQCE3_Campaign). Sin corridas ni resultados.
