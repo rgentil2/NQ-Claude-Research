@@ -77,6 +77,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public NQCE3_Databank Bank = new NQCE3_Databank(2000);   // D-019: top-K 2.000 deduplicado (se reconstruye con p.TopK al correr)
 		public const int MaxEvaluations = 100000;   // tope duro D-019 (inmigrantes y elite recalculada incluidos en el conteo de evaluaciones nuevas)
 		public int MaxEvals = MaxEvaluations;      // por defecto el tope; las pruebas pueden bajarlo
+		public Action<int, NQCE3_Campaign> OnGeneration;   // opcional: se llama al cerrar cada generacion (progreso del runner); no afecta al azar ni al ledger
 
 		public void Run(NQCE3_Fitness fit, INQCE3_Library lib, NQCE3_Params p, Func<NQCE3_Genome, bool> minSignal)
 		{
@@ -98,6 +99,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Curve.Append(gen.ToString(CultureInfo.InvariantCulture)).Append('\t').Append(double.IsNaN(best) ? "NA" : best.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t')
 				     .Append(evaluated == 0 ? "NA" : (sum / evaluated).ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(evaluated == 0 ? "NA" : ((double)valid / evaluated).ToString("0.000", CultureInfo.InvariantCulture)).Append('\t')
 				     .Append(fit.FreshEvaluations.ToString(CultureInfo.InvariantCulture)).Append('\n');
+				if (OnGeneration != null) OnGeneration(gen, this);
 				if (fit.FreshEvaluations >= MaxEvals || gen == p.Generations - 1) break;
 				pop = NQCE3_Operators.NextGeneration(r, pop, f, p, lib, minSignal);
 			}

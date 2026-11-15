@@ -38,7 +38,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class NQC_ET3_LibraryTest : Strategy
 	{
-		private const string ScriptVersion = "ET3LIBTEST-3.0.0";
+		private const string ScriptVersion = "ET3LIBTEST-3.1.0";
 		private bool started, done;
 		private StringBuilder rep = new StringBuilder();
 		private int pass, fail;
@@ -139,10 +139,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 					if (u == 'A') a++; else if (u == 'X') b++; else if (u == 'C') c++; else if (u == 'D') d++; else if (u == 'E') e++;
 					if (NQCE3_Catalog.NeedsVolume(f)) vol++;
 				}
-				Chk("L1.3 auditoria codificada (activas): A93, X16 (excepcion R5 D-031(1)), E4, C=D=0, volumen 21", NQCE3_Catalog.UnitClass.Length == 120 && NQCE3_Catalog.VolumeDep.Length == 120 && a == 93 && b == 16 && e == 4 && c == 0 && d == 0 && vol == 21,
+				Chk("L1.3 auditoria codificada (activas): A93, X20 (excepcion R5 D-031(1) + D-032), E0, C=D=0, volumen 21", NQCE3_Catalog.UnitClass.Length == 120 && NQCE3_Catalog.VolumeDep.Length == 120 && a == 93 && b == 20 && e == 0 && c == 0 && d == 0 && vol == 21,
 					"A=" + I(a) + " X=" + I(b) + " E=" + I(e) + " C=" + I(c) + " D=" + I(d) + " volumen=" + I(vol));
 				NQCE3_Library lib2 = new NQCE3_Library();
-				Chk("L1.4 version estable", lib.Version == lib2.Version && lib.Version.StartsWith("NQCL-3.0.0:"), lib.Version);
+				Chk("L1.4 version estable", lib.Version == lib2.Version && lib.Version.StartsWith("NQCL-3.1.0:"), lib.Version);
 				Chk("L1.5 niveles de periodo 27 (4..30) para todas las condiciones", lib.PeriodLevels(1) == 27 && lib.PeriodLevels(1320) == 27, "niveles=" + I(lib.PeriodLevels(7)));
 			}
 
@@ -494,9 +494,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Chk("L11.5 casi duplicados 100~111 y 72~50 siguen ACTIVOS (D-031: no se eliminan, solo se documentan)", NQCE3_Catalog.IsActiveFamily(100) && NQCE3_Catalog.IsActiveFamily(111) && NQCE3_Catalog.IsActiveFamily(72) && NQCE3_Catalog.IsActiveFamily(50),
 					"max|f100-f111|=" + d100.ToString("E2", CultureInfo.InvariantCulture) + " max|f72-f50|=" + d72.ToString("E2", CultureInfo.InvariantCulture));
 				// L11.6 R5: las 16 familias de excepcion D-031(1) estan marcadas 'X'
-				int[] exc = new int[] { 10, 17, 24, 33, 42, 59, 64, 68, 69, 71, 99, 106, 110, 115, 118, 119 }; bool xo = true;
+				int[] exc = new int[] { 10, 17, 24, 32, 33, 42, 59, 60, 64, 68, 69, 71, 85, 99, 103, 106, 110, 115, 118, 119 }; bool xo = true;
 				foreach (int f in exc) xo &= NQCE3_Catalog.UnitOf(f) == 'X';
-				Chk("L11.6 excepcion R5 (D-031(1)): las 16 familias adimensionales marcadas X en UnitClass", xo, "ok");
+				Chk("L11.6 excepcion R5 (D-031(1)): las 20 familias adimensionales (16 de D-031 + 4 de D-032) marcadas X en UnitClass", xo, "ok");
 				// L11.7 determinismo: dos series independientes dan el mismo valor (cache vs sin cache y repetido)
 				NQCE3_Series sa = new NQCE3_Series(full, v), sb2 = new NQCE3_Series(full, v); bool det = true;
 				foreach (int f in new int[] { 0, 26, 63, 78, 94, 118 }) foreach (int at in new int[] { 650, 700, 2040 })

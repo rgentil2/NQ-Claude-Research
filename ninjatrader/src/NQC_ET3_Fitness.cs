@@ -17,6 +17,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public string TrialId, GenomeText; public double Fitness, MeanNet, StdNet, TotalNet; public int Trades; public bool Valid;
 		public bool ZeroTradesWithRejects;   // 0 operaciones y alguna condicion sin senal por calentamiento/volumen/no finito (diagnostico A4)
 		public string TradeFingerprint;    // SHA256 de la secuencia (EntryTick, Dir) para deduplicar el databank
+		public NQCE3_Genome Genome;        // genoma reparado que produjo el ensayo (copia; no entra en ningun hash). Lo usa el runner para ET4/ET6/ET7
 	}
 
 	public sealed class NQCE3_Fitness
@@ -72,7 +73,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			string id = NQCE3_Genome.TrialIdOf(lib, m);
 			NQCE3_Eval hit;
 			if (cache.TryGetValue(id, out hit)) return hit;          // genoma repetido: no es ensayo nuevo
-			NQCE3_Eval e = new NQCE3_Eval(); e.TrialId = id;
+			NQCE3_Eval e = new NQCE3_Eval(); e.TrialId = id; e.Genome = g.Clone();
 			FreshEvaluations++;
 			if (m == null) { e.GenomeText = "EMPTY"; e.Fitness = InvalidBase; ZeroTradeEvals++; cache[id] = e; return e; }
 			m.Id = id.Substring(0, 12);

@@ -281,19 +281,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 		// Auditoria R5 de la unidad de cada familia tras D-018b (120 caracteres, una por familia):
 		//  A = magnitud en multiplos de ATR (100 familias antes de D-031(2); 93 activas tras eliminar 7 duplicados exactos);
 		//  X = EXCEPCION R5 ACEPTADA (D-031(1), 2026-11-14): razon/indicador adimensional acotado SIN escala de precio, no reexpresable en ATR
-		//      (16 familias, se MANTIENEN): 10,17,24,33,42,59,64,68,69,71,99,106,110,115,118,119. Su umbral es una fraccion, NO un multiplo de ATR.
-		//  E = dudosa (4 familias, sin cambios; D-031 no las trata): 32,60,85,103.
+		//      (16 familias D-031 + 4 de D-032 = 20, se MANTIENEN): 10,17,24,32,33,42,59,60,64,68,69,71,85,99,103,106,110,115,118,119. Su umbral es una fraccion, NO un multiplo de ATR.
+		//  E = dudosa: 0 familias desde D-032 (2026-11-14): 32 VPT, 60 Connors RSI, 85 expansion de volatilidad log y 103 VFI pasan de E a X
+		//      (excepcion R5 ampliada a 20 familias activas: A=93, X=20, E=0). Cambia UnitClass y por tanto el hash de la biblioteca (NQCL-3.1.0).
 		//  Las familias eliminadas por D-031(2) (ver RemovedFamilies) conservan aqui su letra original; el conteo de clases se hace sobre las activas.
 		public const string UnitClass =
 			"AAAAAAAAAAXA"+	// 0..11
 			"AAAAAXAAAAAA"+	// 12..23
-			"XAAAAAAAEXAA"+	// 24..35
+			"XAAAAAAAXXAA"+	// 24..35
 			"AAAAAAXAAAAA"+	// 36..47
 			"AAAAAAAAAAAX"+	// 48..59
-			"EAAAXAAAXXAX"+	// 60..71
+			"XAAAXAAAXXAX"+	// 60..71
 			"AAAAAAAAAAAA"+	// 72..83
-			"AEAAAAAAAAAA"+	// 84..95
-			"AAAXAAAEAAXA"+	// 96..107
+			"AXAAAAAAAAAA"+	// 84..95
+			"AAAXAAAXAAXA"+	// 96..107
 			"AAXAAAAXAAXX";	// 108..119
 
 		// 1 = la familia usa volumen (NT8 M1 lo entrega, pero NQCE_Bars de ET1 Core no lo guarda: hay que pasarlo a NQCE3_Library.Bind).

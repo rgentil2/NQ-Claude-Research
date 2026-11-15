@@ -38,7 +38,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public sealed class NQCE3_Library : INQCE3_Library
 	{
-		public const string LibName = "NQCL-3.0.0";
+		public const string LibName = "NQCL-3.1.0";
 		public const int WarmSameDay = 0, WarmAnyHistory = 1;
 		public int WarmupMode = WarmSameDay;       // defecto: todas las barras de recursion en el mismo dia calendario
 		// Contadores de condiciones sin senal posible (diagnostico; se reinician con ResetRejects).
