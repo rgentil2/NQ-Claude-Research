@@ -67,6 +67,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Calibration;                           // campana de CALIBRACION (ET2, datos transformados; la fija el lanzador por lotes): etiqueta libre en vez de C1..C5, no consume las 5 campanas
 		public int Et6MaxPool = 30, Et6BeamWidth = 10; public double Et6PpassMin = double.NaN;
 		public string Et7Text = "";
+		// D-038 integrado (NQCRUN-1.2.0): con neff_sample>0 el veredicto de ET7 usa neff_method=SAMPLE_CHAO1 con neff_bound=UPPER. Las claves que el usuario no declare se completan con los defectos
+		// propuestos y quedan en la config EFECTIVA (ET7_CONFIG.txt y config_sha256 la sellan). Una clave declarada por el usuario manda. neff_sample=0 deja el texto intacto (modo COVERED, hashes anteriores).
+		public string EffectiveEt7Text()
+		{
+			if (NeffSample <= 0) return Et7Text;
+			System.Collections.Generic.HashSet<string> have = new System.Collections.Generic.HashSet<string>();
+			foreach (string raw in Et7Text.Split('\n')) { string l = raw.Trim(); int q = l.IndexOf('='); if (l.Length > 0 && l[0] != '#' && q > 0) have.Add(l.Substring(0, q).Trim()); }
+			StringBuilder b = new StringBuilder(Et7Text); if (b.Length > 0 && b[b.Length - 1] != '\n') b.Append('\n');
+			string[][] d = new string[][] { new string[] { "neff_method", "SAMPLE_CHAO1" }, new string[] { "neff_bound", "UPPER" }, new string[] { "neff_sample_cov_min", "0.90" }, new string[] { "neff_sample_min_n", "1000" } };
+			foreach (string[] kv in d) if (!have.Contains(kv[0])) b.Append(kv[0]).Append('=').Append(kv[1]).Append('\n');
+			return b.ToString();
+		}
 		// Inyecciones de codigo (no vienen del archivo de configuracion)
 		public NQCRUN_IDatasetTransform Transform;                 // si es null se usa TransformName (reflexion) o la identidad
 		public Func<INQCE3_Library> LibraryFactory;                // null = new NQCE3_Library()
@@ -143,7 +155,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (MemoBudgetMb < 16 || MemoBudgetMb > 16384) return "memo_budget_mb fuera de 16..16384";
 			if (Et6MaxPool < 1 || Et6BeamWidth < 1) return "et6.max_pool y et6.beam_width deben ser >= 1";
 			if (!(StopAfter == "" || StopAfter == "ET3" || StopAfter == "ET4" || StopAfter == "ET5" || StopAfter == "ET6")) return "stop_after debe ser vacio o ET3/ET4/ET5/ET6";
-			string e7; if (NQCE7_Config.Parse(Et7Text, out e7) == null) return "config de ET7 invalida: " + e7;
+			string e7; if (NQCE7_Config.Parse(EffectiveEt7Text(), out e7) == null) return "config de ET7 invalida: " + e7;
 			if (Freeze)
 			{
 				if (!Et2Approved) return "freeze=1 exige et2_approved=1 (el congelado real solo tras ET2 aprobada)";
@@ -163,7 +175,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			 .Append(" topk=").Append(gp.TopK.ToString(CultureInfo.InvariantCulture)).Append(" initmax=").Append(gp.InitMaxActive.ToString(CultureInfo.InvariantCulture)).Append(" inittries=").Append(gp.MaxInitTries.ToString(CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("cfg: ").Append(NQCRUN_Funnel.CfgText(Config)).Append('\n');
 			b.Append("et6: max_pool=").Append(Et6MaxPool.ToString(CultureInfo.InvariantCulture)).Append(" beam=").Append(Et6BeamWidth.ToString(CultureInfo.InvariantCulture)).Append(" ppass_min=").Append(double.IsNaN(Et6PpassMin) ? "NaN" : Et6PpassMin.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
-			b.Append("et7_config_sha256=").Append(NQCE_Const.Sha256Text(Et7Text)).Append('\n');
+			b.Append("et7_config_sha256=").Append(NQCE_Const.Sha256Text(EffectiveEt7Text())).Append('\n');
 			b.Append("neff_sample=").Append(NeffSample.ToString(CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("freeze=").Append(Freeze ? "1" : "0").Append(" strict_is_range=").Append(StrictIsRange ? "1" : "0").Append(" commit=").Append(Commit).Append('\n');
 			return b.ToString();
@@ -323,7 +335,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public sealed class NQCRUN_Funnel
 	{
-		public const string Version = "NQCRUN-1.1.0";
+		public const string Version = "NQCRUN-1.2.0";
 		private NQCRUN_Params P; private string dir; private Action<string> log;
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private static string R(double v) { return double.IsNaN(v) ? "NaN" : (double.IsPositiveInfinity(v) ? "INF" : (double.IsNegativeInfinity(v) ? "-INF" : v.ToString("R", CultureInfo.InvariantCulture))); }
@@ -523,7 +535,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			string runInput = NQCE_Const.Sha256Text(ri.ToString()); res.RunInputSha = runInput;
 			Log("RUN input_sha256=" + runInput.Substring(0, 16) + " transform=" + tr.Name + " barras=" + I(bars.Count) + " sesiones=" + I(rep.Sessions));
 			NQCE_Config cfg = p.Config;
-			NQCE7_Config cfg7; { string e7; cfg7 = NQCE7_Config.Parse(p.Et7Text, out e7); }
+			NQCE7_Config cfg7; { string e7; cfg7 = NQCE7_Config.Parse(p.EffectiveEt7Text(), out e7); }
 			Stopwatch sw = new Stopwatch();
 
 			// ============================== ET3: campana evolutiva
@@ -652,30 +664,44 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// finalistas (A4)
 				List<string[]> fin = new List<string[]>(); foreach (string line in Read("ET6/ET6_FINALISTS.tsv").Split('\n')) { if (line.Length == 0 || line.StartsWith("rank\t", StringComparison.Ordinal)) continue; fin.Add(line.Split('\t')); }
 				List<NQCE7_CandidateInput> inputs = new List<NQCE7_CandidateInput>(); List<double[]> series = new List<double[]>();
-				// A5: serie diaria por entrada del databank (tope neff_max_series menos los finalistas), orden del databank
-				int cap = Math.Max(0, cfg7.NEffMaxSeries - fin.Count); int nb = Math.Min(cands.Count, cap);
-				for (int i = 0; i < nb; i++) { List<NQCRUN_Cand> one = new List<NQCRUN_Cand>(); one.Add(cands[i]); series.Add(RunPortfolio(bars, lib, one).DailyNet); }
+				bool sampleMode = cfg7.NEffMethod == "SAMPLE_CHAO1";
+				double[][] sample = null; long sSeen = 0, sSeed = 0; string samplePath = Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin");
+				if (File.Exists(samplePath)) { string[] sid; sample = NQCE3_Reservoir.Load(samplePath, out sid, out sSeen, out sSeed); }
+				// A5: COVERED (D-036) = serie diaria por entrada del databank (tope neff_max_series menos los finalistas) + finalistas. SAMPLE_CHAO1 (D-038) = solo la muestra uniforme del reservorio de ET3 (no se recorre el databank)
+				if (!sampleMode)
+				{
+					int cap = Math.Max(0, cfg7.NEffMaxSeries - fin.Count); int nb = Math.Min(cands.Count, cap);
+					for (int i = 0; i < nb; i++) { List<NQCRUN_Cand> one = new List<NQCRUN_Cand>(); one.Add(cands[i]); series.Add(RunPortfolio(bars, lib, one).DailyNet); }
+				}
 				List<string> finIds = new List<string>(); StringBuilder specs = new StringBuilder();
 				foreach (string[] f in fin)
 				{
 					List<NQCRUN_Cand> ms = new List<NQCRUN_Cand>(); foreach (string id in f[5].Split(',')) ms.Add(byId[id]);
 					NQCE_Result pr7 = RunPortfolio(bars, lib, ms);
 					NQCE7_CandidateInput ci = new NQCE7_CandidateInput(); ci.Id = f[1].Substring(0, 12); ci.DailyPnl = pr7.DailyNet; ci.Trades = TradeRecs(pr7, cfg); ci.Sessions = pr7.Sessions.Count; ci.Fitness = PR(f[3]);
-					inputs.Add(ci); series.Add(pr7.DailyNet); finIds.Add(f[0]);
+					inputs.Add(ci); if (!sampleMode) series.Add(pr7.DailyNet); finIds.Add(f[0]);
 					if (specs.Length > 0) specs.Append('\n'); specs.Append("spec_F").Append(f[0]).Append("_sha256=").Append(f[2]);
 				}
-				NQCE7_NEffResult ne = NQCE7_NEff.Compute(series.ToArray(), nGross, cfg7.NEffCut, cfg7.NEffCoverageMin, cfg7.NEffMaxSeries);
+				// N_poblacion (decision del runner, D-038/D-036): N bruto del ledger acumulado = ET3 + vecinos nuevos de ET4 + combinaciones de ET6 (el N que penaliza el DSR). La muestra solo contiene ensayos de ET3 (aproximacion declarada)
+				NQCE7_NEffResult ne = NQCE7_Evidence.ComputeNEff(cfg7, sampleMode ? sample : series.ToArray(), nGross);
 				List<NQCE7_Verdict> vs = new List<NQCE7_Verdict>();
 				foreach (NQCE7_CandidateInput ci in inputs) vs.Add(NQCE7_Evidence.Evaluate(ci, ne, nullBest, cfg7, cfg.Profile));
-				// D-038: estimacion del N_eff de la POBLACION desde la muestra uniforme de ET3 (reservorio). N_poblacion = ensayos evaluados por ET3. Informativa: el veredicto (Evaluate) aun usa el N_eff de D-036
-				string neffStatus = "SIN_MUESTRA";
-				if (File.Exists(Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin")))
+				string neffStatus = "SIN_MUESTRA"; int flatN = 0;
+				if (sample != null)
 				{
-					string[] sid; long sSeen, sSeed; double[][] sample = NQCE3_Reservoir.Load(Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin"), out sid, out sSeen, out sSeed);
-					string neffText = NQCRUN_NeffAdapter.Estimate(sample, et3Fresh, cfg7.NEffCut, out neffStatus);
-					Put(c7, "ET7/ET7_NEFF_SAMPLE_ESTIMATE.txt", "N_poblacion=" + I(et3Fresh) + " (ensayos evaluados por ET3) N_muestra=" + I(sample.Length) + " vistos_por_el_reservorio=" + I(sSeen) + " semilla_reservorio=" + I(sSeed) + "\n" + neffText);
+					foreach (double[] sr in sample) { double m = 0; foreach (double x in sr) m += x; m /= Math.Max(1, sr.Length); double q = 0; foreach (double x in sr) q += (x - m) * (x - m); if (q <= 1e-18) flatN++; }
+					string neffText = NQCRUN_NeffAdapter.Estimate(sample, nGross, cfg7.NEffCut, out neffStatus);
+					Put(c7, "ET7/ET7_NEFF_SAMPLE_ESTIMATE.txt", "N_poblacion_usada=" + I(nGross) + " (N bruto ET3+ET4+ET6) N_ET3=" + I(et3Fresh) + " N_muestra=" + I(sample.Length) + " vistos_por_el_reservorio=" + I(sSeen) + " semilla_reservorio=" + I(sSeed) + " series_planas=" + I(flatN) + "\n" + neffText);
 				}
 				c7.Meta["neff_sample_status"] = neffStatus; c7.Meta["neff_adapter"] = NQCRUN_NeffAdapter.Id;
+				if (sampleMode)
+				{
+					NQCE7_NeffResult sm = ne.Sample; string NA = "NA";
+					c7.Meta["neff_method"] = "SAMPLE_CHAO1"; c7.Meta["neff_bound"] = cfg7.NEffBound; c7.Meta["neff_n_gross"] = I(nGross); c7.Meta["neff_n_population_et3"] = I(et3Fresh); c7.Meta["neff_n_population_used"] = I(nGross);
+					c7.Meta["neff_n_sample"] = I(sample == null ? 0 : sample.Length); c7.Meta["neff_observed"] = sm == null ? NA : I(sm.GruposObservados); c7.Meta["neff_f1"] = sm == null ? NA : I(sm.F1); c7.Meta["neff_f2"] = sm == null ? NA : I(sm.F2);
+					c7.Meta["neff_estimated"] = sm == null ? NA : R(sm.NEffEstimado); c7.Meta["neff_ci_lo"] = sm == null ? NA : R(sm.Inferior); c7.Meta["neff_ci_hi"] = sm == null ? NA : R(sm.Superior);
+					c7.Meta["neff_good_turing"] = sm == null ? NA : R(sm.CoberturaMuestra); c7.Meta["neff_flat_n"] = I(flatN); c7.Meta["neff_flat_frac"] = R(sample == null || sample.Length == 0 ? double.NaN : (double)flatN / sample.Length);
+				}
 				Put(c7, "ET7/ET7_CONFIG.txt", cfg7.Text);
 				string report = NQCE7_Evidence.Report(cfg7, ne, nullBest, vs, p.Commit.Length > 0 ? p.Commit : "NA", specs.ToString());
 				Put(c7, "ET7/ET7_EVIDENCE_REPORT.txt", report);
@@ -696,6 +722,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				c7.Meta["freeze"] = p.Freeze ? "1" : "0";
 				StringBuilder s7 = new StringBuilder("NQC ET7 (runner) | " + Version + " | SOLO IS | sin congelado salvo freeze=1\n");
 				s7.Append("portafolios=").Append(I(vs.Count)).Append(" pasan=").Append(I(npass)).Append(" N_bruto=").Append(I(nGross)).Append(" series=").Append(I(ne.NSeries)).Append(" N_eff=").Append(R(ne.NEff)).Append(" falla_neff=").Append(ne.Fail).Append('\n');
+				if (sampleMode)
+					s7.Append("neff_method=SAMPLE_CHAO1 limite=").Append(cfg7.NEffBound).Append(" N_bruto=").Append(I(nGross)).Append(" N_poblacion_usada=").Append(I(nGross)).Append(" N_ET3=").Append(I(et3Fresh)).Append(" (la muestra solo contiene ensayos de ET3: aproximacion)")
+					 .Append(" observados=").Append(c7.M("neff_observed")).Append(" f1=").Append(c7.M("neff_f1")).Append(" f2=").Append(c7.M("neff_f2")).Append(" N_eff_estimado=").Append(c7.M("neff_estimated")).Append(" IC95=[").Append(c7.M("neff_ci_lo")).Append(',').Append(c7.M("neff_ci_hi"))
+					 .Append("] cobertura_GoodTuring=").Append(c7.M("neff_good_turing")).Append(" series_planas=").Append(I(flatN)).Append(" (").Append(c7.M("neff_flat_frac")).Append(") N_eff_usado=").Append(R(ne.NEff)).Append('\n');
 				s7.Append("report_sha256=").Append(c7.M("report_sha256")).Append(" config_sha256=").Append(cfg7.Sha).Append('\n');
 				Put(c7, "ET7/SUMMARY.txt", s7.ToString());
 				sw.Stop(); c7.Perf["seconds"] = (sw.ElapsedMilliseconds / 1000.0).ToString("0.00", CultureInfo.InvariantCulture); c7.Perf["mem_mb"] = I(MemMb());

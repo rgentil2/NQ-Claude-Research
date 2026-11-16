@@ -91,7 +91,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public class NQC_RUN_FunnelTest : Strategy
 	{
-		private const string ScriptVersion = "RUNFUNNELTEST-1.1.0";
+		private const string ScriptVersion = "RUNFUNNELTEST-1.2.0";
 		private bool started, done; private StringBuilder rep = new StringBuilder(); private int pass, fail;
 		public string SummaryText = "";
 
@@ -166,7 +166,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			p.LibraryFactory = delegate() { return new NQCRT_ToyLib(); };
 			p.Config = new NQCE_Config(); p.Config.Excluded = new HashSet<int>();
 			p.Et6PpassMin = 0.0;                                   // SOLO PRUEBA: el umbral real lo fija ET2
-			p.Et7Text = "neff_coverage_min=0.05\n";                // SOLO PRUEBA: la cobertura aceptada se declara en la config de ET7 (D-036)
+			p.Et7Text = "neff_coverage_min=0.05\nneff_sample_min_n=30\nneff_sample_cov_min=0\n";   // SOLO PRUEBA (D-036/D-038): cobertura aceptada del modo COVERED; minimo de muestra y cobertura Good-Turing relajados porque el mundo de juguete tiene <= 720 ensayos
 			p.EngineHash = "TEST-ENGINE-HASH";
 			double[] nb = new double[30]; for (int i = 0; i < 30; i++) nb[i] = 0.05 * (i + 1); p.NullBest = nb;   // vector nulo SINTETICO (no es de ET2)
 			return p;
@@ -249,8 +249,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("F3.5 ET6: pool usado <= 30, ensayos > 0, al menos 1 finalista, acumulado = ET3 + ET4 + ET6", int.Parse(a6.M("pool_used"), CultureInfo.InvariantCulture) >= 3 && int.Parse(a6.M("trials"), CultureInfo.InvariantCulture) > 0 && int.Parse(a6.M("finalists"), CultureInfo.InvariantCulture) >= 1
 				&& int.Parse(a6.M("cumulative_trials"), CultureInfo.InvariantCulture) == ev3 + int.Parse(a4.M("fresh_trials"), CultureInfo.InvariantCulture) + int.Parse(a6.M("trials"), CultureInfo.InvariantCulture), "ensayos=" + a6.M("trials") + " (por tamano " + a6.M("trials_by_size") + ") finalistas=" + a6.M("finalists") + " aceptadas=" + a6.M("accepted"));
 			int nSer = int.Parse(a7.M("n_series"), CultureInfo.InvariantCulture), nFin = int.Parse(a6.M("finalists"), CultureInfo.InvariantCulture);
-			Chk("F3.6 ET7: series = databank + finalistas (adaptador A5), N bruto = acumulado, N_eff calculado (sin falla cerrada), null n=30, informe sellado", nSer == valid + nFin && a7.M("n_gross") == a6.M("cumulative_trials") && a7.M("neff_fail") == "" && a7.M("null_n") == "30" && File.Exists(Path.Combine(dirA, "ET7", "ET7_EVIDENCE_REPORT.txt")),
-				"series=" + I(nSer) + " N_bruto=" + a7.M("n_gross") + " grupos=" + a7.M("clusters") + " N_eff=" + a7.M("n_eff") + " pasan=" + a7.M("pass") + "/" + a7.M("portfolios"));
+			Chk("F3.6 ET7 (SAMPLE_CHAO1 por defecto con neff_sample>0): series = muestra uniforme del reservorio de ET3 (no el databank), N bruto = acumulado, N_eff estimado sin falla cerrada, null n=30, informe sellado", nSer == int.Parse(a3.M("neff_sample_n"), CultureInfo.InvariantCulture) && a7.M("n_gross") == a6.M("cumulative_trials") && a7.M("neff_fail") == "" && a7.M("null_n") == "30" && File.Exists(Path.Combine(dirA, "ET7", "ET7_EVIDENCE_REPORT.txt")),
+				"muestra=" + I(nSer) + " N_bruto=" + a7.M("n_gross") + " grupos=" + a7.M("clusters") + " N_eff=" + a7.M("n_eff") + " pasan=" + a7.M("pass") + "/" + a7.M("portfolios"));
 			string[] need = new string[] { "ET3/ET3_LEDGER.tsv", "ET3/ET3_CURVE.tsv", "ET3/ET3_DATABANK.tsv", "ET4/ET4_POOL.tsv", "ET4/ET4_REJECTS.tsv", "ET4/ET4_LEDGER.tsv", "ET4/SUMMARY.txt", "ET5/ET5_REPORT.txt", "ET5/ET5_ROBUST.tsv", "ET6/ET6_TRIALS.tsv", "ET6/ET6_REJECTIONS.tsv", "ET6/SUMMARY.txt", "ET6/PORTFOLIO_SPEC_F1.json", "ET7/ET7_CONFIG.txt", "ET7/SUMMARY.txt", "SUMMARY.txt", "CKPT_ET3.txt", "CKPT_ET7.txt" };
 			bool files = true; string miss = ""; foreach (string f in need) if (!File.Exists(Path.Combine(dirA, f.Replace('/', Path.DirectorySeparatorChar)))) { files = false; miss += f + " "; }
 			bool noFrozen = !File.Exists(Path.Combine(dirA, "ET7", "PORTFOLIO_FROZEN_F1.txt"));
@@ -263,6 +263,26 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("F3.9 guarda de la estrategia: RunAll solo si llego a DataLoaded Y recibio barras (instanciada por NT8 sin datos no ejecuta, no imprime error, no escribe archivos)", !NQC_RUN_Funnel.ShouldRun(false, false) && !NQC_RUN_Funnel.ShouldRun(true, false) && !NQC_RUN_Funnel.ShouldRun(false, true) && NQC_RUN_Funnel.ShouldRun(true, true), "ok");
 			Chk("F3.10 ET3 guarda la muestra uniforme del N_eff (reservorio con la semilla del GA, 5.000 por defecto) con N poblacion = evaluaciones nuevas; ET7 deja la estimacion de la muestra", a3.M("neff_sample_k") == "5000" && a3.M("neff_population") == a3.M("fresh_evals") && int.Parse(a3.M("neff_sample_n"), CultureInfo.InvariantCulture) == int.Parse(a3.M("neff_sample_seen"), CultureInfo.InvariantCulture) && File.Exists(Path.Combine(dirA, "ET3", "ET3_NEFF_SAMPLE.bin")) && File.Exists(Path.Combine(dirA, "ET7", "ET7_NEFF_SAMPLE_ESTIMATE.txt")) && a7.M("neff_sample_status").Length > 0,
 				"muestra=" + a3.M("neff_sample_n") + " vistos=" + a3.M("neff_sample_seen") + " planas=" + a3.M("neff_sample_flat") + " estimador=" + a7.M("neff_sample_status"));
+
+			// ---- F3c integracion de la estimacion de N_eff por muestra en el veredicto de ET7 (D-038)
+			string cfgFile = File.ReadAllText(Path.Combine(dirA, "ET7", "ET7_CONFIG.txt")), repFile = File.ReadAllText(Path.Combine(dirA, "ET7", "ET7_EVIDENCE_REPORT.txt")), s7File = File.ReadAllText(Path.Combine(dirA, "ET7", "SUMMARY.txt"));
+			string ciHi = a7.M("neff_ci_hi"); double neffUsed = double.Parse(a7.M("n_eff"), CultureInfo.InvariantCulture), hiV = double.Parse(ciHi, CultureInfo.InvariantCulture);
+			Chk("F3.11 la config efectiva (con neff_method=SAMPLE_CHAO1, neff_bound=UPPER, cov_min y min_n) esta en ET7_CONFIG.txt sellada por config_sha256; el DSR usa el limite superior del IC como N_eff",
+				cfgFile.Contains("neff_method=SAMPLE_CHAO1") && cfgFile.Contains("neff_bound=UPPER") && cfgFile.Contains("neff_sample_cov_min=") && cfgFile.Contains("neff_sample_min_n=") && NQCE_Const.Sha256Text(cfgFile) == a7.M("config_sha256") && Math.Abs(neffUsed - Math.Max(1.0, hiV)) < 1e-9 && repFile.Contains("limite_usado=UPPER"),
+				"N_eff usado=" + a7.M("n_eff") + " IC95=[" + a7.M("neff_ci_lo") + "," + ciHi + "]");
+			Chk("F3.12 N_poblacion = N bruto acumulado (ET3+ET4+ET6); N_ET3 tambien se reporta; SUMMARY global, de ET7 e informe muestran metodo, observados, f1, f2, estimado, IC, Good-Turing y series planas (n y fraccion)",
+				a7.M("neff_n_population_used") == a7.M("n_gross") && a7.M("neff_n_population_et3") == a3.M("fresh_evals") && int.Parse(a7.M("neff_n_gross"), CultureInfo.InvariantCulture) > int.Parse(a7.M("neff_n_population_et3"), CultureInfo.InvariantCulture)
+				&& sm.Contains("neff_method=SAMPLE_CHAO1") && sm.Contains("neff_observed=") && sm.Contains("neff_f1=") && sm.Contains("neff_f2=") && sm.Contains("neff_estimated=") && sm.Contains("neff_ci_lo=") && sm.Contains("neff_good_turing=") && sm.Contains("neff_flat_n=") && sm.Contains("neff_flat_frac=")
+				&& s7File.Contains("N_poblacion_usada=") && s7File.Contains("series_planas=") && s7File.Contains("IC95=[") && repFile.Contains("N_eff_muestra: metodo=SAMPLE_CHAO1") && repFile.Contains("cobertura_GoodTuring="),
+				"N_bruto=" + a7.M("neff_n_gross") + " N_ET3=" + a7.M("neff_n_population_et3") + " observados=" + a7.M("neff_observed") + " f1=" + a7.M("neff_f1") + " f2=" + a7.M("neff_f2") + " planas=" + a7.M("neff_flat_n") + " (" + a7.M("neff_flat_frac") + ")");
+			NQCRUN_Params p0 = ToyParams(Path.Combine(root, "COV")); p0.NeffSample = 0; NQCRUN_Result r0 = Go(w, p0); NQCRUN_Ckpt c70 = r0.Stage("ET7");
+			string cfg0 = File.ReadAllText(Path.Combine(root, "COV", "ET7", "ET7_CONFIG.txt"));
+			Chk("F3.13 neff_sample=0 conserva el modo COVERED (D-036): config sin neff_method, series = databank + finalistas, sin claves neff_* de muestra en el SUMMARY",
+				r0.Status == "COMPLETO" && cfg0 == p0.Et7Text && !cfg0.Contains("neff_method") && c70.M("neff_method") == "NA" && int.Parse(c70.M("n_series"), CultureInfo.InvariantCulture) == int.Parse(r0.Stage("ET3").M("databank_valid"), CultureInfo.InvariantCulture) + int.Parse(r0.Stage("ET6").M("finalists"), CultureInfo.InvariantCulture) && !r0.Summary.Contains("neff_good_turing") && c70.M("neff_fail") == "",
+				"digest COVERED=" + r0.DeterministicSha.Substring(0, 16) + " series=" + c70.M("n_series") + " N_eff=" + c70.M("n_eff"));
+			NQCRUN_Params pfn = ToyParams(Path.Combine(root, "FAILN")); pfn.Et7Text += "neff_sample_min_n=100000\n"; NQCRUN_Result rF0 = Go(w, pfn); NQCRUN_Ckpt cf0 = rF0.Stage("ET7");
+			Chk("F3.14 falla cerrada: una muestra menor que neff_sample_min_n (declarado por el usuario, que manda sobre el defecto) da N_eff=NaN, 0 portafolios aprobados y la causa en el informe",
+				cf0.M("neff_fail").Contains("neff_sample_min_n") && cf0.M("pass") == "0" && File.ReadAllText(Path.Combine(root, "FAILN", "ET7", "ET7_EVIDENCE_REPORT.txt")).Contains("FALLA_CERRADA="), "causa=" + cf0.M("neff_fail"));
 
 			// ---- F4 determinismo y transformadores
 			NQCRUN_Result rB = Go(w, ToyParams(Path.Combine(root, "B")));

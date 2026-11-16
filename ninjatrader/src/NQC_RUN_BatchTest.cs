@@ -20,7 +20,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class NQC_RUN_BatchTest : Strategy
 	{
-		private const string ScriptVersion = "RUNBATCHTEST-1.0.0";
+		private const string ScriptVersion = "RUNBATCHTEST-1.1.0";
 		private bool started, done; private StringBuilder rep = new StringBuilder(); private int pass, fail;
 		public string SummaryText = "";
 
@@ -148,7 +148,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Chk("B5.3 campana ET3: la muestra (40) es de TODOS los ensayos evaluados (no del top-K), N poblacion = ensayos evaluados, series de longitud = sesiones, id en el ledger", sm.Length == nS && nS == Math.Min(40, (int)sSeen) && sSeen <= fresh && m3["neff_population"] == I(fresh) && sm[0].Length == w.Sessions && File.ReadAllText(Path.Combine(rootA, "C1", "ET3", "ET3_LEDGER.tsv")).Contains(sid[0]),
 					"vistos=" + I(sSeen) + " evaluaciones=" + I(fresh) + " muestra=" + I(nS) + " planas=" + m3["neff_sample_flat"] + " T=" + I(sm[0].Length));
 				string estPath = Path.Combine(rootA, "C1", "ET7", "ET7_NEFF_SAMPLE_ESTIMATE.txt"); string est = File.Exists(estPath) ? File.ReadAllText(estPath) : "";
-				Chk("B5.4 adaptador ET7: la muestra y N_poblacion llegan a NQCE7_Neff.EstimateFromSample; el estimado (o su falla cerrada) queda en ET7_NEFF_SAMPLE_ESTIMATE.txt y en el checkpoint", est.Contains("N_poblacion=" + I(fresh)) && est.Contains("estimador=Chao1") && m7 != null && m7.ContainsKey("neff_sample_status") && m7["neff_adapter"] == NQCRUN_NeffAdapter.Id, m7 == null ? "sin ET7" : "estado=" + m7["neff_sample_status"]);
+				Chk("B5.4 adaptador ET7: la muestra y N_poblacion (N bruto, con N_ET3 aparte) llegan a NQCE7_Neff.EstimateFromSample; el estimado (o su falla cerrada) queda en ET7_NEFF_SAMPLE_ESTIMATE.txt y en el checkpoint", est.Contains("N_ET3=" + I(fresh)) && est.Contains("N_poblacion_usada=") && est.Contains("estimador=Chao1") && m7 != null && m7.ContainsKey("neff_sample_status") && m7["neff_adapter"] == NQCRUN_NeffAdapter.Id, m7 == null ? "sin ET7" : "estado=" + m7["neff_sample_status"]);
 			}
 
 			// ---- B6 TIMING
