@@ -10,6 +10,9 @@ using System.Text;
 // ilegibles => error (falla cerrada). Un umbral mas laxo que el del contrato se marca en el informe como WEAKER_THAN_CONTRACT (no se bloquea: decide el orquestador).
 // Claves: dsr_min(0,95) null_pct_min(95) mc_dd_p95_max(2000) mc_mode(EXPLORATORY|CONFIRMATORY) mc_paths_exploratory(500) mc_paths_confirmatory(5000) mc_block(8)
 //   mc_seed(20261114) neff_cut(0,40) neff_coverage_min(1,0) neff_max_series(4000) null_min_n(20) ppass_boot_min(vacio = solo se reporta).
+//   D-038 (muestra aleatoria uniforme): neff_method(COVERED|SAMPLE_CHAO1; defecto COVERED = D-036) neff_sample_cov_min(0,90: cobertura Good-Turing minima de la muestra)
+//   neff_sample_min_n(1000) neff_sample_max_series(5000) neff_bound(UPPER|POINT|LOWER; defecto UPPER = limite SUPERIOR del IC95 de N_eff en el DSR, conservador: N_eff mayor => SR0 mayor => DSR menor).
+//   En SAMPLE_CHAO1 se ignoran neff_coverage_min y neff_max_series. Todas las claves van en ET7_CONFIG.txt y quedan selladas por config_sha256.
 // Puertas por portafolio: DSR >= dsr_min; percentil nulo >= null_pct_min; P95 DD <= mc_dd_p95_max. Cualquier NaN/entrada faltante => la puerta FALLA (cerrado).
 // P_pass bootstrap se reporta; solo es puerta si ppass_boot_min esta fijado (decision de ET2).
 //==============================================================================
@@ -17,7 +20,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public sealed class NQCE7_Config
 	{
-		public double DsrMin = 0.95, NullPctMin = 95, McDdP95Max = 2000, NEffCut = 0.40, NEffCoverageMin = 1.0, PpassBootMin = double.NaN;
+		public double DsrMin = 0.95, NullPctMin = 95, McDdP95Max = 2000, NEffCut = 0.40, NEffCoverageMin = 1.0, PpassBootMin = double.NaN, NEffSampleCovMin = 0.90;
+		public string NEffMethod = "COVERED", NEffBound = "UPPER"; public int NEffSampleMinN = 1000, NEffSampleMaxSeries = 5000;
 		public string McMode = "EXPLORATORY"; public int PathsExploratory = 500, PathsConfirmatory = 5000, Block = 8, NEffMaxSeries = 4000, NullMinN = 20; public long Seed = 20261114;
 		public string Text = "";
 		public int Paths { get { return McMode == "CONFIRMATORY" ? PathsConfirmatory : PathsExploratory; } }
@@ -48,6 +52,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 						case "neff_coverage_min": c.NEffCoverageMin = D(v); break;
 						case "neff_max_series": c.NEffMaxSeries = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "null_min_n": c.NullMinN = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "neff_method": v = v.ToUpperInvariant(); if (v != "COVERED" && v != "SAMPLE_CHAO1") { error = "neff_method invalido"; return null; } c.NEffMethod = v; break;
+						case "neff_bound": v = v.ToUpperInvariant(); if (v != "UPPER" && v != "POINT" && v != "LOWER") { error = "neff_bound invalido"; return null; } c.NEffBound = v; break;
+						case "neff_sample_cov_min": c.NEffSampleCovMin = D(v); break;
+						case "neff_sample_min_n": c.NEffSampleMinN = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "neff_sample_max_series": c.NEffSampleMaxSeries = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "ppass_boot_min": c.PpassBootMin = v.Length == 0 ? double.NaN : D(v); break;
 						default: error = "clave desconocida: " + k; return null;
 					}
@@ -61,7 +70,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			List<string> w = new List<string>();
 			if (DsrMin < 0.95) w.Add("dsr_min<0,95"); if (NullPctMin < 95) w.Add("null_pct_min<95"); if (McDdP95Max > 2000) w.Add("mc_dd_p95_max>2000");
-			if (Block != 8) w.Add("mc_block!=8"); if (PathsExploratory < 500) w.Add("mc_paths_exploratory<500"); if (PathsConfirmatory < 5000) w.Add("mc_paths_confirmatory<5000");
+			if (NEffMethod == "SAMPLE_CHAO1" && NEffBound != "UPPER") w.Add("neff_bound!=UPPER"); if (Block != 8) w.Add("mc_block!=8"); if (PathsExploratory < 500) w.Add("mc_paths_exploratory<500"); if (PathsConfirmatory < 5000) w.Add("mc_paths_confirmatory<5000");
 			return w;
 		}
 	}
@@ -81,6 +90,27 @@ namespace NinjaTrader.NinjaScript.Strategies
 	public static class NQCE7_Evidence
 	{
 		private static string F(double v, string f) { return double.IsNaN(v) ? "NaN" : v.ToString(f, CultureInfo.InvariantCulture); }
+
+		// N_eff segun la politica declarada. COVERED: D-036 (grupos / cobertura). SAMPLE_CHAO1: D-038, series = MUESTRA ALEATORIA UNIFORME de los ensayos evaluados y
+		// nGross = N de la poblacion evaluada; N_eff = limite (UPPER|POINT|LOWER) del IC95 de Chao1; falla cerrada si la muestra es insuficiente.
+		public static NQCE7_NEffResult ComputeNEff(NQCE7_Config cfg, double[][] series, long nGross)
+		{
+			if (cfg.NEffMethod != "SAMPLE_CHAO1")
+			{
+				if (nGross > int.MaxValue) { NQCE7_NEffResult X = new NQCE7_NEffResult(); X.NEff = double.NaN; X.SrVar = double.NaN; X.Fail = "N bruto excede int"; return X; }
+				return NQCE7_NEff.Compute(series, (int)nGross, cfg.NEffCut, cfg.NEffCoverageMin, cfg.NEffMaxSeries);
+			}
+			NQCE7_NEffResult R = new NQCE7_NEffResult(); R.Method = "SAMPLE_CHAO1"; R.NEff = double.NaN; R.SrVar = double.NaN; R.Cut = cfg.NEffCut;
+			R.NGross = (int)Math.Min(nGross, int.MaxValue); R.NSeries = series == null ? 0 : series.Length;
+			if (series != null && series.Length > cfg.NEffSampleMaxSeries) { R.Fail = "muestra (" + series.Length.ToString(CultureInfo.InvariantCulture) + ") supera neff_sample_max_series (" + cfg.NEffSampleMaxSeries.ToString(CultureInfo.InvariantCulture) + ")"; return R; }
+			if (series != null && series.Length < cfg.NEffSampleMinN) { R.Fail = "muestra (" + series.Length.ToString(CultureInfo.InvariantCulture) + ") menor que neff_sample_min_n (" + cfg.NEffSampleMinN.ToString(CultureInfo.InvariantCulture) + ")"; return R; }
+			NQCE7_NeffResult S = NQCE7_Neff.EstimateFromSample(series, nGross, cfg.NEffCut); R.Sample = S;
+			R.Clusters = S.GruposObservados; R.Label = S.Label; R.SrVar = S.SrVar; R.Coverage = nGross > 0 ? Math.Min(1.0, (double)R.NSeries / nGross) : 0;
+			if (S.Falla.Length > 0) { R.Fail = S.Falla; return R; }
+			if (S.CoberturaMuestra < cfg.NEffSampleCovMin) { R.Fail = "cobertura Good-Turing de la muestra " + S.CoberturaMuestra.ToString("0.0000", CultureInfo.InvariantCulture) + " < minimo " + cfg.NEffSampleCovMin.ToString("0.0000", CultureInfo.InvariantCulture); return R; }
+			R.NEff = Math.Max(1.0, cfg.NEffBound == "UPPER" ? S.Superior : (cfg.NEffBound == "LOWER" ? S.Inferior : S.NEffEstimado));
+			return R;
+		}
 
 		public static NQCE7_Verdict Evaluate(NQCE7_CandidateInput c, NQCE7_NEffResult ne, double[] nullBest, NQCE7_Config cfg, NQC_AccountProfile profile)
 		{
@@ -114,6 +144,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 			b.Append("N_bruto=").Append(ne.NGross.ToString(CultureInfo.InvariantCulture)).Append(" series=").Append(ne.NSeries.ToString(CultureInfo.InvariantCulture))
 			 .Append(" grupos=").Append(ne.Clusters.ToString(CultureInfo.InvariantCulture)).Append(" cobertura=").Append(F(ne.Coverage, "0.0000")).Append(" corte_distancia=").Append(F(ne.Cut, "0.####"))
 			 .Append(" N_eff=").Append(F(ne.NEff, "0.##")).Append(" var_SR_diario=").Append(F(ne.SrVar, "0.000000")).Append(ne.Fail.Length > 0 ? " FALLA_CERRADA=" + ne.Fail : "").Append('\n');
+			if (ne.Method == "SAMPLE_CHAO1" && ne.Sample != null)
+			{
+				NQCE7_NeffResult s = ne.Sample;
+				b.Append("N_eff_muestra: metodo=SAMPLE_CHAO1 N_poblacion=").Append(s.NPoblacion.ToString(CultureInfo.InvariantCulture)).Append(" n_muestra=").Append(s.NMuestra.ToString(CultureInfo.InvariantCulture))
+				 .Append(" observados=").Append(s.GruposObservados.ToString(CultureInfo.InvariantCulture)).Append(" f1=").Append(s.F1.ToString(CultureInfo.InvariantCulture)).Append(" f2=").Append(s.F2.ToString(CultureInfo.InvariantCulture))
+				 .Append(" N_eff_estimado(Chao1)=").Append(F(s.NEffEstimado, "0.##")).Append(" IC95=[").Append(F(s.Inferior, "0.##")).Append(",").Append(F(s.Superior, "0.##"))
+				 .Append("] cobertura_GoodTuring=").Append(F(s.CoberturaMuestra, "0.0000")).Append(" cobertura_min=").Append(F(cfg.NEffSampleCovMin, "0.####")).Append(" limite_usado=").Append(cfg.NEffBound)
+				 .Append(" N_eff_usado=").Append(F(ne.NEff, "0.##")).Append(" (Chao1 es limite inferior de la riqueza verdadera)\n");
+			}
 			b.Append("nulo_ET2_n=").Append((nullBest == null ? 0 : nullBest.Length).ToString(CultureInfo.InvariantCulture)).Append('\n');
 			int pass = 0;
 			foreach (NQCE7_Verdict v in vs)

@@ -37,6 +37,105 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 		static double[] Rand(int T, long seed) { NQCE_Rng g = new NQCE_Rng(seed); double[] r = new double[T]; for (int t = 0; t < T; t++) r[t] = g.NextDouble() - 0.5; return r; }
 
+		// ---------------- D-038: N_eff desde MUESTRA (Chao1). Referencias independientes: ninjatrader/runbooks/ET7_NEFF_REF.py (Python, splitmix64 + Chao1 + IC propios).
+		static int[] World(int G, int floor, double expo, int N)  // abundancias poblacionales: floor + reparto proporcional a g^-expo; el resto al grupo 1
+		{
+			double[] w = new double[G]; double sw = 0; for (int g = 0; g < G; g++) { w[g] = Math.Pow(g + 1, -expo); sw += w[g]; }
+			int[] a = new int[G]; int sum = 0; for (int g = 0; g < G; g++) { a[g] = floor + (int)(w[g] / sw * (N - floor * G)); sum += a[g]; }
+			a[0] += N - sum; return a;
+		}
+		static int[] SampleLabels(int[] ab, int k, long seed)   // muestra uniforme sin reemplazo: Fisher-Yates parcial con NQCE_Rng
+		{
+			int N = 0; foreach (int c in ab) N += c; int[] lab = new int[N]; int p = 0; for (int g = 0; g < ab.Length; g++) for (int j = 0; j < ab[g]; j++) lab[p++] = g;
+			NQCE_Rng r = new NQCE_Rng(seed);
+			for (int i = 0; i < k; i++) { int j = i + r.NextInt(N - i); int t = lab[i]; lab[i] = lab[j]; lab[j] = t; }
+			int[] o = new int[k]; Array.Copy(lab, o, k); return o;
+		}
+		static int[] Counts(int[] sampleLab, int G) { int[] c = new int[G]; foreach (int g in sampleLab) c[g]++; List<int> l = new List<int>(); foreach (int v in c) if (v > 0) l.Add(v); return l.ToArray(); }
+		static string Q(double x) { return ((long)Math.Floor(x * 10000 + 0.5)).ToString(CultureInfo.InvariantCulture); }   // redondeo sin empates ambiguos (igual en Python)
+		static string Pad(NQCE7_NeffResult e) { return e.GruposObservados + "," + e.F1 + "," + e.F2 + "," + e.NEffEstimado.ToString("0.0000", CultureInfo.InvariantCulture) + "," + e.Inferior.ToString("0.0000", CultureInfo.InvariantCulture) + "," + e.Superior.ToString("0.0000", CultureInfo.InvariantCulture); }
+		static string Scenario(int G, int floor, double expo, int N, int k, int reps, long seed0, out int cover, out double meanObs, out double meanEst, out int sumPop)
+		{
+			int[] ab = World(G, floor, expo, N); sumPop = 0; foreach (int c in ab) sumPop += c; cover = 0; meanObs = 0; meanEst = 0; StringBuilder sb = new StringBuilder();
+			for (int r = 0; r < reps; r++)
+			{
+				NQCE7_NeffResult e = NQCE7_Neff.EstimateFromAbundances(Counts(SampleLabels(ab, k, seed0 + r), G), N);
+				if (e.Falla.Length == 0 && e.Inferior <= G && G <= e.Superior) cover++;
+				meanObs += e.GruposObservados; meanEst += e.NEffEstimado; sb.Append(e.GruposObservados + "," + e.F1 + "," + e.F2 + "," + Q(e.NEffEstimado) + "," + Q(e.Inferior) + "," + Q(e.Superior) + ";");
+			}
+			meanObs /= reps; meanEst /= reps; return NQCE_Const.Sha256Text(sb.ToString());
+		}
+
+		private void RunNeffTests()
+		{
+			// ---- casos puntuales (referencia Python ref_neff.py)
+			int[] c1 = new int[28]; for (int i = 0; i < 28; i++) c1[i] = i < 5 ? 1 : (i < 8 ? 2 : 10);
+			NQCE7_NeffResult e1 = NQCE7_Neff.EstimateFromAbundances(c1, 5000);
+			Chk("S1 Chao1 puntual vs Python (S_obs 28, f1 5, f2 3 -> S_est 30,5; IC [28,368; 44,982]; cobertura GT 0,9763)", e1.Falla == "" && e1.GruposObservados == 28 && e1.F1 == 5 && e1.F2 == 3 && Near(e1.NEffEstimado, 30.5, 1e-12) && Near(e1.Inferior, 28.36803425120234, 1e-9) && Near(e1.Superior, 44.98211506016558, 1e-9) && Near(e1.CoberturaMuestra, 0.976303317535545, 1e-12) && Near(e1.VarChao, 10.0, 1e-12), Pad(e1));
+			int[] c2 = new int[10]; for (int i = 0; i < 10; i++) c2[i] = 5;
+			NQCE7_NeffResult e2 = NQCE7_Neff.EstimateFromAbundances(c2, 1000);
+			Chk("S2 con f1 = 0, S_est = S_obs y el IC colapsa en S_obs; cobertura = 1", e2.Falla == "" && e2.NEffEstimado == 10 && e2.Inferior == 10 && e2.Superior == 10 && e2.CoberturaMuestra == 1.0, Pad(e2));
+			int[] c3 = new int[14]; for (int i = 0; i < 14; i++) c3[i] = i < 4 ? 1 : 30;
+			NQCE7_NeffResult e3 = NQCE7_Neff.EstimateFromAbundances(c3, 100000);
+			Chk("S3 f2 = 0 con f1 pequeno (4): definido por la correccion de sesgo; S_est = 20; IC vs Python", e3.Falla == "" && Near(e3.NEffEstimado, 20, 1e-12) && Near(e3.Inferior, 14.908775750517199, 1e-9) && Near(e3.Superior, 53.61373306837447, 1e-9), Pad(e3));
+			int[] c4 = new int[30]; for (int i = 0; i < 30; i++) c4[i] = i < 9 ? 1 : (i < 10 ? 2 : 40);
+			NQCE7_NeffResult e4 = NQCE7_Neff.EstimateFromAbundances(c4, 100000);
+			Chk("S4 S_est >= S_obs; IC contiene S_est; Inferior >= S_obs (vs Python 48 / [33,985; 111,303])", e4.NEffEstimado >= e4.GruposObservados && e4.Inferior <= e4.NEffEstimado && e4.NEffEstimado <= e4.Superior && e4.Inferior >= e4.GruposObservados && Near(e4.NEffEstimado, 48, 1e-12) && Near(e4.Inferior, 33.985100980777894, 1e-9) && Near(e4.Superior, 111.30283311836052, 1e-8), Pad(e4));
+			int[] c5 = new int[40]; for (int i = 0; i < 40; i++) c5[i] = i < 38 ? 1 : 2;
+			NQCE7_NeffResult e5 = NQCE7_Neff.EstimateFromAbundances(c5, 60);
+			Chk("S5 Superior y S_est se acotan a N_poblacion (no hay mas grupos que ensayos)", e5.Falla == "" && e5.NEffEstimado <= 60 && e5.Superior <= 60, Pad(e5));
+			int[] c6 = new int[20]; for (int i = 0; i < 20; i++) c6[i] = i < 12 ? 1 : 3;
+			Chk("S6 fallas cerradas: n<30, N<n, f2=0 con f1>=10, abundancia 0, vacio", NQCE7_Neff.EstimateFromAbundances(new int[] { 3, 4, 5 }, 1000).Falla.Length > 0 && NQCE7_Neff.EstimateFromAbundances(c2, 40).Falla.Length > 0 && NQCE7_Neff.EstimateFromAbundances(c6, 1000).Falla.Length > 0 && double.IsNaN(NQCE7_Neff.EstimateFromAbundances(c6, 1000).NEffEstimado) && NQCE7_Neff.EstimateFromAbundances(new int[] { 0, 40 }, 1000).Falla.Length > 0 && NQCE7_Neff.EstimateFromAbundances(null, 10).Falla.Length > 0, NQCE7_Neff.EstimateFromAbundances(c6, 1000).Falla);
+			// ---- replicas: poblacion sintetica con G grupos conocidos, 100.000 ensayos, muestra uniforme de 5.000
+			int cA, cB, sA, sB; double moA, meA, moB, meB;
+			string hA = Scenario(200, 15, 1.3, 100000, 5000, 50, 777, out cA, out moA, out meA, out sA);
+			string hB = Scenario(3000, 3, 1.1, 100000, 5000, 50, 888, out cB, out moB, out meB, out sB);
+			Chk("S7 escenario A (200 grupos, ley de potencias, abundancia minima 45): poblacion suma 100.000; hash de 50 replicas = Python; S_est medio >= S_obs medio", sA == 100000 && sB == 100000 && hA == "0653ece44fbf95d0d45ed407c158ecc437721a9d3250498e4160bc0d385898d2" && meA >= moA, hA);
+			Chk("S8 cobertura del IC95 en 50 replicas, escenario A (G=200): 42/50 = 84% (igual a Python); se exige >= 75%", cA == 42 && cA >= 38, "cobertura_IC=" + cA + "/50 S_obs_medio=" + moA.ToString("0.00", CultureInfo.InvariantCulture) + " S_est_medio=" + meA.ToString("0.00", CultureInfo.InvariantCulture));
+			Chk("S9 escenario B (3.000 grupos, abundancia 5-16.430, mayoria rara): Chao1 SUBESTIMA (limite inferior) y el IC cubre solo 10/50 (= Python); hash = Python; es limite del metodo, no error", cB == 10 && hB == "4cfd7bf1c664678687d3b268c99d8c12afb3350120c142b1b5bc81f7c2d1dd71" && meB < 3000 && meB > moB, "cobertura_IC=" + cB + "/50 S_obs_medio=" + moB.ToString("0.0", CultureInfo.InvariantCulture) + " S_est_medio=" + meB.ToString("0.0", CultureInfo.InvariantCulture) + " G=3000 hash=" + hB);
+			// ---- de extremo a extremo: series agrupadas (G=40 conocido, N=8000, muestra 400, T=120)
+			int G = 40, k = 400, TT = 120; int[] ab = World(G, 5, 1.0, 8000); int[] lab = SampleLabels(ab, k, 4242);
+			double[][] bases = new double[G][]; for (int g = 0; g < G; g++) bases[g] = Rand(TT, 5000 + g);
+			double[][] ser = new double[k][]; for (int i = 0; i < k; i++) { double[] nz = Rand(TT, 9000 + i); double[] z = new double[TT]; for (int t = 0; t < TT; t++) z[t] = bases[lab[i]][t] + 0.25 * nz[t]; ser[i] = z; }
+			int[] truth = Counts(lab, G); int t1 = 0, t2 = 0; foreach (int v in truth) { if (v == 1) t1++; else if (v == 2) t2++; }
+			NQCE7_NeffResult es = NQCE7_Neff.EstimateFromSample(ser, 8000, 0.40);
+			Chk("S10 extremo a extremo: el agrupamiento recupera los grupos reales de la muestra (S_obs, f1, f2 = verdad) y S_est >= S_obs", es.Falla == "" && es.GruposObservados == truth.Length && es.F1 == t1 && es.F2 == t2 && es.NMuestra == k && es.NPoblacion == 8000 && es.NEffEstimado >= es.GruposObservados && es.Inferior <= es.NEffEstimado && es.NEffEstimado <= es.Superior && es.SrVar > 0 && es.Label.Length == k, Pad(es) + " verdad=" + truth.Length + "," + t1 + "," + t2 + " " + es.Falla);
+			// ---- fallas cerradas de EstimateFromSample
+			double[][] ind = new double[40][]; for (int i = 0; i < 40; i++) ind[i] = Rand(100, 20000 + i);
+			double[][] fl = new double[40][]; for (int i = 0; i < 40; i++) fl[i] = new double[100];
+			double[][] sh = new double[40][]; for (int i = 0; i < 40; i++) sh[i] = i == 7 ? new double[10] : Rand(100, 20000 + i);
+			Chk("S11 fallas cerradas: muestra < 30, N < n, varianza cero generalizada, f2=0 con f1 grande (40 independientes), corte invalido, longitudes distintas, nula",
+				NQCE7_Neff.EstimateFromSample(new double[][] { ind[0], ind[1] }, 1000, 0.4).Falla.Length > 0 && NQCE7_Neff.EstimateFromSample(ind, 39, 0.4).Falla.Length > 0 && NQCE7_Neff.EstimateFromSample(fl, 1000, 0.4).Falla.Contains("varianza cero")
+				&& NQCE7_Neff.EstimateFromSample(ind, 1000, 0.4).Falla.Contains("f2=0") && NQCE7_Neff.EstimateFromSample(ind, 1000, 1.5).Falla.Length > 0 && NQCE7_Neff.EstimateFromSample(sh, 1000, 0.4).Falla.Length > 0 && NQCE7_Neff.EstimateFromSample(null, 1000, 0.4).Falla.Length > 0
+				&& double.IsNaN(NQCE7_Neff.EstimateFromSample(ind, 1000, 0.4).NEffEstimado), NQCE7_Neff.EstimateFromSample(ind, 1000, 0.4).Falla);
+			// ---- politica en la evidencia
+			string er; string basecfg = "neff_method=SAMPLE_CHAO1\nneff_sample_min_n=100\nneff_sample_cov_min=0.5\nneff_sample_max_series=500\n";
+			NQCE7_Config cs = NQCE7_Config.Parse(basecfg + "mc_paths_exploratory=200\nmc_seed=7\n", out er), cp = NQCE7_Config.Parse(basecfg + "neff_bound=POINT\n", out er), cl = NQCE7_Config.Parse(basecfg + "neff_bound=LOWER\n", out er);
+			NQCE7_NEffResult nU = NQCE7_Evidence.ComputeNEff(cs, ser, 8000), nP = NQCE7_Evidence.ComputeNEff(cp, ser, 8000), nL = NQCE7_Evidence.ComputeNEff(cl, ser, 8000);
+			Chk("S12 politica SAMPLE_CHAO1: N_eff usado = limite SUPERIOR (defecto); POINT = S_est; LOWER = inferior; orden L <= P <= U; sellada por config_sha256", nU.Fail == "" && nU.Method == "SAMPLE_CHAO1" && nU.NEff == es.Superior && nP.NEff == es.NEffEstimado && nL.NEff == Math.Max(1.0, es.Inferior) && nL.NEff <= nP.NEff && nP.NEff <= nU.NEff && nU.NGross == 8000 && nU.NSeries == k && nU.Clusters == es.GruposObservados && cs.Sha != cp.Sha && cs.Sha.Length == 64, nU.NEff + "/" + nP.NEff + "/" + nL.NEff + " " + nU.Fail);
+			NQCE7_Config c1k = NQCE7_Config.Parse("neff_method=SAMPLE_CHAO1\nneff_sample_cov_min=0.5\n", out er), c99 = NQCE7_Config.Parse(basecfg.Replace("cov_min=0.5", "cov_min=0.9999"), out er), cmx = NQCE7_Config.Parse("neff_method=SAMPLE_CHAO1\nneff_sample_min_n=100\nneff_sample_max_series=50\n", out er);
+			NQCE7_NEffResult fMin = NQCE7_Evidence.ComputeNEff(c1k, ser, 8000), fCov = NQCE7_Evidence.ComputeNEff(c99, ser, 8000), fMax = NQCE7_Evidence.ComputeNEff(cmx, ser, 8000), fNo = NQCE7_Evidence.ComputeNEff(cs, null, 8000);
+			Chk("S13 falla cerrada de la politica: muestra < neff_sample_min_n (defecto 1000), cobertura Good-Turing < minimo, muestra > max, sin series; N_eff = NaN y el DSR rechaza",
+				fMin.Fail.Contains("neff_sample_min_n") && fCov.Fail.Contains("Good-Turing") && fMax.Fail.Contains("neff_sample_max_series") && fNo.Fail.Length > 0 && double.IsNaN(fMin.NEff) && double.IsNaN(NQCE7_Dsr.Compute(Rand(400, 3), fMin.NEff, fMin.SrVar).Dsr), fMin.Fail + " | " + fCov.Fail + " | " + fNo.Fail);
+			Chk("S14 configuracion D-038: defectos (COVERED, UPPER, 0,90, 1000, 5000); claves invalidas = error; neff_bound!=UPPER se marca", NQCE7_Config.Parse("", out er).NEffMethod == "COVERED" && NQCE7_Config.Parse("", out er).NEffBound == "UPPER" && NQCE7_Config.Parse("", out er).NEffSampleCovMin == 0.90 && NQCE7_Config.Parse("", out er).NEffSampleMinN == 1000 && NQCE7_Config.Parse("", out er).NEffSampleMaxSeries == 5000 && NQCE7_Config.Parse("neff_method=Z", out er) == null && NQCE7_Config.Parse("neff_bound=Z", out er) == null && cp.Weaker().Contains("neff_bound!=UPPER") && NQCE7_Config.Parse(basecfg, out er).Weaker().Count == 0 && NQCE7_Config.Parse("neff_bound=POINT", out er).Weaker().Count == 0, "");
+			double[][] indp = new double[40][]; for (int i = 0; i < 40; i++) indp[i] = Rand(500, 1000 + i);
+			NQCE7_NEffResult nCov = NQCE7_Evidence.ComputeNEff(NQCE7_Config.Parse("", out er), indp, 40);
+			Chk("S15 compatibilidad: ComputeNEff con el defecto COVERED == NQCE7_NEff.Compute (mismos grupos, N_eff y V)", nCov.Method == "COVERED" && nCov.Clusters == 40 && nCov.NEff == 40 && nCov.SrVar == NQCE7_NEff.Compute(indp, 40, 0.40, 1.0, 4000).SrVar, "");
+			// ---- informe en modo SAMPLE_CHAO1
+			NQCE7_CandidateInput gg = new NQCE7_CandidateInput(); gg.Id = "P_MUESTRA"; double[] dd = new double[400]; for (int t = 0; t < 400; t++) dd[t] = 10.0 + (((t * 37) % 101) - 50) * 1.0; gg.DailyPnl = dd; gg.Trades = new List<NQCE7_TradeRec>(); for (int i = 0; i < 60; i++) gg.Trades.Add(new NQCE7_TradeRec(i, 100, 0)); gg.Sessions = 60; gg.Fitness = 100;
+			double[] nl = new double[30]; for (int i = 0; i < 30; i++) nl[i] = i;
+			string cm = "0123456789abcdef0123456789abcdef01234567";
+			List<NQCE7_Verdict> v1 = new List<NQCE7_Verdict>(); v1.Add(NQCE7_Evidence.Evaluate(gg, nU, nl, cs, NQC_AccountProfile.RapidIntraday50K()));
+			string rs1 = NQCE7_Evidence.Report(cs, nU, nl, v1, cm, "spec_sha256=x"), rs2 = NQCE7_Evidence.Report(cs, nU, nl, v1, cm, "spec_sha256=x");
+			Chk("S16 informe SAMPLE_CHAO1 determinista: imprime N_bruto, observados, f1, f2, N_eff estimado, IC95, cobertura GT y limite usado", rs1 == rs2 && rs1.Contains("N_bruto=8000") && rs1.Contains("observados=" + es.GruposObservados) && rs1.Contains(" f1=" + es.F1 + " f2=" + es.F2) && rs1.Contains("N_eff_estimado(Chao1)=") && rs1.Contains("IC95=[") && rs1.Contains("cobertura_GoodTuring=") && rs1.Contains("limite_usado=UPPER") && rs1.Contains("N_eff_usado="), rs1.Substring(rs1.IndexOf("N_eff_muestra")).Split('\n')[0]);
+			NQCE7_Verdict vf = NQCE7_Evidence.Evaluate(gg, fMin, nl, cs, NQC_AccountProfile.RapidIntraday50K());
+			Chk("S17 con muestra insuficiente el portafolio se rechaza por DSR (falla cerrada) y el informe lo dice", !vf.Pass && vf.Causes[0].StartsWith("DSR: N_eff:") && NQCE7_Evidence.Report(cs, fMin, nl, new List<NQCE7_Verdict> { vf }, cm, "").Contains("FALLA_CERRADA="), vf.Causes[0]);
+			// ---- efecto en el DSR: N_eff mayor => SR0 mayor => DSR menor (misma serie, V = 0,0004; referencia Python)
+			double[] xx = new double[400]; for (int t = 0; t < 400; t++) xx[t] = ((t * 37) % 101 - 48) * 1.0 + (t % 7 == 0 ? 3.0 : 0.0) + (t % 2 == 0 ? 0.8 : 0.0);
+			NQCE7_DsrResult q1 = NQCE7_Dsr.Compute(xx, 150, 0.0004), q2 = NQCE7_Dsr.Compute(xx, 200, 0.0004), q3 = NQCE7_Dsr.Compute(xx, 260, 0.0004);
+			Chk("S18 efecto en el DSR: N_eff 150 < 200 < 260 => SR0 0,053402 < 0,055310 < 0,057004 y DSR 0,79049 > 0,77936 > 0,76921 (vs Python); usar el limite superior endurece el DSR", q1.Sr0 < q2.Sr0 && q2.Sr0 < q3.Sr0 && q1.Dsr > q2.Dsr && q2.Dsr > q3.Dsr && Near(q1.Sr0, 0.053402126187284606, 1e-12) && Near(q2.Sr0, 0.05531047809267094, 1e-12) && Near(q3.Sr0, 0.057003996654779156, 1e-12) && Near(q1.Dsr, 0.7904919048097996, 1e-10) && Near(q2.Dsr, 0.779360799880516, 1e-10) && Near(q3.Dsr, 0.7692051067253196, 1e-10), F(q1.Dsr) + "/" + F(q2.Dsr) + "/" + F(q3.Dsr));
+		}
+
 		private void RunAll()
 		{
 			// ---- N1 normal
@@ -125,6 +224,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("R3 sin N_eff o sin nulo de ET2 -> rechaza (falla cerrada)", !vNo.Pass && !vNu.Pass, "");
 			string r1 = NQCE7_Evidence.Report(cf, ne, nullV, vs, commit, "spec_sha256=" + NQCE7_Freeze.Sha256File(spec)), r2 = NQCE7_Evidence.Report(cf, ne, nullV, vs, commit, "spec_sha256=" + NQCE7_Freeze.Sha256File(spec));
 			Chk("R4 informe determinista, con umbrales, N bruto/N_eff y causas", r1 == r2 && r1.Contains("N_bruto=40") && r1.Contains("N_eff=40") && r1.Contains("causa_rechazo MC_DD_P95") && r1.Contains("RESUMEN: 1 de 4"), "");
+			string legacyPrefix = rep.ToString(); int legacyPass = pass;
+			RunNeffTests();
+			string legacyText = legacyPrefix + "\n--- informe de muestra (sintetico) ---\n" + r1 + "\nresultado: " + legacyPass + " PASS / 0 FALLA\n";
+			Chk("R5 compatibilidad: modo COVERED reproduce el hash de la prueba anterior (report_sha256 4eca95fe...)", NQCE_Const.Sha256Text(legacyText) == "4eca95fe38be59ea5b49e606c5dd4661552dbce66a578aa7819b1236db0fbf52", NQCE_Const.Sha256Text(legacyText));
 			rep.Append("\n--- informe de muestra (sintetico) ---\n").Append(r1);
 			string text = rep.ToString() + "\nresultado: " + pass + " PASS / " + fail + " FALLA\n";
 			string outDir = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "NQC_Results", "ET7EVIDENCETEST_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture));

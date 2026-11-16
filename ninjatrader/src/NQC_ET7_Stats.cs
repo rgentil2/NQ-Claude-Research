@@ -79,6 +79,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double Cut;
 		public int[] Label;         // grupo de cada serie
 		public string Fail = "";    // causa si falla cerrada
+		public string Method = "COVERED"; // COVERED (D-036) o SAMPLE_CHAO1 (D-038)
+		public NQCE7_NeffResult Sample;   // detalle de Chao1 (solo SAMPLE_CHAO1)
 	}
 
 	public static class NQCE7_NEff
