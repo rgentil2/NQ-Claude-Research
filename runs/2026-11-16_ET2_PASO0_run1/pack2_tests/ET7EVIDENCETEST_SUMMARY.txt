@@ -1,0 +1,5 @@
+NQC ET7 EVIDENCE TEST - SUMMARY
+script_version : ET7EVIDENCETEST-1.0.0
+contract : NQC 2.0.0
+resultado : 54 PASS / 0 FALLA
+report_sha256 : 07114ea5a121db393eef96619a432b3fa693ae8242e4411ac1807564e14b12f8

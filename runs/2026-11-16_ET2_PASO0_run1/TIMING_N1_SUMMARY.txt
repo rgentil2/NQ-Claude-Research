@@ -1,0 +1,7 @@
+NQC RUN BATCH TIMING | NQCRUNBATCH-1.0.0 | dataset transformado (N1), NUNCA el IS original | solo tiempos y memoria; NO se guarda ni se mira ninguna economia | SOLO DESARROLLO
+id=TIMING_N1 transform=N1 transform_params=seed=20269001;fixed_days=25;slot0_fixed=1;min_level=1000;core=ET2DATASETS-1.0.0 ga_seed=20279001 pop=200 evals_pedidas=2000
+evaluaciones_medidas=2000 barras=1054234 sesiones=933 library=NQCL-3.1.0:dac56e19fbc7b431 runner=NQCRUN-1.1.0
+ms_por_evaluacion: media=284.015 mediana=117.175 p90=403.901 max=28726.183 media_sin_el_5%_inicial=259.299 (el arranque incluye el calentamiento de la memoria de la biblioteca)
+tiempo_total_evaluaciones_s=568.18 tiempo_transformador_s=0.22
+memoria_gestionada_antes_mb=460 despues_mb=2228 pico_working_set_mb=2531 memo_budget_mb=2048
+extrapolacion (SOLO ET3, media x evaluaciones; ET4-ET7 NO medidos): 10.000 evaluaciones = 0.79 h; 100.000 = 7.89 h; 30 campanas REDUCED = 23.7 h; 30 FULL = 236.7 h; 20 FULL = 157.8 h

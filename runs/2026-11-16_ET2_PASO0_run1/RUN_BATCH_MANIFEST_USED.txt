@@ -1,0 +1,6 @@
+# ET2 Paso 0 - medicion de ms por evaluacion con NQC_RUN_Batch (modo TIMING). SOLO tiempos y memoria; no se guarda ni se mira ninguna economia.
+# Corre N evaluaciones de ET3 sobre un dataset N1 (NUNCA sobre el IS original). La semilla tseed 20269001 es de ESTA medicion (no es una de las 30 de la Fase A).
+batch=ET2_PASO0_TIMING
+resume=1
+memo_budget_mb=2048
+campaign id=TIMING_N1 transform=N1 tseed=20269001 gaseed=20279001 size=TIMING evals=2000

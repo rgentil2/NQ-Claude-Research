@@ -1,0 +1,10 @@
+NQC RUN FUNNEL TEST - SUMMARY
+script_version : RUNFUNNELTEST-1.1.0
+runner_version : NQCRUN-1.1.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+checks_ok      : 33
+checks_fail    : 0
+funnel_digest_A: b98df179d619cdc35dcbe922cda3d7a7cb5b8ff7a7b41ff4b260a475e0986db2
+report_sha256  : 9385d05a9dd35bf2345deaebad308b149feb3a1e9089ddc2d6d58d0797906064
+result         : PASS
