@@ -1,6 +1,7 @@
 #region Using declarations
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 #endregion
 
@@ -31,6 +32,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int ZeroTradeWithRejectEvals; // de ellas, con condiciones sin senal por calentamiento/volumen/no finito
 		public const double InvalidBase = -1000.0;   // fitness de invalidos: InvalidBase + trades/MinTrades (< todo t valido realista)
 		public const int Probe0931 = 9 * 60 + 31, MaxPeriodBars = 7 * 30 + 10;
+		public NQCE3_Reservoir Reservoir;  // opcional (D-038, aditivo): recibe la serie diaria de cada evaluacion NUEVA; null = sin muestreo
+		public List<double> FreshEvalMs;   // opcional (modo TIMING del lanzador, aditivo): milisegundos de cada evaluacion NUEVA; null = sin medir
 		public double WarmupCoverage;      // fraccion de dias con >= 7*30+10 barras previas a las 09:31 del mismo dia
 
 		// volume: volumen por barra alineado con isBars (OBLIGATORIO: se enlaza con lib.Bind; sin el, 24 familias nunca disparan).
@@ -75,12 +78,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (cache.TryGetValue(id, out hit)) return hit;          // genoma repetido: no es ensayo nuevo
 			NQCE3_Eval e = new NQCE3_Eval(); e.TrialId = id; e.Genome = g.Clone();
 			FreshEvaluations++;
-			if (m == null) { e.GenomeText = "EMPTY"; e.Fitness = InvalidBase; ZeroTradeEvals++; cache[id] = e; return e; }
+			long t0 = FreshEvalMs != null ? Stopwatch.GetTimestamp() : 0;
+			if (m == null) { e.GenomeText = "EMPTY"; e.Fitness = InvalidBase; ZeroTradeEvals++; cache[id] = e; if (FreshEvalMs != null) FreshEvalMs.Add((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency); return e; }
 			m.Id = id.Substring(0, 12);
 			NQCE3_Library nl = lib as NQCE3_Library; long rej0 = nl == null ? 0 : nl.RejectWarmup + nl.RejectVolume + nl.RejectNonFinite;
 			e.GenomeText = m.GenomeText();
 			NQCE_Portfolio pf = new NQCE_Portfolio(); pf.Name = "ET3"; pf.Members.Add(m);
 			NQCE_Result res = NQCE_Executor.Run(bars, pf, cfg, new NQCE_NullHooks());
+			if (Reservoir != null) Reservoir.Offer(id, res.DailyNet);
 			e.Trades = res.Trades.Count;
 			double mean, sd; double t = TStat(res.Trades, out mean, out sd);
 			e.MeanNet = mean; e.StdNet = sd; foreach (NQCE_Trade tr in res.Trades) e.TotalNet += tr.Net;
@@ -96,6 +101,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			foreach (NQCE_Trade tr in res.Trades) sb.Append(tr.EntryTick.ToString(CultureInfo.InvariantCulture)).Append(tr.Dir == 1 ? "L" : "S").Append(';');
 			e.TradeFingerprint = NQCE_Const.Sha256Text(sb.ToString());
 			cache[id] = e;
+			if (FreshEvalMs != null) FreshEvalMs.Add((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency);
 			return e;
 		}
 	}

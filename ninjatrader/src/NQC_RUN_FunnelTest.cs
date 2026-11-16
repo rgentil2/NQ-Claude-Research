@@ -91,7 +91,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public class NQC_RUN_FunnelTest : Strategy
 	{
-		private const string ScriptVersion = "RUNFUNNELTEST-1.0.0";
+		private const string ScriptVersion = "RUNFUNNELTEST-1.1.0";
 		private bool started, done; private StringBuilder rep = new StringBuilder(); private int pass, fail;
 		public string SummaryText = "";
 
@@ -256,8 +256,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 			bool noFrozen = !File.Exists(Path.Combine(dirA, "ET7", "PORTFOLIO_FROZEN_F1.txt"));
 			Chk("F3.7 TSV/SUMMARY por etapa y SUMMARY.txt global presentes; sin congelado por defecto", files && noFrozen, miss);
 			string sm = rA.Summary;
-			Chk("F3.8 SUMMARY global: hashes por etapa, versiones, semilla, parametros, ensayos por etapa, tiempos", sm.Contains("[ET3] input_hash=") && sm.Contains("[ET7] input_hash=") && sm.Contains("runner_version=NQCRUN-1.0.0") && sm.Contains("seed=20261114") && sm.Contains("ensayos: ET3=") && sm.Contains("deterministic_sha256=") && sm.Contains("total_seconds=") && sm.Contains("library=TOYLIBRUN-1") && sm.Contains("et6_ppass_min=0"),
+			Chk("F3.8 SUMMARY global: hashes por etapa, versiones, semilla, parametros, ensayos por etapa, tiempos", sm.Contains("[ET3] input_hash=") && sm.Contains("[ET7] input_hash=") && sm.Contains("runner_version=" + NQCRUN_Funnel.Version) && sm.Contains("seed=20261114") && sm.Contains("ensayos: ET3=") && sm.Contains("deterministic_sha256=") && sm.Contains("total_seconds=") && sm.Contains("library=TOYLIBRUN-1") && sm.Contains("et6_ppass_min=0"),
 				"digest=" + rA.DeterministicSha.Substring(0, 16));
+
+			// ---- F3b defecto FULLPACK run1 (instanciada sin datos) y muestra del N_eff (D-038)
+			Chk("F3.9 guarda de la estrategia: RunAll solo si llego a DataLoaded Y recibio barras (instanciada por NT8 sin datos no ejecuta, no imprime error, no escribe archivos)", !NQC_RUN_Funnel.ShouldRun(false, false) && !NQC_RUN_Funnel.ShouldRun(true, false) && !NQC_RUN_Funnel.ShouldRun(false, true) && NQC_RUN_Funnel.ShouldRun(true, true), "ok");
+			Chk("F3.10 ET3 guarda la muestra uniforme del N_eff (reservorio con la semilla del GA, 5.000 por defecto) con N poblacion = evaluaciones nuevas; ET7 deja la estimacion de la muestra", a3.M("neff_sample_k") == "5000" && a3.M("neff_population") == a3.M("fresh_evals") && int.Parse(a3.M("neff_sample_n"), CultureInfo.InvariantCulture) == int.Parse(a3.M("neff_sample_seen"), CultureInfo.InvariantCulture) && File.Exists(Path.Combine(dirA, "ET3", "ET3_NEFF_SAMPLE.bin")) && File.Exists(Path.Combine(dirA, "ET7", "ET7_NEFF_SAMPLE_ESTIMATE.txt")) && a7.M("neff_sample_status").Length > 0,
+				"muestra=" + a3.M("neff_sample_n") + " vistos=" + a3.M("neff_sample_seen") + " planas=" + a3.M("neff_sample_flat") + " estimador=" + a7.M("neff_sample_status"));
 
 			// ---- F4 determinismo y transformadores
 			NQCRUN_Result rB = Go(w, ToyParams(Path.Combine(root, "B")));

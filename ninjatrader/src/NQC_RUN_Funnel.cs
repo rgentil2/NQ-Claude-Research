@@ -63,6 +63,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool StrictIsRange = true, Resume = true;
 		public string OutDir = "", TransformName = "", TransformArgs = "", NullBestFile = "", Commit = "", EngineDir = "", StopAfter = "", FrozenUtc = "";
 		public bool Freeze, Et2Approved;
+		public int NeffSample = NQCE3_Reservoir.DefaultK;   // D-038: tamano del reservorio de series diarias de los ensayos de ET3 (0 = sin muestreo)
+		public bool Calibration;                           // campana de CALIBRACION (ET2, datos transformados; la fija el lanzador por lotes): etiqueta libre en vez de C1..C5, no consume las 5 campanas
 		public int Et6MaxPool = 30, Et6BeamWidth = 10; public double Et6PpassMin = double.NaN;
 		public string Et7Text = "";
 		// Inyecciones de codigo (no vienen del archivo de configuracion)
@@ -105,6 +107,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						case "commit": p.Commit = v; break;
 						case "freeze": p.Freeze = B(v); break;
 						case "et2_approved": p.Et2Approved = B(v); break;
+						case "neff_sample": p.NeffSample = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "engine_dir": p.EngineDir = v; break;
 						case "stop_after": p.StopAfter = v.ToUpperInvariant(); break;
 						case "et6.max_pool": p.Et6MaxPool = int.Parse(v, CultureInfo.InvariantCulture); break;
@@ -123,8 +126,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 		// Reglas duras (contrato ET3, D-019, D-029). Devuelve "" si todo esta bien.
 		public string Validate()
 		{
-			if (Campaign.Length != 2 || Campaign[0] != 'C' || Campaign[1] < '1' || Campaign[1] > '5') return "campaign debe ser C1..C5 (maximo 5 campanas)";
-			if (Campaign != "C1" && (!SeedGiven || Seed == 20261114)) return "campana " + Campaign + ": la semilla debe declararse antes (clave seed) y no puede reutilizar la de C1";
+			if (Calibration)
+			{
+				if (Campaign.Length < 1 || Campaign.Length > 40) return "campana de calibracion: etiqueta de 1..40 caracteres";
+				foreach (char ch in Campaign) if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-')) return "campana de calibracion: etiqueta solo con letras, digitos, _ y -";
+				if (!SeedGiven || Seed == 20261114) return "campana de calibracion " + Campaign + ": la semilla del GA debe declararse y no puede ser la de C1";
+			}
+			else
+			{
+				if (Campaign.Length != 2 || Campaign[0] != 'C' || Campaign[1] < '1' || Campaign[1] > '5') return "campaign debe ser C1..C5 (maximo 5 campanas)";
+				if (Campaign != "C1" && (!SeedGiven || Seed == 20261114)) return "campana " + Campaign + ": la semilla debe declararse antes (clave seed) y no puede reutilizar la de C1";
+			}
+			if (NeffSample < 0 || NeffSample > 100000) return "neff_sample fuera de 0..100000";
 			if (Population < 1 || Generations < 1 || TopK < 1) return "population, generations y top_k deben ser >= 1";
 			if (MaxEvals < 1 || MaxEvals > NQCE3_Campaign.MaxEvaluations) return "max_evals fuera de 1..100000 (tope duro D-019)";
 			if (MemoBudgetMb < 16 || MemoBudgetMb > 16384) return "memo_budget_mb fuera de 16..16384";
@@ -151,6 +164,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			b.Append("cfg: ").Append(NQCRUN_Funnel.CfgText(Config)).Append('\n');
 			b.Append("et6: max_pool=").Append(Et6MaxPool.ToString(CultureInfo.InvariantCulture)).Append(" beam=").Append(Et6BeamWidth.ToString(CultureInfo.InvariantCulture)).Append(" ppass_min=").Append(double.IsNaN(Et6PpassMin) ? "NaN" : Et6PpassMin.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("et7_config_sha256=").Append(NQCE_Const.Sha256Text(Et7Text)).Append('\n');
+			b.Append("neff_sample=").Append(NeffSample.ToString(CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("freeze=").Append(Freeze ? "1" : "0").Append(" strict_is_range=").Append(StrictIsRange ? "1" : "0").Append(" commit=").Append(Commit).Append('\n');
 			return b.ToString();
 		}
@@ -309,7 +323,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public sealed class NQCRUN_Funnel
 	{
-		public const string Version = "NQCRUN-1.0.0";
+		public const string Version = "NQCRUN-1.1.0";
 		private NQCRUN_Params P; private string dir; private Action<string> log;
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private static string R(double v) { return double.IsNaN(v) ? "NaN" : (double.IsPositiveInfinity(v) ? "INF" : (double.IsNegativeInfinity(v) ? "-INF" : v.ToString("R", CultureInfo.InvariantCulture))); }
@@ -520,12 +534,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Invalidate("ET3"); Invalidate("ET4"); Invalidate("ET5"); Invalidate("ET6"); Invalidate("ET7");
 				sw.Reset(); sw.Start(); c3 = new NQCRUN_Ckpt("ET3", in3);
 				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib);
+				NQCE3_Reservoir rsv = p.NeffSample > 0 ? new NQCE3_Reservoir(p.NeffSample, p.Seed) : null; fit.Reservoir = rsv;   // D-038: muestra uniforme de TODOS los ensayos evaluados (no solo el top-K)
 				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = p.Campaign; camp.MaxEvals = p.MaxEvals;
 				Stopwatch gs = Stopwatch.StartNew();
 				camp.OnGeneration = delegate(int g, NQCE3_Campaign cm) { Log("ET3 gen " + I(g + 1) + "/" + I(gp.Generations) + " evaluaciones=" + I(fit.FreshEvaluations) + " t=" + (gs.ElapsedMilliseconds / 1000.0).ToString("0.0", CultureInfo.InvariantCulture) + "s mem=" + I(MemMb()) + "MB"); };
 				camp.Run(fit, lib, gp, null);
 				List<NQCE3_Eval> top = camp.Bank.Top();
 				Put(c3, "ET3/ET3_LEDGER.tsv", camp.Ledger.Text()); Put(c3, "ET3/ET3_CURVE.tsv", camp.Curve.ToString()); Put(c3, "ET3/ET3_DATABANK.tsv", DatabankTsv(top));
+				if (rsv != null)
+				{
+					rsv.Save(Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin")); Reg(c3, "ET3/ET3_NEFF_SAMPLE.bin");
+					c3.Meta["neff_sample_k"] = I(p.NeffSample); c3.Meta["neff_sample_n"] = I(rsv.Count); c3.Meta["neff_sample_seen"] = I(rsv.Seen); c3.Meta["neff_sample_flat"] = I(rsv.ConstantSeries());
+					c3.Meta["neff_population"] = I(fit.FreshEvaluations); c3.Meta["neff_sample_seed"] = I(p.Seed ^ NQCE3_Reservoir.SeedMix);
+				}
 				double best = double.NaN; foreach (NQCE3_Eval e in top) if (double.IsNaN(best) || e.Fitness > best) best = e.Fitness;
 				c3.Meta["fresh_evals"] = I(fit.FreshEvaluations); c3.Meta["ledger_rows"] = I(camp.Ledger.Rows); c3.Meta["ledger_sha256"] = camp.Ledger.Sha256();
 				c3.Meta["zero_trade_evals"] = I(fit.ZeroTradeEvals); c3.Meta["zero_trade_with_reject"] = I(fit.ZeroTradeWithRejectEvals); c3.Meta["databank_valid"] = I(top.Count);
@@ -622,7 +643,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int nGross = int.Parse(c6.M("cumulative_trials"), CultureInfo.InvariantCulture);
 
 			// ============================== ET7: evidencia (sin congelado salvo freeze=1 con et2_approved=1)
-			string in7 = NQCE_Const.Sha256Text(runInput + "|ET7|" + out6);
+			string in7 = NQCE_Const.Sha256Text(runInput + "|ET7|" + out6 + "|neff_adapter=" + NQCRUN_NeffAdapter.Id);
 			NQCRUN_Ckpt c7 = TryResume("ET7", in7);
 			if (c7 == null)
 			{
@@ -646,6 +667,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				NQCE7_NEffResult ne = NQCE7_NEff.Compute(series.ToArray(), nGross, cfg7.NEffCut, cfg7.NEffCoverageMin, cfg7.NEffMaxSeries);
 				List<NQCE7_Verdict> vs = new List<NQCE7_Verdict>();
 				foreach (NQCE7_CandidateInput ci in inputs) vs.Add(NQCE7_Evidence.Evaluate(ci, ne, nullBest, cfg7, cfg.Profile));
+				// D-038: estimacion del N_eff de la POBLACION desde la muestra uniforme de ET3 (reservorio). N_poblacion = ensayos evaluados por ET3. Informativa: el veredicto (Evaluate) aun usa el N_eff de D-036
+				string neffStatus = "SIN_MUESTRA";
+				if (File.Exists(Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin")))
+				{
+					string[] sid; long sSeen, sSeed; double[][] sample = NQCE3_Reservoir.Load(Path.Combine(dir, "ET3", "ET3_NEFF_SAMPLE.bin"), out sid, out sSeen, out sSeed);
+					string neffText = NQCRUN_NeffAdapter.Estimate(sample, et3Fresh, cfg7.NEffCut, out neffStatus);
+					Put(c7, "ET7/ET7_NEFF_SAMPLE_ESTIMATE.txt", "N_poblacion=" + I(et3Fresh) + " (ensayos evaluados por ET3) N_muestra=" + I(sample.Length) + " vistos_por_el_reservorio=" + I(sSeen) + " semilla_reservorio=" + I(sSeed) + "\n" + neffText);
+				}
+				c7.Meta["neff_sample_status"] = neffStatus; c7.Meta["neff_adapter"] = NQCRUN_NeffAdapter.Id;
 				Put(c7, "ET7/ET7_CONFIG.txt", cfg7.Text);
 				string report = NQCE7_Evidence.Report(cfg7, ne, nullBest, vs, p.Commit.Length > 0 ? p.Commit : "NA", specs.ToString());
 				Put(c7, "ET7/ET7_EVIDENCE_REPORT.txt", report);
@@ -719,7 +749,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 	public class NQC_RUN_Funnel : Strategy
 	{
 		private List<long> tT = new List<long>(); private List<double> tO = new List<double>(), tH = new List<double>(), tL = new List<double>(), tC = new List<double>(), tV = new List<double>();
-		private bool done, outsideIs; private int outsideDay; private string instName = "", fatal = "";
+		private bool done, outsideIs, dataLoaded, gotBars; private int outsideDay; private string instName = "", fatal = "";
 
 		private static string ResultsDir() { string d = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "NQC_Results"); Directory.CreateDirectory(d); return d; }
 
@@ -736,6 +766,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.DataLoaded)
 			{
+				dataLoaded = true;
 				instName = Instrument.FullName;
 				if (!instName.StartsWith("NQ", StringComparison.Ordinal)) fatal = "instrumento " + instName + " no es NQ";
 				else if (BarsPeriod.BarsPeriodType != BarsPeriodType.Minute || BarsPeriod.Value != 1) fatal = "la serie debe ser M1 (minuto, valor 1)";
@@ -743,6 +774,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			else if (State == State.Terminated)
 			{
 				if (done) return; done = true;
+				// NT8 instancia la estrategia sin cargar datos (enumeracion de propiedades, etc.) y la lleva a Terminated: sin DataLoaded y barras recibidas NO se hace nada (ni error ni archivos)
+				if (!ShouldRun(dataLoaded, gotBars)) { if (dataLoaded) Print("NQC_RUN_INFO la estrategia cargo datos pero no recibio barras en esta ejecucion; no se ejecuta nada"); return; }
 				try { RunAll(); }
 				catch (Exception ex)
 				{
@@ -752,9 +785,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 		}
 
+		// Defecto de la corrida FULLPACK run1: RunAll solo si la estrategia llego a State.DataLoaded Y recibio barras en ESTA ejecucion.
+		public static bool ShouldRun(bool dataLoaded, bool gotBars) { return dataLoaded && gotBars; }
+
 		protected override void OnBarUpdate()
 		{
-			if (BarsInProgress != 0 || fatal.Length > 0) return;
+			if (BarsInProgress != 0) return;
+			gotBars = true;
+			if (fatal.Length > 0) return;
 			DateTime c = Time[0]; int day = c.Year * 10000 + c.Month * 100 + c.Day;
 			if (day < NQCRUN_Data.IsFromKey || day > NQCRUN_Data.IsToKey) { if (!outsideIs) { outsideIs = true; outsideDay = day; } return; }   // no se almacena nada fuera del IS
 			tT.Add(c.Ticks); tO.Add(Open[0]); tH.Add(High[0]); tL.Add(Low[0]); tC.Add(Close[0]); tV.Add(Volume[0]);

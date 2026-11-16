@@ -1,0 +1,48 @@
+# ET2 - Manifiesto del lote de la FASE A (30 campanas reducidas) para NQC_RUN_Batch. SOLO DESARROLLO hasta correrlo en NT8.
+# Copiar a Documentos\NinjaTrader 8\NQC_Results\RUN_BATCH_MANIFEST.txt. Origen: ET2_RUNBOOK.md Paso 2 y D-037 (20 nulos = 10 N1 + 10 N2; 10 inyectados N1+INJ; semilla del GA 20271000 + indice 0..29).
+# Estos valores se DECLARAN antes de correr y no se cambian durante la fase. Completar `commit` con git rev-parse HEAD antes de correr.
+# Orden (indice de campana = semilla GA - 20271000): 0-9 N1 (tseed 20262001-20262010), 10-19 N2 (20263001-20263010), 20-29 N1+INJ (20264001-20264010).
+# Formato: lineas clave=valor globales (las claves de RUN_FUNNEL_CONFIG.txt salvo campaign/seed/population/generations/max_evals/top_k/transform/out_dir/stop_after/freeze/engine_dir,
+#   que van por campana o estan prohibidas) y lineas `campaign id=.. transform=IDENTITY|N1|N2|N1INJ tseed=.. gaseed=.. size=REDUCED|FULL|TIMING|CUSTOM [evals=N] [sample=K]`.
+batch=ET2_FASE_A
+commit=REEMPLAZAR_POR_EL_COMMIT_DE_PROTOCOLO
+resume=1
+memo_budget_mb=2048
+neff_sample=5000
+# edge inyectado: +US$20 netos por operacion, tolerancia +-2 (D-037)
+target=20
+tol=2
+# umbral de P_pass vacio = falla cerrada hasta que ET2 lo fije; et7.* se declaran aqui antes de correr (corte N_eff 0,40 por defecto)
+et6.ppass_min=
+et7.neff_cut=0.40
+
+campaign id=A00_N1_20262001 transform=N1 tseed=20262001 gaseed=20271000 size=REDUCED
+campaign id=A01_N1_20262002 transform=N1 tseed=20262002 gaseed=20271001 size=REDUCED
+campaign id=A02_N1_20262003 transform=N1 tseed=20262003 gaseed=20271002 size=REDUCED
+campaign id=A03_N1_20262004 transform=N1 tseed=20262004 gaseed=20271003 size=REDUCED
+campaign id=A04_N1_20262005 transform=N1 tseed=20262005 gaseed=20271004 size=REDUCED
+campaign id=A05_N1_20262006 transform=N1 tseed=20262006 gaseed=20271005 size=REDUCED
+campaign id=A06_N1_20262007 transform=N1 tseed=20262007 gaseed=20271006 size=REDUCED
+campaign id=A07_N1_20262008 transform=N1 tseed=20262008 gaseed=20271007 size=REDUCED
+campaign id=A08_N1_20262009 transform=N1 tseed=20262009 gaseed=20271008 size=REDUCED
+campaign id=A09_N1_20262010 transform=N1 tseed=20262010 gaseed=20271009 size=REDUCED
+campaign id=A10_N2_20263001 transform=N2 tseed=20263001 gaseed=20271010 size=REDUCED
+campaign id=A11_N2_20263002 transform=N2 tseed=20263002 gaseed=20271011 size=REDUCED
+campaign id=A12_N2_20263003 transform=N2 tseed=20263003 gaseed=20271012 size=REDUCED
+campaign id=A13_N2_20263004 transform=N2 tseed=20263004 gaseed=20271013 size=REDUCED
+campaign id=A14_N2_20263005 transform=N2 tseed=20263005 gaseed=20271014 size=REDUCED
+campaign id=A15_N2_20263006 transform=N2 tseed=20263006 gaseed=20271015 size=REDUCED
+campaign id=A16_N2_20263007 transform=N2 tseed=20263007 gaseed=20271016 size=REDUCED
+campaign id=A17_N2_20263008 transform=N2 tseed=20263008 gaseed=20271017 size=REDUCED
+campaign id=A18_N2_20263009 transform=N2 tseed=20263009 gaseed=20271018 size=REDUCED
+campaign id=A19_N2_20263010 transform=N2 tseed=20263010 gaseed=20271019 size=REDUCED
+campaign id=A20_INJ_20264001 transform=N1INJ tseed=20264001 gaseed=20271020 size=REDUCED
+campaign id=A21_INJ_20264002 transform=N1INJ tseed=20264002 gaseed=20271021 size=REDUCED
+campaign id=A22_INJ_20264003 transform=N1INJ tseed=20264003 gaseed=20271022 size=REDUCED
+campaign id=A23_INJ_20264004 transform=N1INJ tseed=20264004 gaseed=20271023 size=REDUCED
+campaign id=A24_INJ_20264005 transform=N1INJ tseed=20264005 gaseed=20271024 size=REDUCED
+campaign id=A25_INJ_20264006 transform=N1INJ tseed=20264006 gaseed=20271025 size=REDUCED
+campaign id=A26_INJ_20264007 transform=N1INJ tseed=20264007 gaseed=20271026 size=REDUCED
+campaign id=A27_INJ_20264008 transform=N1INJ tseed=20264008 gaseed=20271027 size=REDUCED
+campaign id=A28_INJ_20264009 transform=N1INJ tseed=20264009 gaseed=20271028 size=REDUCED
+campaign id=A29_INJ_20264010 transform=N1INJ tseed=20264010 gaseed=20271029 size=REDUCED
