@@ -1,0 +1,27 @@
+# ET2 - Manifiesto FULL de las 10 campanas INYECTADAS (N1+INJ) para NQC_RUN_Batch. SOLO DESARROLLO hasta correrlo en NT8.
+# Copiar a Documentos\NinjaTrader 8\NQC_Results\RUN_BATCH_MANIFEST.txt. Origen: ET2_RUNBOOK.md y D-037. Valores DECLARADOS antes de correr; no cambiar durante la fase.
+# Completar `commit` con git rev-parse HEAD antes de correr. Semillas GA = 20272000 + indice (distintas de las de la Fase A, 20271000+indice).
+# D-037 pide FULL en las 30 campanas. CORRER SOLO tras medir el tiempo del Paso 0 y con la decision del usuario (ver ET2_RUNBOOK.md Paso 0.4). Indice 20-29 (tseed 20264001-20264010), mismos datasets que A20-A29.
+batch=ET2_FULL_INYECTADOS
+commit=REEMPLAZAR_POR_EL_COMMIT_DE_PROTOCOLO
+resume=1
+memo_budget_mb=2048
+neff_sample=5000
+target=20
+tol=2
+et6.ppass_min=
+et7.neff_cut=0.40
+# D-038: N_eff por muestra uniforme + Chao1, limite superior del IC (solo surte efecto en el veredicto cuando el orquestador integre NQCE7_Evidence con la muestra)
+et7.neff_method=SAMPLE_CHAO1
+et7.neff_bound=UPPER
+
+campaign id=F20_INJ_20264001 transform=N1INJ tseed=20264001 gaseed=20272020 size=FULL
+campaign id=F21_INJ_20264002 transform=N1INJ tseed=20264002 gaseed=20272021 size=FULL
+campaign id=F22_INJ_20264003 transform=N1INJ tseed=20264003 gaseed=20272022 size=FULL
+campaign id=F23_INJ_20264004 transform=N1INJ tseed=20264004 gaseed=20272023 size=FULL
+campaign id=F24_INJ_20264005 transform=N1INJ tseed=20264005 gaseed=20272024 size=FULL
+campaign id=F25_INJ_20264006 transform=N1INJ tseed=20264006 gaseed=20272025 size=FULL
+campaign id=F26_INJ_20264007 transform=N1INJ tseed=20264007 gaseed=20272026 size=FULL
+campaign id=F27_INJ_20264008 transform=N1INJ tseed=20264008 gaseed=20272027 size=FULL
+campaign id=F28_INJ_20264009 transform=N1INJ tseed=20264009 gaseed=20272028 size=FULL
+campaign id=F29_INJ_20264010 transform=N1INJ tseed=20264010 gaseed=20272029 size=FULL

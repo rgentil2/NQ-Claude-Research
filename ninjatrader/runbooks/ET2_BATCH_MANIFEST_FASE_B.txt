@@ -1,0 +1,37 @@
+# ET2 - Manifiesto de la FASE B (20 campanas NULAS a tamano FULL) para NQC_RUN_Batch. SOLO DESARROLLO hasta correrlo en NT8.
+# Copiar a Documentos\NinjaTrader 8\NQC_Results\RUN_BATCH_MANIFEST.txt. Origen: ET2_RUNBOOK.md y D-037. Valores DECLARADOS antes de correr; no cambiar durante la fase.
+# Completar `commit` con git rev-parse HEAD antes de correr. Semillas GA = 20272000 + indice (distintas de las de la Fase A, 20271000+indice).
+# Indice 0-9 N1 (tseed 20262001-20262010), 10-19 N2 (20263001-20263010). Mismos datasets nulos que Fase A A00-A19; vector nulo del percentil de ET7 al tamano de busqueda real.
+batch=ET2_FASE_B
+commit=REEMPLAZAR_POR_EL_COMMIT_DE_PROTOCOLO
+resume=1
+memo_budget_mb=2048
+neff_sample=5000
+target=20
+tol=2
+et6.ppass_min=
+et7.neff_cut=0.40
+# D-038: N_eff por muestra uniforme + Chao1, limite superior del IC (solo surte efecto en el veredicto cuando el orquestador integre NQCE7_Evidence con la muestra)
+et7.neff_method=SAMPLE_CHAO1
+et7.neff_bound=UPPER
+
+campaign id=B00_N1_20262001 transform=N1 tseed=20262001 gaseed=20272000 size=FULL
+campaign id=B01_N1_20262002 transform=N1 tseed=20262002 gaseed=20272001 size=FULL
+campaign id=B02_N1_20262003 transform=N1 tseed=20262003 gaseed=20272002 size=FULL
+campaign id=B03_N1_20262004 transform=N1 tseed=20262004 gaseed=20272003 size=FULL
+campaign id=B04_N1_20262005 transform=N1 tseed=20262005 gaseed=20272004 size=FULL
+campaign id=B05_N1_20262006 transform=N1 tseed=20262006 gaseed=20272005 size=FULL
+campaign id=B06_N1_20262007 transform=N1 tseed=20262007 gaseed=20272006 size=FULL
+campaign id=B07_N1_20262008 transform=N1 tseed=20262008 gaseed=20272007 size=FULL
+campaign id=B08_N1_20262009 transform=N1 tseed=20262009 gaseed=20272008 size=FULL
+campaign id=B09_N1_20262010 transform=N1 tseed=20262010 gaseed=20272009 size=FULL
+campaign id=B10_N2_20263001 transform=N2 tseed=20263001 gaseed=20272010 size=FULL
+campaign id=B11_N2_20263002 transform=N2 tseed=20263002 gaseed=20272011 size=FULL
+campaign id=B12_N2_20263003 transform=N2 tseed=20263003 gaseed=20272012 size=FULL
+campaign id=B13_N2_20263004 transform=N2 tseed=20263004 gaseed=20272013 size=FULL
+campaign id=B14_N2_20263005 transform=N2 tseed=20263005 gaseed=20272014 size=FULL
+campaign id=B15_N2_20263006 transform=N2 tseed=20263006 gaseed=20272015 size=FULL
+campaign id=B16_N2_20263007 transform=N2 tseed=20263007 gaseed=20272016 size=FULL
+campaign id=B17_N2_20263008 transform=N2 tseed=20263008 gaseed=20272017 size=FULL
+campaign id=B18_N2_20263009 transform=N2 tseed=20263009 gaseed=20272018 size=FULL
+campaign id=B19_N2_20263010 transform=N2 tseed=20263010 gaseed=20272019 size=FULL

@@ -15,6 +15,9 @@ tol=2
 # umbral de P_pass vacio = falla cerrada hasta que ET2 lo fije; et7.* se declaran aqui antes de correr (corte N_eff 0,40 por defecto)
 et6.ppass_min=
 et7.neff_cut=0.40
+# D-038: N_eff por muestra uniforme + Chao1 (limite superior del IC); surte efecto en el veredicto cuando el orquestador integre ET7 con la muestra
+et7.neff_method=SAMPLE_CHAO1
+et7.neff_bound=UPPER
 
 campaign id=A00_N1_20262001 transform=N1 tseed=20262001 gaseed=20271000 size=REDUCED
 campaign id=A01_N1_20262002 transform=N1 tseed=20262002 gaseed=20271001 size=REDUCED
