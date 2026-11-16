@@ -16,3 +16,6 @@ Usuario corrió el paquete `NQC_FULL_pack2` en NT8: pruebas sintéticas y el pas
 - Lectura: la cola larga (mediana 117 ms frente a media 284 y máximo 28,7 s) apunta a genomas con familias caras o a fallos de caché; hay margen de optimización. D-037 («fase completa en todo») supera el umbral de 48 h/1 semana del runbook ET2: decisión del usuario pendiente.
 
 Archivos: `BATCH_SUMMARY.txt`, `TIMING_N1_SUMMARY.txt`, `RUN_BATCH_MANIFEST_USED.txt`, `pack2_tests/`.
+
+## Máquina del usuario (declarada por el usuario, 2026-11-16)
+Lenovo Legion 5, Intel Core i9-13900HX (24 núcleos: 8 P + 16 E; 32 hilos lógicos), 16 GB DDR5-5600, RTX 4070 (no usada por el motor). Windows, NinjaTrader 8 (.NET Framework 4.8). Implicaciones: la memoria (16 GB; pico de 2,5 GB por proceso) y la térmica en carga sostenida limitan más que el número de núcleos; los núcleos E rinden menos que los P, así que el escalado en hilos no será lineal.
