@@ -39,3 +39,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
   Hashes: Portfolio.cs 5485eda511ff...d9413 · PortfolioTest.cs a9dc27006e42...c1418 · resumen beam ea09d3fdfc92...ee02d · spec F1 dd6d61706c41...dea3b (prueba, no resultado de mercado).
   Queda: ET2 (umbral P_pass), pool real, runner NT8, corregir DdM2m de ET1. Preguntas: interpretación D6-3, MaxPool/ancho, tratar parciales como ensayos.
 - 2026-11-14 · Orquestador: verificado independientemente (mcs+stub) 22/22. Interpretación y decisiones D6-1..D6-8 registradas como D-035 (propuesta con valor por defecto). Defecto de ET1 (DdM2m cuenta doble el P&L cerrado de la sesión) confirmado; corrección delegada al agente de ET1.
+- 2026-11-16 · NT8: NQC_ET6_PortfolioTest 22/22; hashes de spec/beam iguales a mono con el Core corregido; DD M2M del núcleo ya coincide con el correcto. Pendiente (menor): actualizar la línea [INFO] y los comentarios sobre el defecto de DdM2m en NQC_ET6_Portfolio.cs/Test.

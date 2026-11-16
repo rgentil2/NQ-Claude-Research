@@ -1,0 +1,10 @@
+NQC ET3 GA TEST - SUMMARY
+script_version : ET3GATEST-1.0.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+library        : NQCL-3.1.0:dac56e19fbc7b431
+checks_ok      : 15
+checks_fail    : 0
+data           : SINTETICA (sin mercado real)
+status         : PASS
+report_sha256  : 148574836fade56d7014175bc974f8623499baeea10f41cb7153bd1866dab1fb

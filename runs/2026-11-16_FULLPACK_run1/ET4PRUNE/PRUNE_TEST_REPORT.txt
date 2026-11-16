@@ -1,0 +1,30 @@
+NQC ET4 PruneTest ET4PRUNETEST-1.0.0 | poda ET4PRUNE-1.0.0 | contrato NQC 2.0.0 | SOLO barras sinteticas y biblioteca de juguete
+
+[PASS] P1 costos 24,68 y 37,02 (1,5x); umbrales [B]: 1,5x, >=7/12, 70% | CostRT=24.68 estres=37.02
+[PASS] P2 trimestres calendario 2020Q1..2022Q4 (indices 0..11); fuera del IS lanza excepcion | ok
+[PASS] P3 compuertas: F2 6->no 7->si; F3 7/10 si, 6/9 no (60<63), 14/20 si, 0/0 no | ok
+[PASS] P4.1 vecinos de A: s0.pl-1,s0.thr-1,s0.pl+1,s0.thr+1,atr-1,atr+1,ksl-1,ksl+1 (8; sin k_tp porque 'sin objetivo' no tiene vecinos) | s0.pl-1,s0.thr-1,s0.pl+1,s0.thr+1,atr-1,atr+1,ksl-1,ksl+1,
+[PASS] P4.2 bordes: pl0/thr0, atr 5, ksl 0, ktp 31 => solo vecinos hacia dentro; condicion 1x1 sin vecinos; fuera de rejilla no existe ni se repara | s0.pl+1,s0.thr+1,atr+1,ksl+1,ktp-1,
+[PASS] P4.3 bordes superiores: atr 100, ksl 22, ktp 1 (el vecino 'ausente' no existe) => atr-1, ksl-1, ktp+1 | s0.pl-1,s0.thr-1,s0.pl+1,s0.thr+1,atr-1,ksl-1,ktp+1,
+[PASS] P4.4 los 8 vecinos de A son distintos entre si y del candidato (TrialId) | ok
+[PASS] P5 A pasa todo: 24 op, neto 367,68, 1,5x 71,52, 12/12 trimestres, vecinos 7/8, stop 2,5 pts | PASS n=24 net=367.68 net15=71.52 q=12 vec=7/8
+[PASS] P6 B falla F1: 24 op, neto 127,68 (>0), 1,5x -168,48; corte temprano: F2 y F3 no evaluados | F1 net=127.68 net15=-168.48 | neto 1,5x = -168.48 <= 0 (24 operaciones)
+[PASS] P7 C falla F3: pasa F1 y F2, vecinos 8/12 = 66,7% < 70%; stop 1,5 pts | F3 vec=8/12 | vecinos con neto>0 8/12 < 70%
+[PASS] P8 D falla F2 por trimestres: 12 op en 6 trimestres, neto 183,84, 1,5x 35,76 (pasa F1), 6/12 < 7; F3 no evaluado | F2 q=6 | trimestres positivos 6/12 < 7
+[PASS] P9 E en el limite: 14 op, 1,5x 41,72, exactamente 7/12 trimestres (pasa), vecinos 6/6 => PASA | PASS q=7 vec=6/6
+[PASS] P10 ensayos: 26 vecinos evaluados (8+12+6) 2 ya conocidos (A.ksl+1 declarado de ET3; E.thr-1 = candidato D) => 24 nuevos; 31 corridas del ejecutor; el acumulado suma ET3 + 24 | vecinos=26 nuevos=24 filas=26 corridas=31
+[PASS] P11 neto 1,5x de F1 == suma de neto de una corrida completa del ejecutor con CostMult=1,5 (no se duplica la semantica de costos) | 5 candidatos
+[PASS] P12 pool = {A,E} en orden de entrada; TSV de rechazos con 5 renglones y causa F1/F2/F3/PASS | pool=2 rechazos=5
+[PASS] P13 F4 informativo no elimina: stop en pts y US$ presente para todos (A 2,5 pts/US$50; C 1,5 pts/US$30); B (rechazado por F1) lo conserva | ok
+[PASS] P14 determinismo: segunda corrida => mismo hash de pool, de rechazos y de ledger | pool=4ce0c17ead225759 rechazos=4a188f53d5d05d89 ledger=60d69b0f3dc16ddc
+[PASS] P15 un TrialId que no corresponde al genoma se rechaza (integridad del databank) | ok
+[PASS] P16 solo IS (barras de 2019 => excepcion) y cfg debe ser 1,0x | ok
+
+ET4 poda ET4PRUNE-1.0.0 | contrato NQC 2.0.0 | nucleo ET1CORE-1.0.0 | biblioteca TOYLIB-1
+candidatos=5 F1_rechazados=1 F2_rechazados=1 F3_rechazados=1 pool=2
+ensayos_nuevos_ET4=24 vecinos_evaluados=26 corridas_ejecutor=31 TRIALS_LEDGER_acumulado=100024 (ET3 antes=100000)
+pool_sha256=4ce0c17ead2257591738e3d37974578c1a4ff35ee8726b9515474414941d42ad
+rechazos_sha256=4a188f53d5d05d89b9ddcc7c020e5b9e8b62444f8c391e8d37331bd078d7ff5d
+ledger_sha256=60d69b0f3dc16ddca3967d8bccf5b35e20e477307b4f0c57ea6f8a57f094af69
+
+RESUMEN: 19 PASS / 0 FALLA

@@ -1,0 +1,3 @@
+NinjaTrader.NinjaScript.Strategies.NQCRUN_Exception: RUN: sin barras
+   at NinjaTrader.NinjaScript.Strategies.NQC_RUN_Funnel.RunAll() in C:\Users\rgent\OneDrive\Documentos\NinjaTrader 8\bin\Custom\Strategies\NQC_RUN_Funnel.cs:line 769
+   at NinjaTrader.NinjaScript.Strategies.NQC_RUN_Funnel.OnStateChange() in C:\Users\rgent\OneDrive\Documentos\NinjaTrader 8\bin\Custom\Strategies\NQC_RUN_Funnel.cs:line 746

@@ -1,0 +1,8 @@
+NQC ET6 PORTFOLIO TEST - SUMMARY
+script_version : ET6PORTFOLIOTEST-1.0.0
+contract : NQC 2.0.0
+resultado : 22 PASS / 0 FALLA
+report_sha256 : 649fae4511faa0368ad8de54ac8067a10350fd3dcc2d267eb85a1a2f02912610
+resumen_beam_sha256 : 046e4b38c5797cb59a46336c847ae4508b988452dff6fb5cb0110f7d7bad67c1
+spec_f1_sha256 : 7bb9f9b95e99e4ba3a3c8b37483e198971cfb17a44b017d9054a6238fa6e779b
+ensayos : 258

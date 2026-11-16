@@ -33,3 +33,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · ET4 código + prueba sintética (mcs+mono, stub NT8): 19/19 PASS. NQC_ET4_Prune.cs sha256 fc3d8760..., NQC_ET4_PruneTest.cs e28bb9f7...; pool_sha256 4ce0c17e..., rechazos 4a188f53..., ledger 60d69b0f... (24 ensayos nuevos del caso de juguete). Biblioteca de juguete, NO real. Queda: ejecución en NT8, datos reales tras ET2/ET3. Sin bloqueos propios.
 - 2026-11-14 · Orquestador: verificado independientemente (mcs+stub) 19/19 con los mismos hashes. Decisiones D4-1..D4-6 registradas como D-034 (propuesta con valor por defecto).
+- 2026-11-16 · NT8: NQC_ET4_PruneTest 19/19, mismos hashes que mono.

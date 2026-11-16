@@ -1,0 +1,7 @@
+NQC ET5 ROBUST TEST - SUMMARY
+script_version : ET5ROBUSTTEST-1.0.0
+contract : NQC 2.0.0
+resultado : 13 PASS / 0 FALLA
+report_sha256 : 80a091fcdd19dd5917d8b9adf05b1c5761e18d42a11a9e0651961e414db24393
+pool_hash_R9 : ae1efcea8e5bbba9a6ec2e1249762146a60321c2346784f77209cca26358cdfb
+informe_hash_R9 : d40518b452eb07b57b2ce915882521689f7c9eea0027122d9a98dcfb6f08a371

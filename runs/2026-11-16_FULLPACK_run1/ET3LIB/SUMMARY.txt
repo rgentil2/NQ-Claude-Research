@@ -1,0 +1,11 @@
+NQC ET3 LIBRARY TEST - SUMMARY
+script_version : ET3LIBTEST-3.1.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+library        : NQCL-3.1.0:dac56e19fbc7b431
+conditions     : 1243
+checks_ok      : 44
+checks_fail    : 0
+data           : SINTETICA (sin mercado real)
+status         : PASS
+report_sha256  : 4b7dde3f41ee47f252635e822da3e3975e0638a9370a2ff05c9f82ba4b2e7f34

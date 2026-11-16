@@ -111,7 +111,8 @@ Estructura **congelada** en NQC 2.0.0. Detalle completo: [`docs/CONTRACT_NQC_2.0
 | Calendario de noticias | **APROBADO** (3.954 eventos; reproduce exactamente los 2.856 de 2020–2024) | `runs/2026-11-12_NEWS_run1/`; CSV SHA256 `93d837ac…377d` | 2026-11-12 |
 | ET1 | **APROBADA** (P1–P6 al 100%; acta `docs/ET1_ACTA_CIERRE.md`). A (referencias nativas N1–N9), B1 (motor propio = NT8, 8.110/8.110 operaciones, indicadores exactos), B2 (saltos sobre el stop, 46/46 y 46/46 con salto) y C (simulador de cuenta, capa protectora, 22/22) EJECUTADAS/PASS | `runs/2026-11-12_ET1A_*`, `runs/2026-11-13_ET1B_run1/` (informe SHA `15c0da5f…54d1`), `runs/2026-11-14_ET1B2_run1/`, `runs/2026-11-13_ET1C_run1/` (`b9f84a4e…`; script `aebe6fb1…061e`) | 2026-11-14 |
 | Motor genérico (ET1 WP1–WP7) | **Regresión PASS** (`NQC_ET1REG_END status=PASS n1n9=8110/8110 gaps=46/46 sha=c7ec614192ae`; ET1C 22/22, `b9f84a4e…`). Informe completo archivado (`report_sha256` `c7ec6141…79f5`) | `runs/2026-11-14_ET1REG_run1/`; Core `fb4ca71f…`, Regression `e285352f…` | 2026-11-14 |
-| ET2–ET10 | NO INICIADAS | — | — |
+| Código ET2–ET7 + runner (WP6) | **Compilan en NT8 y sus pruebas sintéticas pasan** (ET2 21/21, ET3 44/44 y 15/15, ET4 19/19, ET5 13/13, ET6 22/22, ET7 35/35, RUN 31/31). Regresión de ET1 con el Core corregido (DdM2m): PASS 8.110/8.110, 46/46, hash de operaciones idéntico. **No son ETAPAS ejecutadas**: ET2–ET10 siguen sin correr sobre datos | `runs/2026-11-16_FULLPACK_run1/`; Core `ea6c953c…` | 2026-11-16 |
+| ET2–ET10 | NO INICIADAS (solo código y pruebas sintéticas listos; ET2 es la siguiente en ejecutarse) | — | — |
 
 Estados válidos: `NO INICIADA` → `EN DESARROLLO` → `EJECUTADA` (con log NT8 y hash) → `APROBADA` / `RECHAZADA`. **Un runbook o un código que compila no es `EJECUTADA`.** Sin log de NT8 + hash, el estado no avanza.
 

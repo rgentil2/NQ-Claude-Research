@@ -79,3 +79,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 - 2026-11-14 · Archivo creado al adoptar el modelo de agentes por etapa (`docs/WORK_MODEL.md`). Sin trabajo nuevo.
 - 2026-11-14 · ET2 (agente): código de N1/N2/inyector/estadística + prueba sintética 21/21 + plan + runbook (NO ejecutada). Inyector rediseñado a par espejo (la versión de una regla era explotable). Hashes en el reporte del agente.
 - 2026-11-15 · Orquestador: verificado independientemente (mcs+stub) DatasetTest 21/21. Respuestas del usuario registradas como D-037 (20 nulos + 10 inyectados; fase completa en todo con medición previa del costo; edge: medir primero). Se elimina NQC_ET2_IfaceCopy.cs (tipo duplicado; NQCRUN_IDatasetTransform vive en NQC_RUN_Funnel.cs). Problema abierto D-038 (cobertura del N_eff).
+- 2026-11-16 · NT8: NQC_ET2_DatasetTest 21/21 (hashes N1/N2/INJ idénticos a mono). Siguiente: paso 0 del runbook (medir tiempo por evaluación) sin mirar economía real.
