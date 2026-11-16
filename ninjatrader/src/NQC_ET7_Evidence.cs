@@ -106,6 +106,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (series != null && series.Length < cfg.NEffSampleMinN) { R.Fail = "muestra (" + series.Length.ToString(CultureInfo.InvariantCulture) + ") menor que neff_sample_min_n (" + cfg.NEffSampleMinN.ToString(CultureInfo.InvariantCulture) + ")"; return R; }
 			NQCE7_NeffResult S = NQCE7_Neff.EstimateFromSample(series, nGross, cfg.NEffCut); R.Sample = S;
 			R.Clusters = S.GruposObservados; R.Label = S.Label; R.SrVar = S.SrVar; R.Coverage = nGross > 0 ? Math.Min(1.0, (double)R.NSeries / nGross) : 0;
+			if (S.NActivas >= 0 && S.NActivas < cfg.NEffSampleMinN) { R.Fail = "series con actividad (" + S.NActivas.ToString(CultureInfo.InvariantCulture) + ", " + S.NPlanas.ToString(CultureInfo.InvariantCulture) + " planas) menor que neff_sample_min_n (" + cfg.NEffSampleMinN.ToString(CultureInfo.InvariantCulture) + ")"; return R; }
 			if (S.Falla.Length > 0) { R.Fail = S.Falla; return R; }
 			if (S.CoberturaMuestra < cfg.NEffSampleCovMin) { R.Fail = "cobertura Good-Turing de la muestra " + S.CoberturaMuestra.ToString("0.0000", CultureInfo.InvariantCulture) + " < minimo " + cfg.NEffSampleCovMin.ToString("0.0000", CultureInfo.InvariantCulture); return R; }
 			R.NEff = Math.Max(1.0, cfg.NEffBound == "UPPER" ? S.Superior : (cfg.NEffBound == "LOWER" ? S.Inferior : S.NEffEstimado));
@@ -152,6 +153,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				 .Append(" N_eff_estimado(Chao1)=").Append(F(s.NEffEstimado, "0.##")).Append(" IC95=[").Append(F(s.Inferior, "0.##")).Append(",").Append(F(s.Superior, "0.##"))
 				 .Append("] cobertura_GoodTuring=").Append(F(s.CoberturaMuestra, "0.0000")).Append(" cobertura_min=").Append(F(cfg.NEffSampleCovMin, "0.####")).Append(" limite_usado=").Append(cfg.NEffBound)
 				 .Append(" N_eff_usado=").Append(F(ne.NEff, "0.##")).Append(" (Chao1 es limite inferior de la riqueza verdadera)\n");
+				if (s.NPlanas >= 0) b.Append("N_eff_planas: series_planas=").Append(s.NPlanas.ToString(CultureInfo.InvariantCulture)).Append(" fraccion_planas=").Append(F(s.FraccionPlanas, "0.0000")).Append(" activas=").Append(s.NActivas.ToString(CultureInfo.InvariantCulture)).Append(" (las planas forman UN grupo)\n");
 			}
 			b.Append("nulo_ET2_n=").Append((nullBest == null ? 0 : nullBest.Length).ToString(CultureInfo.InvariantCulture)).Append('\n');
 			int pass = 0;

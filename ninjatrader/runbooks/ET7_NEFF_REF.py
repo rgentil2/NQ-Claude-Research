@@ -57,3 +57,11 @@ ab=world(3000,3,1.1,100000)
 rows=[]
 for r in range(50):
     c=rep(ab,5000,888+r); so,f1,f2,est,lo,hi,gt,v=chao(c,100000); rows.append("%d,%d,%d,%.4f,%.4f,%.4f;"%(so,f1,f2,est,lo,hi))
+# --- D-038 (series planas): el grupo plano es UN solo grupo con abundancia = n de planas; NO se cuenta una vez por serie ---
+c=rep(world(200,15,1.3,100000),3000,555)
+for name,cc in (("planas_UN_grupo(2000)",c+[2000]),("sin_planas",c),("planas_como_singletons(ERRONEO)",c+[1]*2000)):
+    so,f1,f2,est,lo,hi,gt,v=chao(cc,100000)
+    print("FLAT",name,"%d,%d,%d,%.4f,%.4f,%.4f"%(so,f1,f2,est,lo,hi),"cov_GT %.4f"%gt)
+# fracciones: 40% planas -> 1 grupo; 99,5% -> falla cerrada (>=99%)
+for fl,n in ((200,500),(995,1000),(990,1000),(989,1000)):
+    print("FLAT_FRAC",fl,n,fl/n,"FALLA" if fl/n>=0.99 else "ok")

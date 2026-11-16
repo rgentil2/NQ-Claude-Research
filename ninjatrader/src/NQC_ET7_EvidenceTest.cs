@@ -52,6 +52,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int[] o = new int[k]; Array.Copy(lab, o, k); return o;
 		}
 		static int[] Counts(int[] sampleLab, int G) { int[] c = new int[G]; foreach (int g in sampleLab) c[g]++; List<int> l = new List<int>(); foreach (int v in c) if (v > 0) l.Add(v); return l.ToArray(); }
+		static int[] NQCE7_Slice(int[] a, int k) { int[] o = new int[k]; Array.Copy(a, o, k); return o; }
 		static string Q(double x) { return ((long)Math.Floor(x * 10000 + 0.5)).ToString(CultureInfo.InvariantCulture); }   // redondeo sin empates ambiguos (igual en Python)
 		static string Pad(NQCE7_NeffResult e) { return e.GruposObservados + "," + e.F1 + "," + e.F2 + "," + e.NEffEstimado.ToString("0.0000", CultureInfo.InvariantCulture) + "," + e.Inferior.ToString("0.0000", CultureInfo.InvariantCulture) + "," + e.Superior.ToString("0.0000", CultureInfo.InvariantCulture); }
 		static string Scenario(int G, int floor, double expo, int N, int k, int reps, long seed0, out int cover, out double meanObs, out double meanEst, out int sumPop)
@@ -130,10 +131,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("S16 informe SAMPLE_CHAO1 determinista: imprime N_bruto, observados, f1, f2, N_eff estimado, IC95, cobertura GT y limite usado", rs1 == rs2 && rs1.Contains("N_bruto=8000") && rs1.Contains("observados=" + es.GruposObservados) && rs1.Contains(" f1=" + es.F1 + " f2=" + es.F2) && rs1.Contains("N_eff_estimado(Chao1)=") && rs1.Contains("IC95=[") && rs1.Contains("cobertura_GoodTuring=") && rs1.Contains("limite_usado=UPPER") && rs1.Contains("N_eff_usado="), rs1.Substring(rs1.IndexOf("N_eff_muestra")).Split('\n')[0]);
 			NQCE7_Verdict vf = NQCE7_Evidence.Evaluate(gg, fMin, nl, cs, NQC_AccountProfile.RapidIntraday50K());
 			Chk("S17 con muestra insuficiente el portafolio se rechaza por DSR (falla cerrada) y el informe lo dice", !vf.Pass && vf.Causes[0].StartsWith("DSR: N_eff:") && NQCE7_Evidence.Report(cs, fMin, nl, new List<NQCE7_Verdict> { vf }, cm, "").Contains("FALLA_CERRADA="), vf.Causes[0]);
+			// ---- D-038 series planas (genomas inactivos): UN solo grupo; Python independiente = ET7_NEFF_REF.py (FLAT)
+			double[][] mixed = new double[500][]; for (int i = 0; i < 300; i++) mixed[i] = ser[i]; for (int i = 300; i < 500; i++) mixed[i] = new double[TT];
+			NQCE7_NeffResult ef = NQCE7_Neff.EstimateFromSample(mixed, 8000, 0.40);
+			int[] actC = Counts(NQCE7_Slice(lab, 300), G); List<int> allC = new List<int>(actC); allC.Add(200); NQCE7_NeffResult efRef = NQCE7_Neff.EstimateFromAbundances(allC.ToArray(), 8000);
+			Chk("S18 muestra con 40% de planas: UN grupo plano (observados = activos + 1; f1/f2/IC = EstimateFromAbundances con abundancia 200), NPlanas=200, fraccion 0,4, etiquetas coherentes", ef.Falla == "" && ef.NPlanas == 200 && ef.NActivas == 300 && Math.Abs(ef.FraccionPlanas - 0.4) < 1e-12 && ef.GruposObservados == actC.Length + 1 && Pad(ef) == Pad(efRef) && ef.Label.Length == 500 && ef.Label[299] != ef.Label[300] && ef.Label[300] == ef.Label[499] && ef.Label[300] == actC.Length, Pad(ef) + " | " + Pad(efRef) + " " + ef.Falla);
+			double[][] m995 = new double[1000][]; for (int i = 0; i < 1000; i++) m995[i] = i < 5 ? ser[i] : new double[TT];
+			double[][] m990 = new double[1000][]; for (int i = 0; i < 1000; i++) m990[i] = i < 10 ? ser[i] : new double[TT];
+			double[][] m989 = new double[1000][]; for (int i = 0; i < 1000; i++) m989[i] = i < 11 ? ser[i] : new double[TT];
+			NQCE7_NeffResult f995 = NQCE7_Neff.EstimateFromSample(m995, 8000, 0.40), f990 = NQCE7_Neff.EstimateFromSample(m990, 8000, 0.40), f989 = NQCE7_Neff.EstimateFromSample(m989, 8000, 0.40);
+			Chk("S19 99,5% y 99% planas: falla cerrada (GA degenerado) y reporta n/fraccion; 98,9% con solo 11 activas tambien falla (activas < 30); NaN en N_eff", f995.Falla.Contains("varianza cero") && f990.Falla.Contains("varianza cero") && f995.NPlanas == 995 && Math.Abs(f995.FraccionPlanas - 0.995) < 1e-12 && f989.Falla.Contains("series con actividad") && f989.NPlanas == 989 && double.IsNaN(f995.NEffEstimado), f995.Falla + " | " + f989.Falla);
+			NQCE7_Config cfp = NQCE7_Config.Parse("neff_method=SAMPLE_CHAO1\nneff_sample_min_n=100\nneff_sample_cov_min=0.5\n", out er);
+			NQCE7_NEffResult pOk = NQCE7_Evidence.ComputeNEff(cfp, mixed, 8000), pBad = NQCE7_Evidence.ComputeNEff(cfp, m995, 8000);
+			double[][] m150 = new double[500][]; for (int i = 0; i < 500; i++) m150[i] = i < 90 ? ser[i] : new double[TT];
+			NQCE7_NEffResult pMin = NQCE7_Evidence.ComputeNEff(cfp, m150, 8000);
+			string rp = NQCE7_Evidence.Report(cfp, pOk, nl, new List<NQCE7_Verdict>(), cm, "");
+			Chk("S20 politica: 40% planas NO falla cerrado y el informe imprime series_planas y fraccion; 99,5% falla; activas (90) < neff_sample_min_n (100) falla aunque el total sea 500", pOk.Fail == "" && !double.IsNaN(pOk.NEff) && pBad.Fail.Length > 0 && pMin.Fail.Contains("neff_sample_min_n") && rp.Contains("series_planas=200 fraccion_planas=0.4000") && NQCE7_Evidence.Report(cfp, pBad, nl, new List<NQCE7_Verdict>(), cm, "").Contains("series_planas=995"), pOk.Fail + " | " + pBad.Fail + " | " + pMin.Fail);
+			List<int> rc = new List<int>(Counts(SampleLabels(World(200, 15, 1.3, 100000), 3000, 555), 200)); rc.Add(2000); NQCE7_NeffResult rf = NQCE7_Neff.EstimateFromAbundances(rc.ToArray(), 100000);
+			Chk("S21 referencia Python independiente (FLAT): 3000 activas + UN grupo plano de 2000 -> 184,44,35,210.2778,196.4017,239.6798; contarlas como singletons daria ~60.181 (inflado)", Pad(rf) == "184,44,35,210.2778,196.4017,239.6798", Pad(rf));
 			// ---- efecto en el DSR: N_eff mayor => SR0 mayor => DSR menor (misma serie, V = 0,0004; referencia Python)
 			double[] xx = new double[400]; for (int t = 0; t < 400; t++) xx[t] = ((t * 37) % 101 - 48) * 1.0 + (t % 7 == 0 ? 3.0 : 0.0) + (t % 2 == 0 ? 0.8 : 0.0);
 			NQCE7_DsrResult q1 = NQCE7_Dsr.Compute(xx, 150, 0.0004), q2 = NQCE7_Dsr.Compute(xx, 200, 0.0004), q3 = NQCE7_Dsr.Compute(xx, 260, 0.0004);
-			Chk("S18 efecto en el DSR: N_eff 150 < 200 < 260 => SR0 0,053402 < 0,055310 < 0,057004 y DSR 0,79049 > 0,77936 > 0,76921 (vs Python); usar el limite superior endurece el DSR", q1.Sr0 < q2.Sr0 && q2.Sr0 < q3.Sr0 && q1.Dsr > q2.Dsr && q2.Dsr > q3.Dsr && Near(q1.Sr0, 0.053402126187284606, 1e-12) && Near(q2.Sr0, 0.05531047809267094, 1e-12) && Near(q3.Sr0, 0.057003996654779156, 1e-12) && Near(q1.Dsr, 0.7904919048097996, 1e-10) && Near(q2.Dsr, 0.779360799880516, 1e-10) && Near(q3.Dsr, 0.7692051067253196, 1e-10), F(q1.Dsr) + "/" + F(q2.Dsr) + "/" + F(q3.Dsr));
+			Chk("S22 efecto en el DSR: N_eff 150 < 200 < 260 => SR0 0,053402 < 0,055310 < 0,057004 y DSR 0,79049 > 0,77936 > 0,76921 (vs Python); usar el limite superior endurece el DSR", q1.Sr0 < q2.Sr0 && q2.Sr0 < q3.Sr0 && q1.Dsr > q2.Dsr && q2.Dsr > q3.Dsr && Near(q1.Sr0, 0.053402126187284606, 1e-12) && Near(q2.Sr0, 0.05531047809267094, 1e-12) && Near(q3.Sr0, 0.057003996654779156, 1e-12) && Near(q1.Dsr, 0.7904919048097996, 1e-10) && Near(q2.Dsr, 0.779360799880516, 1e-10) && Near(q3.Dsr, 0.7692051067253196, 1e-10), F(q1.Dsr) + "/" + F(q2.Dsr) + "/" + F(q3.Dsr));
 		}
 
 		private void RunAll()

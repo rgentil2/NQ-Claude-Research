@@ -20,7 +20,10 @@ using System.Globalization;
 //       muchos grupos raros (abundancia poblacional << N/n) subestima, y el IC (que cuantifica el error de muestreo, no ese sesgo) puede NO cubrir el valor real.
 //   (c) Se asume muestreo con reemplazo/poblacion grande; con n/N alto el estimador sobreestima algo lo no visto (lado conservador para el DSR).
 //   (d) Los grupos se definen sobre la MUESTRA: con poblacion completa, el linkage promedio puede fundir o separar distinto (grupos fronterizos). No se corrige.
-//   (e) Varianza cero generalizada (>= 50% de las series planas) falla cerrado: cada serie plana es grupo propio y fabricaria singletons.
+//   (e) SERIES PLANAS (orquestador, D-038): los genomas con 0 operaciones dan series identicas (todo ceros); NO son ruido. Se separan, forman UN SOLO grupo
+//       (abundancia = n de planas) que entra en las abundancias de Chao1, y el agrupamiento corre solo sobre las series con actividad. Siempre se reporta NPlanas y
+//       FraccionPlanas. Falla cerrada si quedan < MinMuestra series activas o si las planas son >= 99% de la muestra (GA degenerado). La regla de >= 50% planas
+//       ya no aplica aqui (solo al modo COVERED, que no usa este archivo).
 //   (f) f2 = 0 con f1 >= 10 (MaxF1SinF2) es indefinible: la formula da f1(f1-1)/2 sin base empirica -> falla cerrado.
 //   Fallas cerradas: n < 30, N < n, corte invalido, series de longitud distinta o <3 dias, varianza cero generalizada, f2=0 con f1 grande, sin series.
 // La muestra NO se re-agrupa para N_eff por cobertura: la formula grupos/cobertura de D-036 sigue en el modo COVERED.
@@ -40,6 +43,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double Cut = double.NaN;     // corte de distancia usado (solo EstimateFromSample)
 		public double SrVar = double.NaN;   // varianza entre grupos observados del SR diario (solo EstimateFromSample)
 		public int[] Label;                 // grupo de cada serie de la muestra (solo EstimateFromSample)
+		public int NPlanas = -1, NActivas = -1; // series planas (P&L diario constante = genomas inactivos, D-038) y series con actividad de la muestra
+		public double FraccionPlanas = double.NaN;
 		public string Falla = "";           // causa si falla cerrada (los numericos quedan NaN)
 	}
 
@@ -48,7 +53,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public const double Z95 = 1.959963984540054;
 		public const int MinMuestra = 30;
 		public const int MaxF1SinF2 = 10;
-		public const double VarCeroMaxFraccion = 0.5;
+		public const double PlanasMaxFraccion = 0.99;
 
 		// Riqueza a partir de las abundancias (ensayos de la muestra en cada grupo observado; cada valor >= 1).
 		public static NQCE7_NeffResult EstimateFromAbundances(int[] counts, long populationTrials)
@@ -83,20 +88,30 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (n == 0) { R.Falla = "sin series de muestra"; return R; }
 			if (n < MinMuestra) { R.Falla = "muestra de " + n.ToString(CultureInfo.InvariantCulture) + " series (< " + MinMuestra.ToString(CultureInfo.InvariantCulture) + ")"; return R; }
 			if (populationTrials < n) { R.Falla = "N poblacion (" + populationTrials.ToString(CultureInfo.InvariantCulture) + ") menor que la muestra"; return R; }
-			int flat = 0;
+			for (int i = 1; i < n; i++) if (sampleSeries[i] != null && sampleSeries[0] != null && sampleSeries[i].Length != sampleSeries[0].Length) { R.Falla = "series de longitud distinta"; return R; }
+			int flat = 0; bool[] isFlat = new bool[n];
 			for (int i = 0; i < n; i++)
 			{
 				if (sampleSeries[i] == null) { R.Falla = "serie nula en la muestra"; return R; }
 				double m = 0; foreach (double x in sampleSeries[i]) m += x; m /= Math.Max(1, sampleSeries[i].Length);
 				double s = 0; foreach (double x in sampleSeries[i]) s += (x - m) * (x - m);
-				if (s <= 1e-18) flat++;
+				if (s <= 1e-18) { flat++; isFlat[i] = true; }
 			}
-			if (flat >= VarCeroMaxFraccion * n) { R.Falla = "varianza cero generalizada: " + flat.ToString(CultureInfo.InvariantCulture) + " de " + n.ToString(CultureInfo.InvariantCulture) + " series planas"; return R; }
-			NQCE7_NEffResult c = NQCE7_NEff.Compute(sampleSeries, n, cut, 1.0, int.MaxValue);
+			R.NPlanas = flat; R.NActivas = n - flat; R.FraccionPlanas = (double)flat / n;
+			if (R.FraccionPlanas >= PlanasMaxFraccion) { R.Falla = "varianza cero generalizada: " + flat.ToString(CultureInfo.InvariantCulture) + " de " + n.ToString(CultureInfo.InvariantCulture) + " series planas (>= 99%, GA degenerado)"; return R; }
+			if (n - flat < MinMuestra) { R.Falla = "solo " + (n - flat).ToString(CultureInfo.InvariantCulture) + " series con actividad (< " + MinMuestra.ToString(CultureInfo.InvariantCulture) + ") tras separar " + flat.ToString(CultureInfo.InvariantCulture) + " planas"; return R; }
+			double[][] act = new double[n - flat][]; int[] map = new int[n - flat]; int q = 0;
+			for (int i = 0; i < n; i++) if (!isFlat[i]) { act[q] = sampleSeries[i]; map[q] = i; q++; }
+			NQCE7_NEffResult c = NQCE7_NEff.Compute(act, act.Length, cut, 1.0, int.MaxValue);
 			if (c.Fail.Length > 0) { R.Falla = c.Fail; return R; }
-			int[] cnt = new int[c.Clusters]; foreach (int g in c.Label) cnt[g]++;
+			int extra = flat > 0 ? 1 : 0;
+			int[] cnt = new int[c.Clusters + extra]; foreach (int g in c.Label) cnt[g]++;
+			if (flat > 0) cnt[c.Clusters] = flat;   // UN grupo plano
+			int[] lab = new int[n]; for (int i = 0; i < n; i++) lab[i] = isFlat[i] ? c.Clusters : -1;
+			for (int j = 0; j < map.Length; j++) lab[map[j]] = c.Label[j];
 			NQCE7_NeffResult E = EstimateFromAbundances(cnt, populationTrials);
-			E.Cut = cut; E.SrVar = c.SrVar; E.Label = c.Label;
+			E.NPlanas = flat; E.NActivas = n - flat; E.FraccionPlanas = R.FraccionPlanas;
+			E.Cut = cut; E.SrVar = c.SrVar; E.Label = lab;
 			return E;
 		}
 	}
