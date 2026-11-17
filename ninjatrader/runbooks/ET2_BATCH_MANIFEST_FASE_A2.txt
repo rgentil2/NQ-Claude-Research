@@ -1,0 +1,62 @@
+# ET2 - Manifiesto de la REPETICION de la FASE A (Fase A2, D-039 + D-040): 35 campanas reducidas para NQC_RUN_Batch. SOLO DESARROLLO hasta correrlo en NT8.
+# Copiar a Documentos\NinjaTrader 8\NQC_Results\RUN_BATCH_MANIFEST.txt. Origen: ET2_RUNBOOK.md (Fase A2). Estos valores se DECLARAN antes de correr y no se cambian durante la fase.
+# Diseno: 20 nulos (10 N1 + 10 N2) + 15 inyectados en CURVA DE EDGES (5 por nivel: +20, +60, +100 US$ netos por operacion, costo 24,68 incluido). Semillas NUEVAS: ninguna de la Fase A (20262001-10, 20263001-10, 20264001-10, GA 20271000-29).
+# Orden (indice de campana = semilla GA - 20281000): 0-9 N1 (tseed 20282001-20282010), 10-19 N2 (20283001-20283010), 20-24 N1+INJ target=20 (20284001-5), 25-29 target=60 (20284101-5), 30-34 target=100 (20284201-5).
+# Tolerancia de aceptacion del inyectado por nivel (NQCET2_EdgeInjector.TolFor = max(2, 8% del objetivo)): +20 -> 2; +60 -> 5; +100 -> 8. Un inyectado con ok=0 NO cuenta en la potencia de su nivel.
+# Formato: lineas clave=valor globales y lineas `campaign id=.. transform=IDENTITY|N1|N2|N1INJ tseed=.. gaseed=.. size=REDUCED|FULL|TIMING|CUSTOM [target=..] [tol=..]`.
+batch=ET2_FASE_A2
+commit=PLACEHOLDER
+resume=1
+memo_budget_mb=4096
+max_memory_mb=8192
+threads=8
+neff_sample=5000
+# defecto de edge/tolerancia (los inyectados lo sobrescriben por campana)
+target=20
+tol=2
+# P_pass: el umbral se deja en 0 para REGISTRAR el P_pass de cada finalista; el definitivo se elige en la calibracion con FP <= 5% (piso 0,50).
+et6.ppass_min=0
+# D-039 (valores DEFINITIVOS pendientes de ET3: confirmar contra docs/stages/ET3.md antes de correr; defecto de la repeticion segun ET3: T_SHRUNK, 250, 24)
+et3.min_trades=250
+et3.min_months_covered=24
+et3.fitness_mode=T_SHRUNK
+et6.pool_balance=1
+et7.neff_cut=0.40
+et7.neff_method=SAMPLE_CHAO1
+et7.neff_bound=UPPER
+
+campaign id=B00_N1_20282001 transform=N1 tseed=20282001 gaseed=20281000 size=REDUCED
+campaign id=B01_N1_20282002 transform=N1 tseed=20282002 gaseed=20281001 size=REDUCED
+campaign id=B02_N1_20282003 transform=N1 tseed=20282003 gaseed=20281002 size=REDUCED
+campaign id=B03_N1_20282004 transform=N1 tseed=20282004 gaseed=20281003 size=REDUCED
+campaign id=B04_N1_20282005 transform=N1 tseed=20282005 gaseed=20281004 size=REDUCED
+campaign id=B05_N1_20282006 transform=N1 tseed=20282006 gaseed=20281005 size=REDUCED
+campaign id=B06_N1_20282007 transform=N1 tseed=20282007 gaseed=20281006 size=REDUCED
+campaign id=B07_N1_20282008 transform=N1 tseed=20282008 gaseed=20281007 size=REDUCED
+campaign id=B08_N1_20282009 transform=N1 tseed=20282009 gaseed=20281008 size=REDUCED
+campaign id=B09_N1_20282010 transform=N1 tseed=20282010 gaseed=20281009 size=REDUCED
+campaign id=B10_N2_20283001 transform=N2 tseed=20283001 gaseed=20281010 size=REDUCED
+campaign id=B11_N2_20283002 transform=N2 tseed=20283002 gaseed=20281011 size=REDUCED
+campaign id=B12_N2_20283003 transform=N2 tseed=20283003 gaseed=20281012 size=REDUCED
+campaign id=B13_N2_20283004 transform=N2 tseed=20283004 gaseed=20281013 size=REDUCED
+campaign id=B14_N2_20283005 transform=N2 tseed=20283005 gaseed=20281014 size=REDUCED
+campaign id=B15_N2_20283006 transform=N2 tseed=20283006 gaseed=20281015 size=REDUCED
+campaign id=B16_N2_20283007 transform=N2 tseed=20283007 gaseed=20281016 size=REDUCED
+campaign id=B17_N2_20283008 transform=N2 tseed=20283008 gaseed=20281017 size=REDUCED
+campaign id=B18_N2_20283009 transform=N2 tseed=20283009 gaseed=20281018 size=REDUCED
+campaign id=B19_N2_20283010 transform=N2 tseed=20283010 gaseed=20281019 size=REDUCED
+campaign id=B20_INJ20_20284001 transform=N1INJ tseed=20284001 gaseed=20281020 size=REDUCED target=20 tol=2
+campaign id=B21_INJ20_20284002 transform=N1INJ tseed=20284002 gaseed=20281021 size=REDUCED target=20 tol=2
+campaign id=B22_INJ20_20284003 transform=N1INJ tseed=20284003 gaseed=20281022 size=REDUCED target=20 tol=2
+campaign id=B23_INJ20_20284004 transform=N1INJ tseed=20284004 gaseed=20281023 size=REDUCED target=20 tol=2
+campaign id=B24_INJ20_20284005 transform=N1INJ tseed=20284005 gaseed=20281024 size=REDUCED target=20 tol=2
+campaign id=B25_INJ60_20284101 transform=N1INJ tseed=20284101 gaseed=20281025 size=REDUCED target=60 tol=5
+campaign id=B26_INJ60_20284102 transform=N1INJ tseed=20284102 gaseed=20281026 size=REDUCED target=60 tol=5
+campaign id=B27_INJ60_20284103 transform=N1INJ tseed=20284103 gaseed=20281027 size=REDUCED target=60 tol=5
+campaign id=B28_INJ60_20284104 transform=N1INJ tseed=20284104 gaseed=20281028 size=REDUCED target=60 tol=5
+campaign id=B29_INJ60_20284105 transform=N1INJ tseed=20284105 gaseed=20281029 size=REDUCED target=60 tol=5
+campaign id=B30_INJ100_20284201 transform=N1INJ tseed=20284201 gaseed=20281030 size=REDUCED target=100 tol=8
+campaign id=B31_INJ100_20284202 transform=N1INJ tseed=20284202 gaseed=20281031 size=REDUCED target=100 tol=8
+campaign id=B32_INJ100_20284203 transform=N1INJ tseed=20284203 gaseed=20281032 size=REDUCED target=100 tol=8
+campaign id=B33_INJ100_20284204 transform=N1INJ tseed=20284204 gaseed=20281033 size=REDUCED target=100 tol=8
+campaign id=B34_INJ100_20284205 transform=N1INJ tseed=20284205 gaseed=20281034 size=REDUCED target=100 tol=8

@@ -61,7 +61,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private sealed class PS { public string Tag; public double T, Ppass, Dsr = 0.97, Dd = 800, Boot = 0.92, Pct = double.NaN, Sr = 0.05; public bool McFail; public string[] Members = new string[0]; }
 		private sealed class CS
 		{
-			public string Id, Tr; public string Close = ""; public double Best3 = 1.0; public bool NeffFail, Err, NoSummary, Garbage; public int Tseed, Gaseed; public List<PS> Ports = new List<PS>();
+			public string Id, Tr; public string Close = ""; public double Best3 = 1.0; public bool NeffFail, Err, NoSummary, Garbage; public double Level = 20, Tpair = 2.6; public bool GatesFile; public int Tseed, Gaseed; public List<PS> Ports = new List<PS>();
 			public bool DsrFail { get { foreach (PS q in Ports) if (q.Dsr < 0.95) return true; return false; } }
 		}
 		private static string Hx(string s) { return Sha("fx:" + s); }
@@ -103,6 +103,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (j == 9) { c.Close = "ET5"; L.Add(c); continue; }
 				string eq = "EQ" + j; PS a = Pt("F1", 3.6 + 0.08 * j, j == 8 ? 0.90 : pp[j], new string[] { eq, "DEC" }); a.Pct = pc(99); if (j == 0) a.Sr = 0.12;
 				PS b = Pt("F2", 3.2 + 0.08 * j, 0.50, new string[] { "DEC", "DEC2" }); b.Pct = pc(90); c.Ports.Add(a); c.Ports.Add(b); L.Add(c);
+			}
+			return L;
+		}
+
+		// D-040 (escenario 6): 20 nulas como en Specs(false) + 15 inyectadas, 5 por nivel (+20, +60, +100). Potencia 0/5, 3/5, 5/5. t_par por nivel 0,72 / 2,15 / 3,58.
+		private static List<CS> SpecsCurve()
+		{
+			List<CS> L = Specs(false); L.RemoveRange(20, 10); foreach (CS c in L) c.GatesFile = true;
+			double[] lv = new double[] { 20, 60, 100 }, tp = new double[] { 0.72, 2.15, 3.58 }; int[] npass = new int[] { 0, 3, 5 }; int[] tbase = new int[] { 20284001, 20284101, 20284201 };
+			for (int g = 0; g < 3; g++) for (int j = 0; j < 5; j++)
+			{
+				int idx = g * 5 + j; CS c = Mk("B" + (20 + idx).ToString(IC), "N1INJ", tbase[g] + j, 20281020 + idx); c.Level = lv[g]; c.Tpair = tp[g]; c.Best3 = 2.0; c.GatesFile = true;
+				if (j >= npass[g]) { c.Close = "ET5"; L.Add(c); continue; }
+				string eq = "EQ" + idx; PS a = Pt("F1", 3.6 + 0.08 * idx, 0.90, new string[] { eq, "DEC" }); a.Pct = double.NaN; PS b = Pt("F2", 3.2 + 0.08 * idx, 0.50, new string[] { "DEC", "DEC2" }); b.Pct = double.NaN; c.Ports.Add(a); c.Ports.Add(b); L.Add(c);
 			}
 			return L;
 		}
@@ -159,6 +173,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				StringBuilder fin = new StringBuilder("rank\tportfolio_id\tspec_hash\tt_stat\tppass\tmembers\n");
 				for (int k = 0; k < c.Ports.Count; k++) { PS q = c.Ports[k]; List<string> ms = new List<string>(); foreach (string t in q.Members) ms.Add(MemberId(id, t)); fin.Append(I(k + 1)).Append('\t').Append(Hx(id + q.Tag)).Append('\t').Append(Hx("spec" + id + q.Tag)).Append('\t').Append(q.T.ToString("R", IC)).Append('\t').Append(q.Ppass.ToString("R", IC)).Append('\t').Append(string.Join(",", ms.ToArray())).Append('\n'); }
 				f6["ET6/ET6_FINALISTS.tsv"] = Wr(root, id + "/ET6/ET6_FINALISTS.tsv", fin.ToString());
+				if (c.GatesFile) Wr(root, id + "/ET6/ET6_GATES.txt", "[DIAGNOSTICO ET6 D-039] pool_balance=true candidatos_entrada largos/cortos=10/10 pool_usado largos/cortos=6/6 equilibrado pares_semilla_mixtos=3\ncombinaciones_3a5_evaluadas=40 solo_largos=4 solo_cortos=4 mixtas=32 | falla_Symmetry l/c/m=4/4/2\npuerta\tfallan\tfallan_solo_ella (3..5 miembros)\nSymmetry\t10\t2\nPF\t5\t1\n");
 				m6["accepted"] = closed6 ? "0" : "25"; m6["hard_discarded"] = "4"; m6["pool_used"] = "6"; m6["finalists"] = I(c.Ports.Count); m6["trials"] = "56"; m6["trials_by_size"] = "6/15/20/10/5"; m6["cumulative_trials"] = "11056"; m6["executor_runs"] = "86";
 			}
 			double neffUsed = c.NeffFail ? double.NaN : 400, neffEst = 150, neffLo = 80, neffHi = 400, gt = c.NeffFail ? 0.70 : 0.95;
@@ -205,7 +220,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			s.Append("status=").Append(status).Append('\n');
 			s.Append("runner_version=NQCRUN-1.3.0 contract=NQC 2.0.0 core=ET1CORE-1.0.0 executor_spec=2.3.0\nlibrary=FIXTURELIB-1 et4=ET4PRUNE-1.0.0 et6_schema=NQC_PORTFOLIO_SPEC/1 engine_hash=FIXTURE-ENGINE-HASH\n");
 			s.Append("campaign=").Append(id).Append(" seed=").Append(I(c.Gaseed)).Append(" population=200 generations=50 max_evals=10000 top_k=200 et6_max_pool=30 et6_beam=10 et6_ppass_min=0 mc_paths=500 mc_mode=EXPLORATORY\n");
-			s.Append("transform=").Append(tr).Append(" transform_params=seed=").Append(I(c.Tseed)).Append(inj ? ";fixed_days=0;slot0_fixed=1;min_level=1000;core=ET2DATASETS-1.0.0;target_net=20.00;tol=2.00;a=0.0850;measured_net=20.31;net_long=21.10;net_short=19.40;trades=312;rate_per_session=0.520;t_pair=2.60;ok=1;rules=dir=1 atr=14 ksl=2.00 ktp=3.00 maxday=1 timex=-1 if CIERRE>MAX(571..600)@>600 || dir=-1 atr=14 ksl=2.00 ktp=3.00 maxday=1 timex=-1 if CIERRE<MIN(571..600)@>600" : ";fixed_days=0;slot0_fixed=1;min_level=1000;core=ET2DATASETS-1.0.0").Append('\n');
+			s.Append("transform=").Append(tr).Append(" transform_params=seed=").Append(I(c.Tseed)).Append(inj ? ";fixed_days=0;slot0_fixed=1;min_level=1000;core=ET2DATASETS-1.0.0;target_net=" + c.Level.ToString("0.00", IC) + ";tol=2.00;a=0.0850;measured_net=20.31;net_long=21.10;net_short=19.40;trades=312;rate_per_session=0.520;t_pair=" + c.Tpair.ToString("0.00", IC) + ";ok=1;rules=dir=1 atr=14 ksl=2.00 ktp=3.00 maxday=1 timex=-1 if CIERRE>MAX(571..600)@>600 || dir=-1 atr=14 ksl=2.00 ktp=3.00 maxday=1 timex=-1 if CIERRE<MIN(571..600)@>600" : ";fixed_days=0;slot0_fixed=1;min_level=1000;core=ET2DATASETS-1.0.0").Append('\n');
 			s.Append("data: bars=225504 sessions=750 first_day=20200103 last_day=20221229 warmup_coverage=1 r2_zone=750/750 (100%) strict_is_range=1\n");
 			s.Append("data_raw_sha256=").Append(Hx("raw")).Append(" data_run_sha256=").Append(Hx("run" + id)).Append('\n').Append("params_sha256=").Append(Hx("par" + id)).Append(" run_input_sha256=").Append(Hx("ri" + id)).Append('\n');
 			s.Append("ensayos: ET3=10000 ET4_vecinos_nuevos=").Append(closed4 ? "0" : "1000").Append(" ET5=0 ET6_combinaciones=").Append(closed4 || closed5 ? "0" : "56").Append(" ET7=0 acumulado=11056\n");
@@ -321,6 +336,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 			string d7 = Path.Combine(root, "E4_potencia_baja"); List<CS> sp7 = Specs(false); foreach (CS c in sp7) if (c.Tr == "N1INJ" && c.Close.Length == 0) { c.Close = "ET4"; }
 			WriteBatch(d7, sp7, false, false, true); NQCET2_ReportResult r7 = NQCET2_ReportBuilder.Build(d7, P);
 			Chk("E4.5 si ni siquiera la cota superior de la potencia llega al 70% (inyectadas muertas en ET4: 0/10) el veredicto es NO CUMPLIDO aun sin poder evaluar la equivalencia", r7.Ok && r7.KPowerUpper == 0 && r7.PowerStatus == "NO_CUMPLE" && r7.Verdict == "GATE NO CUMPLIDO", r7.Verdict);
+
+			// ---- E6 curva de edges (D-040): 20 nulas + 15 inyectadas (5 por nivel), potencia 0/5, 3/5, 5/5
+			string d8 = Path.Combine(root, "E6_RUNBATCH_ET2_FASE_A2"); WriteBatch(d8, SpecsCurve(), false, true, true);
+			NQCET2_ReportParams P8 = new NQCET2_ReportParams(); P8.GeneratedUtc = P.GeneratedUtc; P8.Label = "fixture"; P8.Commit = "TESTCOMMIT"; P8.ExpectedInj = 15; NQCET2_ReportResult r8 = NQCET2_ReportBuilder.Build(d8, P8); string t8 = r8.Text;
+			Chk("E6.1 lote de 35 campanas (20 nulas + 15 inyectadas) se lee entero; FP 1/20 (solo A03) como en E1; 3 niveles detectados", r8.Ok && r8.NNull == 20 && r8.NInj == 15 && r8.KFp == 1 && r8.Levels.Count == 3 && r8.Excluded == 0 && r8.Warnings.Count == 0, r8.Ok ? "adv=" + string.Join(" | ", r8.Warnings.ToArray()) : r8.Error);
+			Chk("E6.2 potencia por nivel con IC de Clopper-Pearson (Python exacto): +20 0/5 CP95=[0.0%,52.2%] cota_sup 45.1%; +60 3/5 [14.7%,94.7%] cota_inf 18.9%; +100 5/5 [47.8%,100.0%] cota_inf 54.9%",
+				t8.Contains("edge +US$20 netos/operacion: potencia 0/5 (0.0%) CP95=[0.0%,52.2%] cota_sup_unilateral95=45.1%") && t8.Contains("edge +US$60 netos/operacion: potencia 3/5 (60.0%) CP95=[14.7%,94.7%]") && t8.Contains("cota_inf_unilateral95=18.9%") && t8.Contains("edge +US$100 netos/operacion: potencia 5/5 (100.0%) CP95=[47.8%,100.0%]") && t8.Contains("cota_inf_unilateral95=54.9%"), Section(t8, "== 3b.", "== 3c."));
+			Chk("E6.3 t_par mediano y techo de ruido sqrt(2 ln 400)=3,46 por nivel: +20 0,72 y +60 2,15 POR DEBAJO (indetectable por diseno); +100 3,58 por encima", t8.Contains("t_par mediano=0.72 ; techo de ruido sqrt(2 ln N_eff) mediano=3.46 (N_eff mediano del lote: las inyectadas de este nivel no llegan a ET7)  -> t_par POR DEBAJO") && t8.Contains("t_par mediano=2.15 ; techo de ruido sqrt(2 ln N_eff) mediano=3.46  -> t_par POR DEBAJO") && t8.Contains("t_par mediano=3.58 ; techo de ruido sqrt(2 ln N_eff) mediano=3.46\n"), LnC(t8, "t_par mediano=3.58"));
+			Chk("E6.4 estados por nivel y edge minimo con potencia >= 70%: +20 NO_CUMPLE, +60 NO_CUMPLE (60% < 70%), +100 CUMPLE_PUNTUAL_NO_DEMOSTRADO (5/5: cota inferior 54,9% < 70%); minimo +100; demostrado ninguno",
+				r8.Levels[0].Status == "NO_CUMPLE" && r8.Levels[1].Status == "NO_CUMPLE" && r8.Levels[2].Status == "CUMPLE_PUNTUAL_NO_DEMOSTRADO" && r8.Levels[0].K == 0 && r8.Levels[1].K == 3 && r8.Levels[2].K == 5 && Near(r8.MinEdge, 100, 1e-9) && double.IsNaN(r8.MinEdgeDemostrado) && t8.Contains("edge minimo con potencia puntual >= 70%: +US$100 netos/operacion; con potencia demostrada (cota inferior unilateral 95% >= 70%): ninguno"), r8.Verdict);
+			Chk("E6.5 el veredicto mecanico se da POR NIVEL: GATE CUMPLIDO PARA EDGE >= +US$100 (PUNTUAL, NO DEMOSTRADO) con la lista +20 0/5 NO_CUMPLE; +60 3/5 NO_CUMPLE; +100 5/5 CUMPLE_PUNTUAL_NO_DEMOSTRADO", r8.Verdict.StartsWith("GATE CUMPLIDO PARA EDGE >= +US$100 (PUNTUAL, NO DEMOSTRADO); potencia por nivel: +20: 0/5 NO_CUMPLE; +60: 3/5 NO_CUMPLE; +100: 5/5 CUMPLE_PUNTUAL_NO_DEMOSTRADO") && t8.Contains("VEREDICTO MECANICO: GATE CUMPLIDO PARA EDGE >= +US$100"), r8.Verdict);
+			Chk("E6.6 contadores por puerta de ET6 (ET6_GATES.txt): se leen y suman (INJ y NULO) con la direccion del pool; tolera su ausencia (E1 sin el archivo lo declara)", t8.Contains("campanas con ET6_GATES.txt: 24/35") && t8.Contains("[DIAGNOSTICO ET6 D-039] pool_balance=true") && t8.Contains("  INJ Symmetry\t80\t16") && t8.Contains("  NULO PF\t80\t16") && t1.Contains("ET6_GATES.txt ausente"), Section(t8, "== 3c.", "Embudo acumulado"));
+			Chk("E6.7 sin cambios en el comportamiento de un solo nivel: E1 conserva su veredicto y su texto de potencia unica (el informe de 30 campanas no usa el veredicto por nivel)", !t1.Contains("potencia por nivel:") && r1.Verdict.StartsWith("GATE CUMPLIDO PUNTUALMENTE") && r1.Levels.Count == 1, r1.Verdict);
 
 			// ---- configuracion de la estrategia
 			{

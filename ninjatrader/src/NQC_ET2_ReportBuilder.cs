@@ -50,6 +50,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int KFpAtThreshold, KPowerUpperAtThreshold, KPowerEquivAtThreshold = -1;
 		public string Verdict = "", FpStatus = "", PowerStatus = "";
 		public int Excluded; public bool PctNotEvaluable;
+		// D-040: potencia por nivel de edge (target_net). MinEdge = menor nivel con potencia puntual >= MinPower (NaN si ninguno).
+		public List<NQCET2_LevelResult> Levels = new List<NQCET2_LevelResult>(); public double MinEdge = double.NaN, MinEdgeDemostrado = double.NaN;
+	}
+
+	public sealed class NQCET2_LevelResult
+	{
+		public bool CeilingFromLot; public double Level; public int N, K, KUpper, NOk; public double Power, PowerLow, TPairMedian = double.NaN, CeilingMedian = double.NaN; public string Status = "";
 	}
 
 	internal sealed class RPort
@@ -80,7 +87,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int NEffObs = -1, NEffF1 = -1, NEffF2 = -1, NSample = -1, FlatN = -1; public double FlatFrac = double.NaN; public string EstimateState = "";
 		public double BestT = double.NaN; public string BestTCase = "";
 		public Dictionary<string, HashSet<string>> MemberTrades = null; public HashSet<string> PairTrades = null;
-		public double PpassMinRun = double.NaN;
+		public double PpassMinRun = double.NaN; public string Et6Gates = null;
 		// resultados por campana
 		public double VAll = -1, VUpper = -1, VEquiv = -1;                  // mejor P_pass entre portafolios que pasan las demas puertas (-1 = ninguno)
 		public bool EquivEvaluable;
@@ -94,7 +101,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public static class NQCET2_ReportBuilder
 	{
-		public const string Version = "ET2REPORT-1.0.0";
+		public const string Version = "ET2REPORT-1.1.0";
 		private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
 
 		// ------------------------------------------------------------------ utilidades
@@ -169,6 +176,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return "n=" + I(s.Count) + " mediana=" + F(Qn(s, 0.5), "0.###") + " P5=" + F(Qn(s, 0.05), "0.###") + " P95=" + F(Qn(s, 0.95), "0.###") + " min=" + F(s[0], "0.###") + " max=" + F(s[s.Count - 1], "0.###");
 		}
 		private static double Qn(List<double> s, double q) { if (s.Count == 1) return s[0]; double pos = q * (s.Count - 1); int lo = (int)Math.Floor(pos); int hi = Math.Min(s.Count - 1, lo + 1); return s[lo] + (pos - lo) * (s[hi] - s[lo]); }
+		private static double MedianOf(List<double> v) { List<double> s = new List<double>(); foreach (double x in v) if (!double.IsNaN(x) && !double.IsInfinity(x)) s.Add(x); if (s.Count == 0) return double.NaN; s.Sort(); return Qn(s, 0.5); }
 		private static string Prop(int k, int n, NQCET2_ReportParams p)
 		{
 			if (n <= 0) return "n=0 (sin datos)";
@@ -330,6 +338,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (double.IsNaN(c.FlatFrac)) c.FlatFrac = c.GD("ET7", "neff_flat_frac");
 			if (c.NSample < 0) { double x = c.GD("ET3", "neff_sample_n"); if (!double.IsNaN(x)) c.NSample = (int)x; }
 			// operaciones de los miembros y del par inyectado (export que hoy NO existe en el runner)
+			c.Et6Gates = rd.Read(pre + "ET6/ET6_GATES.txt");      // diagnostico D-039 de ET6 (puede faltar)
 			string mt = rd.Read(pre + "ET6/ET6_MEMBER_TRADES.tsv"), pt = rd.Read(pre + "INJ_PAIR_TRADES.tsv");
 			if (mt != null && pt != null)
 			{
@@ -487,6 +496,31 @@ namespace NinjaTrader.NinjaScript.Strategies
 			R.KFpAtThreshold = cnt(nulls, tauV); R.KPowerUpperAtThreshold = cntU(injs, tauV); if (equivOk) R.KPowerEquivAtThreshold = cntE(injs, tauV);
 			R.FpAtThreshold = nulls.Count > 0 ? (double)R.KFpAtThreshold / nulls.Count : double.NaN; R.PowerUpperAtThreshold = injs.Count > 0 ? (double)R.KPowerUpperAtThreshold / injs.Count : double.NaN; R.PowerEquivAtThreshold = equivOk ? (double)R.KPowerEquivAtThreshold / injs.Count : double.NaN;
 
+			// ---- D-040: potencia por nivel de edge
+			SortedDictionary<double, List<RCamp>> byLevel = new SortedDictionary<double, List<RCamp>>();
+			foreach (RCamp k in injs) { double lv = D(Tk(k.InjParams, "target_net")); lv = double.IsNaN(lv) ? -1 : Math.Round(lv); List<RCamp> l; if (!byLevel.TryGetValue(lv, out l)) { l = new List<RCamp>(); byLevel[lv] = l; } l.Add(k); }
+			bool multiLevel = byLevel.Count > 1;
+			foreach (KeyValuePair<double, List<RCamp>> kv in byLevel)
+			{
+				NQCET2_LevelResult lr = new NQCET2_LevelResult(); lr.Level = kv.Key; lr.N = kv.Value.Count; List<double> tps = new List<double>(), cls = new List<double>();
+				foreach (RCamp k in kv.Value)
+				{
+					if (k.VAll >= tauV && k.VAll >= 0) lr.KUpper++;
+					if (equivOk ? (k.VEquiv >= tauV && k.VEquiv >= 0) : (k.VAll >= tauV && k.VAll >= 0)) lr.K++;
+					if (Tk(k.InjParams, "ok") == "1") lr.NOk++;
+					tps.Add(D(Tk(k.InjParams, "t_pair"))); double ne = !double.IsNaN(k.NEffUsed) ? k.NEffUsed : (!double.IsNaN(k.NEffEst) ? k.NEffEst : double.NaN); cls.Add(!double.IsNaN(ne) && ne > 1 ? Math.Sqrt(2 * Math.Log(ne)) : double.NaN);
+				}
+				lr.Power = (double)lr.K / lr.N; lr.PowerLow = LowerOneSided(lr.K, lr.N, p.Alpha);
+				lr.TPairMedian = MedianOf(tps); lr.CeilingMedian = MedianOf(cls);
+				lr.Status = R.PctNotEvaluable ? "NO_EVALUABLE" : (lr.Power + 1e-12 < p.MinPower ? "NO_CUMPLE" : (lr.PowerLow >= p.MinPower ? "CUMPLE_DEMOSTRADO" : "CUMPLE_PUNTUAL_NO_DEMOSTRADO"));
+				R.Levels.Add(lr);
+				if (double.IsNaN(R.MinEdge) && lr.Level > 0 && lr.Status.StartsWith("CUMPLE", StringComparison.Ordinal)) R.MinEdge = lr.Level;
+				if (double.IsNaN(R.MinEdgeDemostrado) && lr.Level > 0 && lr.Status == "CUMPLE_DEMOSTRADO") R.MinEdgeDemostrado = lr.Level;
+			}
+			{ List<double> allCl = new List<double>(); foreach (RCamp k in camps) { if (!k.Valid) continue; double ne = !double.IsNaN(k.NEffUsed) ? k.NEffUsed : (!double.IsNaN(k.NEffEst) ? k.NEffEst : double.NaN); if (!double.IsNaN(ne) && ne > 1) allCl.Add(Math.Sqrt(2 * Math.Log(ne))); }
+			  double gcl = MedianOf(allCl); foreach (NQCET2_LevelResult lr in R.Levels) if (double.IsNaN(lr.CeilingMedian)) { lr.CeilingMedian = gcl; lr.CeilingFromLot = true; } }
+			if (multiLevel) foreach (NQCET2_LevelResult lr in R.Levels) if (lr.N != 5) warn.Add("nivel +" + F(lr.Level, "0") + ": " + I(lr.N) + " campanas inyectadas validas (D-040 declara 5 por nivel)");
+
 			// ================================================================== TEXTO
 			StringBuilder S = new StringBuilder();
 			S.Append("ET2_CALIBRATION_REPORT | generador ").Append(Version).Append(" | contrato NQC 2.0.0 | SOLO DESARROLLO: informe MECANICO calculado de los archivos de un lote de NQC_RUN_Batch; no decide umbrales, no aprueba la etapa y no sustituye la evidencia de NT8 (log + hash)\n");
@@ -534,6 +568,35 @@ namespace NinjaTrader.NinjaScript.Strategies
 				S.Append("  Export que falta en el runner (propuesta exacta): (a) `<id>\\ET6\\ET6_MEMBER_TRADES.tsv` con cabecera `trial_id\\tday\\tdir` = una fila por operacion EJECUTADA de cada miembro de los finalistas en el dataset de la campana (day = DayKey yyyymmdd de la sesion; dir = +1/-1); (b) `<id>\\INJ_PAIR_TRADES.tsv` con cabecera `day\\tdir` = operaciones ejecutadas del par inyectado (la regla de referencia `rules=` de transform_params) sobre ese mismo dataset. Con ambos archivos este generador aplica la definicion de equivalencia (>=50% de sus operaciones en (dia, direccion) del par y cubre >=50% de las del par) sin cambios.\n");
 			}
 			S.Append("campanas inyectadas con portafolio aprobado: ").Append(ListIdsInj(injs, tauRun)).Append('\n');
+
+			// ---- 3b. potencia por nivel de edge (D-040)
+			S.Append("\n== 3b. POTENCIA POR NIVEL DE EDGE (D-040; tau=").Append(F(tauV, "0.00")).Append("; ").Append(equivOk ? "con regla inyectada o equivalente" : "COTA SUPERIOR (equivalencia no evaluable)").Append(") ==\n");
+			if (R.Levels.Count == 0) S.Append("sin campanas inyectadas.\n");
+			foreach (NQCET2_LevelResult lr in R.Levels)
+			{
+				S.Append(lr.Level < 0 ? "nivel sin target_net" : "edge +US$" + F(lr.Level, "0") + " netos/operacion").Append(": potencia ").Append(Prop(lr.K, lr.N, p)).Append(" -> ").Append(lr.Status).Append('\n');
+				S.Append("   cota superior (cualquier portafolio aprobado): ").Append(I(lr.KUpper)).Append('/').Append(I(lr.N)).Append("; inyectados aceptados (ok=1): ").Append(I(lr.NOk)).Append('/').Append(I(lr.N)).Append("; t_par mediano=").Append(F(lr.TPairMedian, "0.##")).Append(" ; techo de ruido sqrt(2 ln N_eff) mediano=").Append(F(lr.CeilingMedian, "0.##")).Append(lr.CeilingFromLot ? " (N_eff mediano del lote: las inyectadas de este nivel no llegan a ET7)" : "").Append(!double.IsNaN(lr.TPairMedian) && !double.IsNaN(lr.CeilingMedian) && lr.TPairMedian < lr.CeilingMedian ? "  -> t_par POR DEBAJO del techo: indetectable por diseno a este nivel" : "").Append('\n');
+			}
+			S.Append("edge minimo con potencia puntual >= ").Append(F(100 * p.MinPower, "0")).Append("%: ").Append(double.IsNaN(R.MinEdge) ? "NINGUNO de los niveles medidos" : "+US$" + F(R.MinEdge, "0") + " netos/operacion").Append("; con potencia demostrada (cota inferior unilateral 95% >= ").Append(F(100 * p.MinPower, "0")).Append("%): ").Append(double.IsNaN(R.MinEdgeDemostrado) ? "ninguno" : "+US$" + F(R.MinEdgeDemostrado, "0")).Append(" (el usuario decide cual es el realista; D-020 es ajustable dentro de ET2).\n");
+
+			// ---- 3c. contadores por puerta de ET6 (D-039; ET6_GATES.txt, tolerante a su ausencia)
+			S.Append("\n== 3c. PUERTAS DE ET6 Y DIRECCION DEL POOL (ET6_GATES.txt) ==\n");
+			{
+				SortedDictionary<string, long[]> gsum = new SortedDictionary<string, long[]>(StringComparer.Ordinal); int withG = 0, validN = 0;
+				foreach (RCamp k in camps)
+				{
+					if (!k.Valid || !(k.IsNull || k.IsInj)) continue; validN++;
+					if (k.Et6Gates == null) continue; withG++; bool first = true;
+					foreach (string ln in Lines(k.Et6Gates))
+					{
+						if (ln.Length == 0) continue;
+						if (first && ln.StartsWith("[DIAGNOSTICO ET6", StringComparison.Ordinal)) { S.Append(k.Id).Append(" (").Append(k.Kind).Append("): ").Append(ln.Length > 260 ? ln.Substring(0, 260) : ln).Append('\n'); first = false; continue; }
+						string[] f = ln.Split('\t'); if (f.Length >= 3 && f[0] != "puerta") { double a1, a2; if (TryD(f[1], out a1) && TryD(f[2], out a2)) { long[] g; string key = (k.IsInj ? "INJ " : "NULO ") + f[0]; if (!gsum.TryGetValue(key, out g)) { g = new long[2]; gsum[key] = g; } g[0] += (long)a1; g[1] += (long)a2; } }
+					}
+				}
+				if (withG == 0) S.Append("ET6_GATES.txt ausente en las ").Append(I(validN)).Append(" campanas (runner anterior a D-039): sin contadores por puerta ni direccion del pool.\n");
+				else { S.Append("campanas con ET6_GATES.txt: ").Append(I(withG)).Append('/').Append(I(validN)).Append(". Suma de combinaciones que fallan cada puerta (fallan / fallan solo esa):\n"); foreach (KeyValuePair<string, long[]> kv in gsum) S.Append("  ").Append(kv.Key).Append('\t').Append(I(kv.Value[0])).Append('\t').Append(I(kv.Value[1])).Append('\n'); }
+			}
 
 			// FP por puerta (embudo acumulado)
 			S.Append("\nEmbudo acumulado por puerta (campanas con >=1 candidato que llega/pasa la puerta; entre parentesis el motivo de rechazo mas frecuente en las campanas que cierran ahi):\n");
@@ -674,6 +737,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			else if (R.FpStatus == "NO_EVALUABLE" || R.PowerStatus == "NO_EVALUABLE" || R.PowerStatus.StartsWith("INDETERMINADA", StringComparison.Ordinal)) R.Verdict = "GATE INDETERMINADO";
 			else if (R.FpStatus == "CUMPLE_DEMOSTRADO" && R.PowerStatus == "CUMPLE_DEMOSTRADO" && !incomplete) R.Verdict = "GATE CUMPLIDO Y DEMOSTRADO";
 			else R.Verdict = "GATE CUMPLIDO PUNTUALMENTE; NO DEMOSTRADO (n pequeno)" + (incomplete ? "; campanas incompletas" : "");
+			if (multiLevel)
+			{
+				// D-040: el veredicto se da POR NIVEL de edge; el FP se mide sobre las nulas y la potencia agrupada no tiene sentido (mezcla niveles).
+				StringBuilder lv2 = new StringBuilder(); foreach (NQCET2_LevelResult lr in R.Levels) { if (lv2.Length > 0) lv2.Append("; "); lv2.Append("+").Append(F(lr.Level, "0")).Append(": ").Append(I(lr.K)).Append('/').Append(I(lr.N)).Append(' ').Append(lr.Status); }
+				R.PowerStatus = double.IsNaN(R.MinEdge) ? (R.PctNotEvaluable ? "NO_EVALUABLE" : "NO_CUMPLE") : (R.MinEdgeDemostrado == R.MinEdge ? "CUMPLE_DEMOSTRADO" : "CUMPLE_PUNTUAL_NO_DEMOSTRADO");
+				string edgeTxt = double.IsNaN(R.MinEdge) ? "ningun nivel alcanza potencia " + F(100 * p.MinPower, "0") + "%" : "edge minimo detectable +US$" + F(R.MinEdge, "0");
+				if (R.FpStatus == "NO_CUMPLE") R.Verdict = "GATE NO CUMPLIDO (FP); potencia por nivel: " + lv2;
+				else if (R.FpStatus == "NO_EVALUABLE" || R.PowerStatus == "NO_EVALUABLE") R.Verdict = "GATE INDETERMINADO; potencia por nivel: " + lv2;
+				else if (double.IsNaN(R.MinEdge)) R.Verdict = "GATE NO CUMPLIDO EN NINGUN NIVEL (" + edgeTxt + "); potencia por nivel: " + lv2;
+				else R.Verdict = "GATE CUMPLIDO PARA EDGE >= +US$" + F(R.MinEdge, "0") + (R.FpStatus == "CUMPLE_DEMOSTRADO" && R.PowerStatus == "CUMPLE_DEMOSTRADO" && !incomplete ? " (DEMOSTRADO)" : " (PUNTUAL, NO DEMOSTRADO)") + "; potencia por nivel: " + lv2 + (equivOk ? "" : "; potencia = cota superior sin export de operaciones");
+			}
 			S.Append("criterio (D-037): FP puntual <= ").Append(F(100 * p.MaxFp, "0.#")).Append("% Y potencia puntual >= ").Append(F(100 * p.MinPower, "0.#")).Append("%; los IC se muestran siempre; con n pequeno NO se afirma «demostrado».\n");
 			S.Append("tau evaluado=").Append(F(tauV, "0.00")).Append(double.IsNaN(chosen) ? " (umbral no factible: se evalua con el tau de la corrida)" : " (umbral propuesto de la seccion 8)").Append('\n');
 			S.Append("FP: ").Append(Prop(R.KFpAtThreshold, nulls.Count, p)).Append(" -> ").Append(R.FpStatus).Append('\n');
