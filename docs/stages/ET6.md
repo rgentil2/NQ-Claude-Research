@@ -31,6 +31,13 @@ Interpretación de ET6 propuesta (a confirmar por el usuario):
 - D6-8 P_pass: NQC_AccountSim.Rolling, RAPID_INTRADAY_50K, censurados fuera; PpassMin parámetro, NaN falla cerrada.
 - D6-9 Mes sin operaciones = 0; peor día = -min(DailyNet). D6-10 IS solo (excepción fuera de 2020-2022). D6-11 DD M2M propio (defecto ET1).
 
+## D-039: pool equilibrado (clave de configuracion `et6.pool_balance`, bool, defecto false; la cablea el agente de ET3 en NQC_RUN_*)
+- Symmetry (EXECUTOR_SPEC, D-022) = 100*min(neto Largo, neto Corto)/max si ambos > 0; si no, 0. Un portafolio solo-corto (o solo-largo) da exactamente 0: con pool 80% cortos el beam por aptitud (D-016) produce solo combinaciones del mismo lado y Symmetry (>30 dura en >=3 miembros) las descarta a todas.
+- `NQCE6_Params.PoolBalance=true`: pool = hasta MaxPool/2 mejores por aptitud de cada direccion (si un lado tiene menos, completa con los mejores restantes del otro; el desequilibrio se reporta). Rango/prioridad siguen siendo fitness desc (D-016).
+- Beam con equilibrio: el nivel 2 (semillas) evalua TODOS los pares largo+corto (no los pares del mismo lado) y el beam de nivel 2 se elige con la puntuacion de siempre; niveles 3..5 sin cambio; restricciones duras sin cambio. Ensayos: cada par mixto cuenta; nivel 2 pasa de K(K-1)/2 a nL*nC (K=30 equilibrado: 225 en vez de 435; total aprox. 1.230 -> ~1.000-1.250, cota K+nL*nC+3*W*K = 1.155). Con PoolBalance=false todo igual (hashes iguales).
+- Diagnostico nuevo (`NQCE6_Result.Diagnostics`, anexado a SUMMARY.txt y en ET6_GATES.txt; NO entra en Summary/SummaryHash con PoolBalance=false): entrada y pool largos/cortos, pares semilla, combinaciones 3..5 solo-largas/solo-cortas/mixtas, fallos de Symmetry por composicion, y por puerta: cuantas fallan y cuantas fallan SOLO ella. neto_costo_x y P_pass solo se evaluan si el resto pasa.
+- Limite: Symmetry deja de ser bloqueo estructural, pero ops_por_mes (>=5/mes), peor_dia, DD_M2M y operaciones dependen de los miembros, no de la direccion: seguiran siendo las puertas dificiles.
+
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
 
@@ -40,3 +47,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
   Queda: ET2 (umbral P_pass), pool real, runner NT8, corregir DdM2m de ET1. Preguntas: interpretación D6-3, MaxPool/ancho, tratar parciales como ensayos.
 - 2026-11-14 · Orquestador: verificado independientemente (mcs+stub) 22/22. Interpretación y decisiones D6-1..D6-8 registradas como D-035 (propuesta con valor por defecto). Defecto de ET1 (DdM2m cuenta doble el P&L cerrado de la sesión) confirmado; corrección delegada al agente de ET1.
 - 2026-11-16 · NT8: NQC_ET6_PortfolioTest 22/22; hashes de spec/beam iguales a mono con el Core corregido; DD M2M del núcleo ya coincide con el correcto. Pendiente (menor): actualizar la línea [INFO] y los comentarios sobre el defecto de DdM2m en NQC_ET6_Portfolio.cs/Test.
+- 2026-11-17 · D-039: PoolBalance (pool y semillas mixtas) + contadores por puerta/direccion; prueba sintetica 30/30 (22 previas con digests iguales + B1..B8: pool 80% cortos, 0 finalistas sin equilibrio, 5 con equilibrio, Symmetry 50 a mano y oraculo). Pendiente: cablear et6.pool_balance (ET3), repetir Fase A.

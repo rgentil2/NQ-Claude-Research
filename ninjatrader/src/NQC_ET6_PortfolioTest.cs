@@ -248,6 +248,34 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("J2 spec: prioridades 1..n por fitness desc y los 20 genes de cada miembro", genes, "miembros=" + f0.Eval.Size);
 			}
 
+			// B: D-039 pool equilibrado. 16 cortos + 4 largos (80% cortos); los cortos tienen MAS fitness que los largos.
+			// Cortos rentables (clases impares estables): 201 pl1,3,9 y 202 pl1,11,3,13,9,19; cortos perdedores (clase par): 201 pl0,2,8 y 202 pl0,10,2. Largos: 201 pl0,2,8 y 202 pl8.
+			List<NQCE6_PoolEntry> pb = new List<NQCE6_PoolEntry>(); double fb = 30;
+			int[,] sh = new int[,] { { 201, 1 }, { 201, 3 }, { 201, 9 }, { 202, 1 }, { 202, 11 }, { 202, 3 }, { 202, 13 }, { 202, 9 }, { 202, 19 }, { 201, 0 }, { 201, 2 }, { 201, 8 }, { 202, 0 }, { 202, 10 }, { 202, 2 }, { 202, 12 } };
+			for (int i = 0; i < sh.GetLength(0); i++) pb.Add(PE(lib, sh[i, 0], sh[i, 1], false, fb--));
+			pb.Add(PE(lib, 201, 0, true, 4)); pb.Add(PE(lib, 201, 2, true, 3)); pb.Add(PE(lib, 201, 8, true, 2)); pb.Add(PE(lib, 202, 8, true, 1));
+			NQCE6_Params Pb0 = new NQCE6_Params(); Pb0.MaxPool = 10; Pb0.PpassMin = 0.5; Pb0.Seed = 7;
+			NQCE6_Params Pb1 = new NQCE6_Params(); Pb1.MaxPool = 10; Pb1.PpassMin = 0.5; Pb1.Seed = 7; Pb1.PoolBalance = true;
+			NQCE6_Builder bu = new NQCE6_Builder(bars, null, cfg, lib, pb, Pb0), bq = new NQCE6_Builder(bars, null, cfg, lib, pb, Pb1);
+			NQCE6_Result ru = bu.Search(), rq = bq.Search();
+			Chk("B1 sin equilibrio: pool = 10 cortos; ninguna combinacion 3..5 tiene largos", ru.PoolLong == 0 && ru.PoolShort == 10 && ru.CompAllShort == ru.Eval3to5 && ru.CompMixed == 0 && ru.InputLong == 4 && ru.InputShort == 16, "pool L/C=" + ru.PoolLong + "/" + ru.PoolShort + " evaluadas=" + ru.Eval3to5);
+			Chk("B2 sin equilibrio: 0 finalistas; Symmetry falla en TODAS las 3..5 y cuenta como puerta que falla sola en las que pasan lo demas", ru.Finalists.Count == 0 && ru.Accepted == 0 && ru.GateFail["Symmetry"] == ru.Eval3to5 && ru.HardDiscarded == ru.Eval3to5 && ru.GateOnly.ContainsKey("Symmetry") && ru.GateOnly["Symmetry"] > 0, "fallan Symmetry=" + ru.GateFail["Symmetry"] + " de " + ru.Eval3to5 + " solo_ella=" + ru.GateOnly["Symmetry"]);
+			int rs1 = -1, rs3 = -1, rs9 = -1, rl0 = -1;
+			for (int i = 0; i < bu.PoolCount; i++) { int[] g = Genes(bu, new int[] { i })[0]; if (g[0] == 201 && g[2] == 0 && g[1] == 1) rs1 = i; if (g[0] == 201 && g[2] == 0 && g[1] == 3) rs3 = i; if (g[0] == 201 && g[2] == 0 && g[1] == 9) rs9 = i; }
+			NQCE6_Eval ess = bu.Evaluate(new int[] { rs1, rs3, rs9 });
+			Chk("B3 a mano: {S1,S3,S9} 216 ops, neto 6.549,12 todo corto -> Symmetry 0 (largo 0)", ess.Trades == 216 && Near(ess.Net, 6549.12, 1e-6) && ess.Symmetry == 0 && Has(ess, "Symmetry"), "sym=" + F(ess.Symmetry) + " neto=" + F(ess.Net));
+			Chk("B4 con equilibrio: pool 4 largos + 6 cortos (5+5, el lado corto completa con 1 extra y se reporta el desequilibrio)", rq.PoolLong == 4 && rq.PoolShort == 6 && rq.Diagnostics.Contains("DESEQUILIBRADO(2)") && rq.Summary.Contains("pool_balance=true pool_largos=4 pool_cortos=6"), rq.Diagnostics.Split('\n')[0]);
+			Chk("B5 ensayos con equilibrio: nivel 2 = 24 pares mixtos (4x6) en lugar de 45; nivel 1 = 10", rq.SeedPairs == 24 && rq.TrialsBySize[1] == 10 && rq.TrialsBySize[2] == 24 && ru.TrialsBySize[2] == 45, "por tamano=" + rq.TrialsBySize[1] + "/" + rq.TrialsBySize[2] + "/" + rq.TrialsBySize[3] + "/" + rq.TrialsBySize[4] + "/" + rq.TrialsBySize[5] + " total=" + rq.Trials + " (sin equilibrio " + ru.Trials + ")");
+			Chk("B6 con equilibrio: hay finalistas validos, mixtos, y cada uno cumple TODO el perfil segun el oraculo", rq.Finalists.Count > 0 && rq.AcceptedMixed > 0 && CheckFinalists(bq, rq, Pb1), "finalistas=" + rq.Finalists.Count + " aceptadas=" + rq.Accepted + " mixtas aceptadas=" + rq.AcceptedMixed);
+			int qs1 = -1, qs3 = -1, ql0 = -1;
+			for (int i = 0; i < bq.PoolCount; i++) { int[] g = Genes(bq, new int[] { i })[0]; if (g[0] == 201 && g[2] == 0 && g[1] == 1) qs1 = i; if (g[0] == 201 && g[2] == 0 && g[1] == 3) qs3 = i; if (g[0] == 201 && g[2] == 1 && g[1] == 0) ql0 = i; }
+			NQCE6_Eval eq = bq.Evaluate(new int[] { qs1, qs3, ql0 }); NQC6_OracleResult oq = NQC6_Oracle.Run(Genes(bq, eq.Ranks), 1.0);
+			Chk("B7 a mano: {S1,S3,L0} 216 ops, neto 6.549,12, Symmetry = 2.183,04/4.366,08 = 50, oraculo igual, perfil completo", eq.Trades == 216 && Near(eq.Net, 6549.12, 1e-6) && Near(eq.Symmetry, 50.0, 1e-9) && Near(oq.Sym, 50.0, 1e-9) && eq.AllPass, "sym=" + F(eq.Symmetry) + " fallas=" + string.Join(";", eq.Failed.ToArray()));
+			NQCE6_Builder bq2 = new NQCE6_Builder(bars, null, cfg, lib, pb, Pb1); NQCE6_Result rq2 = bq2.Search();
+			Chk("B8 determinismo con equilibrio y PoolBalance=true no altera el pool si hay <= MaxPool candidatos", rq2.SummaryHash == rq.SummaryHash && new NQCE6_Builder(bars, null, cfg, lib, Pool(lib), Pb1 ).PoolCount == 10, "resumen=" + rq.SummaryHash);
+			rep.Append("[INFO] B diagnostico sin equilibrio: ").Append(ru.Diagnostics.Replace("\n", " // ")).Append("\n[INFO] B diagnostico con equilibrio: ").Append(rq.Diagnostics.Replace("\n", " // ")).Append("\n");
+			NQCE6_Builder.Save(Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "NQC_Results", "ET6PORTFOLIOTEST_B_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture)), rq);
+
 			// IS solamente
 			bool thrown = false;
 			try { List<DateTime> d19 = new List<DateTime>(); d19.Add(new DateTime(2019, 12, 12)); new NQCE6_Builder(MakeBars(d19), null, cfg, lib, Pool(lib), P); } catch (InvalidOperationException) { thrown = true; }

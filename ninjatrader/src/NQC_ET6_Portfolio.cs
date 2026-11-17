@@ -52,6 +52,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public NQC_AccountProfile Account = NQC_AccountProfile.RapidIntraday50K();
 		// trazabilidad
 		public string Campaign = "C1", EngineHash = "", LibraryHash = ""; public int PriorTrials = 0;
+			// D-039: pool equilibrado largos/cortos (clave del runner: et6.pool_balance). false = comportamiento y hashes anteriores.
+			public bool PoolBalance = false;
 	}
 
 	public sealed class NQCE6_Eval
@@ -85,6 +87,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public List<NQCE6_Finalist> Finalists = new List<NQCE6_Finalist>();
 		public string RejectionsTsv, TrialsTsv, Summary, SummaryHash;
 		public int Trials, ExecutorRuns, Accepted, HardDiscarded, PoolUsed; public int[] TrialsBySize = new int[6];
+		// diagnostico D-039: fuera de Summary/SummaryHash (los hashes previos con PoolBalance=false se conservan); va en Diagnostics y se anexa a SUMMARY.txt
+		public int InputLong, InputShort, PoolLong, PoolShort, SeedPairs;
+		public SortedDictionary<string, int> GateFail = new SortedDictionary<string, int>(), GateOnly = new SortedDictionary<string, int>();
+		public int Eval3to5, CompAllLong, CompAllShort, CompMixed, SymFailAllLong, SymFailAllShort, SymFailMixed, AcceptedMixed;
+		public string Diagnostics;
 		public int CumulativeTrials;
 	}
 
@@ -94,7 +101,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private List<NQCE6_PoolEntry> pool = new List<NQCE6_PoolEntry>(); private List<NQCE_Member> members = new List<NQCE_Member>();
 		private Dictionary<string, NQCE6_Eval> cache = new Dictionary<string, NQCE6_Eval>();
 		private List<NQCE6_Eval> order = new List<NQCE6_Eval>();     // en orden de evaluacion (primera vez)
-		public int ExecutorRuns;
+		public int ExecutorRuns; private int inLong, inShort, seedPairs; private bool[] isLong;
 		public const int IsFromKey = 20200101, IsToKey = 20221231;
 
 		static string F(double v) { return double.IsNaN(v) ? "NA" : (double.IsPositiveInfinity(v) ? "INF" : v.ToString("R", CultureInfo.InvariantCulture)); }
@@ -126,8 +133,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			tmp.Sort(delegate(NQCE6_PoolEntry a, NQCE6_PoolEntry b)
 			{ int c = b.Fitness.CompareTo(a.Fitness); return c != 0 ? c : string.CompareOrdinal(a.TrialId, b.TrialId); });
-			if (tmp.Count > p.MaxPool) tmp.RemoveRange(p.MaxPool, tmp.Count - p.MaxPool);
+			foreach (NQCE6_PoolEntry e in tmp) { if (e.Genome.G[NQCE3_Genome.GDir] == 1) inLong++; else inShort++; }
+			if (p.PoolBalance && tmp.Count > p.MaxPool)
+			{
+				// D-039: hasta MaxPool/2 mejores por aptitud de cada direccion; si un lado tiene menos, completa con los mejores restantes del otro (desequilibrio reportado)
+				List<NQCE6_PoolEntry> lg = new List<NQCE6_PoolEntry>(), sh = new List<NQCE6_PoolEntry>();
+				foreach (NQCE6_PoolEntry e in tmp) { if (e.Genome.G[NQCE3_Genome.GDir] == 1) lg.Add(e); else sh.Add(e); }
+				int half = p.MaxPool / 2, nl = Math.Min(lg.Count, half), ns = Math.Min(sh.Count, half);
+				List<NQCE6_PoolEntry> pick = new List<NQCE6_PoolEntry>();
+				pick.AddRange(lg.GetRange(0, nl)); pick.AddRange(sh.GetRange(0, ns));
+				List<NQCE6_PoolEntry> extra = new List<NQCE6_PoolEntry>(); extra.AddRange(lg.GetRange(nl, lg.Count - nl)); extra.AddRange(sh.GetRange(ns, sh.Count - ns));
+				Comparison<NQCE6_PoolEntry> byFit = delegate(NQCE6_PoolEntry a, NQCE6_PoolEntry b) { int c = b.Fitness.CompareTo(a.Fitness); return c != 0 ? c : string.CompareOrdinal(a.TrialId, b.TrialId); };
+				extra.Sort(byFit);
+				int need = Math.Min(p.MaxPool - pick.Count, extra.Count);
+				pick.AddRange(extra.GetRange(0, need)); pick.Sort(byFit);
+				tmp = pick;
+			}
+			else if (tmp.Count > p.MaxPool) tmp.RemoveRange(p.MaxPool, tmp.Count - p.MaxPool);
 			pool = tmp;
+			isLong = new bool[pool.Count]; for (int i = 0; i < pool.Count; i++) isLong[i] = pool[i].Genome.G[NQCE3_Genome.GDir] == 1;
 			foreach (NQCE6_PoolEntry e in pool)
 			{
 				NQCE_Member m = e.Genome.ToMember(lib, e.TrialId.Substring(0, 12));
@@ -235,6 +259,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for (int s = 2; s <= p.MaxMembers; s++)
 			{
 				List<NQCE6_Eval> cand = new List<NQCE6_Eval>(); HashSet<string> seen = new HashSet<string>();
+				if (s == 2 && p.PoolBalance)
+				{
+					// D-039: semillas = TODOS los pares largo+corto (cada uno es un ensayo); beam de nivel 2 por la puntuacion de siempre (D-016/D-035)
+					for (int a = 0; a < K; a++) for (int c = a + 1; c < K; c++)
+						if (isLong[a] != isLong[c]) cand.Add(Evaluate(new int[] { a, c }));
+					seedPairs = cand.Count;
+					if (cand.Count > 0) { beam = Select(cand); continue; }
+				}
 				foreach (NQCE6_Eval st in beam)
 					for (int r = 0; r < K; r++)
 					{
@@ -297,6 +329,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				rej.Append(e.TrialId.Substring(0, 12)).Append('\t').Append(I(e.Size)).Append('\t').Append(mem).Append('\t').Append(I(e.Trades)).Append('\t').Append(e.HardFail ? "SI" : "NO").Append('\t')
 				   .Append(e.FirstFail).Append('\t').Append(string.Join(";", e.Failed.ToArray())).Append('\n');
 			}
+			r.InputLong = inLong; r.InputShort = inShort; r.SeedPairs = seedPairs;
+			for (int i = 0; i < pool.Count; i++) { if (isLong[i]) r.PoolLong++; else r.PoolShort++; }
+			foreach (NQCE6_Eval e in order)
+			{
+				if (e.Size < p.MinMembers || e.Size > p.MaxMembers) continue;
+				r.Eval3to5++; int nL = 0; foreach (int k in e.Ranks) if (isLong[k]) nL++;
+				bool symF = false;
+				foreach (string f in e.Failed) { string g = f.Substring(0, f.IndexOf('=')); int v; r.GateFail.TryGetValue(g, out v); r.GateFail[g] = v + 1; if (e.Failed.Count == 1) { r.GateOnly.TryGetValue(g, out v); r.GateOnly[g] = v + 1; } if (g == "Symmetry") symF = true; }
+				if (nL == e.Size) { r.CompAllLong++; if (symF) r.SymFailAllLong++; } else if (nL == 0) { r.CompAllShort++; if (symF) r.SymFailAllShort++; } else { r.CompMixed++; if (symF) r.SymFailMixed++; if (e.AllPass) r.AcceptedMixed++; }
+			}
 			r.Accepted = acc.Count; r.ExecutorRuns = ExecutorRuns; r.CumulativeTrials = p.PriorTrials + r.Trials;
 			acc.Sort(CmpFin);
 			List<NQCE6_Eval> chosen = new List<NQCE6_Eval>();
@@ -327,6 +369,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			sb.Append("ppass_umbral=").Append(F(p.PpassMin)).Append(" (fijado por ET2)\n");
 			foreach (NQCE6_Finalist f in r.Finalists) sb.Append("finalista ").Append(I(f.Rank)).Append(" | miembros=").Append(MemberList(f.Eval)).Append(" | spec_hash=").Append(f.SpecHash).Append('\n');
 			sb.Append("rechazos_sha256=").Append(NQCE_Const.Sha256Text(r.RejectionsTsv)).Append(" ensayos_sha256=").Append(NQCE_Const.Sha256Text(r.TrialsTsv)).Append('\n');
+			if (p.PoolBalance) sb.Append("pool_balance=true pool_largos=").Append(I(r.PoolLong)).Append(" pool_cortos=").Append(I(r.PoolShort)).Append(" pares_semilla_mixtos=").Append(I(r.SeedPairs)).Append('\n');
+			StringBuilder dg = new StringBuilder();
+			dg.Append("[DIAGNOSTICO ET6 D-039] pool_balance=").Append(p.PoolBalance ? "true" : "false").Append(" candidatos_entrada largos/cortos=").Append(I(inLong)).Append('/').Append(I(inShort)).Append(" pool_usado largos/cortos=").Append(I(r.PoolLong)).Append('/').Append(I(r.PoolShort));
+			dg.Append(r.PoolLong == r.PoolShort ? " equilibrado" : " DESEQUILIBRADO(" + I(Math.Abs(r.PoolLong - r.PoolShort)) + ")").Append(" pares_semilla_mixtos=").Append(I(r.SeedPairs)).Append('\n');
+			dg.Append("combinaciones_3a5_evaluadas=").Append(I(r.Eval3to5)).Append(" solo_largos=").Append(I(r.CompAllLong)).Append(" solo_cortos=").Append(I(r.CompAllShort)).Append(" mixtas=").Append(I(r.CompMixed)).Append(" | falla_Symmetry l/c/m=").Append(I(r.SymFailAllLong)).Append('/').Append(I(r.SymFailAllShort)).Append('/').Append(I(r.SymFailMixed)).Append(" aceptadas_mixtas=").Append(I(r.AcceptedMixed)).Append('\n');
+			dg.Append("puerta\tfallan\tfallan_solo_ella (3..5 miembros; neto_costo_x/P_pass solo se evaluan si el resto pasa)\n");
+			foreach (KeyValuePair<string, int> kv in r.GateFail) { int o; r.GateOnly.TryGetValue(kv.Key, out o); dg.Append(kv.Key).Append('\t').Append(I(kv.Value)).Append('\t').Append(I(o)).Append('\n'); }
+			r.Diagnostics = dg.ToString();
 			r.Summary = sb.ToString(); r.SummaryHash = NQCE_Const.Sha256Text(r.Summary);
 			return r;
 		}
@@ -377,7 +427,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			foreach (NQCE6_Finalist f in r.Finalists) File.WriteAllText(Path.Combine(dir, "PORTFOLIO_SPEC_F" + f.Rank.ToString(CultureInfo.InvariantCulture) + ".json"), f.SpecJson, enc);
 			File.WriteAllText(Path.Combine(dir, "ET6_REJECTIONS.tsv"), r.RejectionsTsv, enc);
 			File.WriteAllText(Path.Combine(dir, "ET6_TRIALS.tsv"), r.TrialsTsv, enc);
-			File.WriteAllText(Path.Combine(dir, "SUMMARY.txt"), r.Summary, enc);
+			File.WriteAllText(Path.Combine(dir, "SUMMARY.txt"), r.Summary + r.Diagnostics, enc);
+			File.WriteAllText(Path.Combine(dir, "ET6_GATES.txt"), r.Diagnostics, enc);
 		}
 	}
 }
