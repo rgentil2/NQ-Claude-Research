@@ -103,6 +103,70 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return s <= 1e-12 ? double.NaN : m / s;
 		}
 
+		// Hilos de la matriz de distancias (0 = automatico: min(nucleos, 16)). No cambia ningun resultado (cada par se calcula de forma independiente y con la
+		// misma aritmetica que Corr: ver DistMatrix); solo el tiempo.
+		public static int Threads = 0;
+		private static int EffThreads(int t) { if (t <= 0) t = Math.Min(Environment.ProcessorCount, 16); return Math.Max(1, t); }
+
+		// Matriz simetrica de distancias d = Dist(Corr(i,j)). BIT A BIT identica a la ingenua Dist(Corr(series[i], series[j])): se precalculan una vez la media, las
+		// desviaciones dx = x - m y sxx de cada serie con las mismas operaciones y el mismo orden que Corr, y por par solo queda sxy (suma secuencial, sin
+		// reordenar), r = sxy / sqrt(sxx*syy) y el recorte a [-1,1]. Calculo por bloques (cabe en cache) y en paralelo; cada celda la escribe un unico hilo y no hay
+		// reducciones entre hilos, asi que el resultado no depende del numero de hilos.
+		public static double[,] DistMatrix(double[][] series, int n, int T, int threads)
+		{
+			double[,] D = new double[n, n];
+			double[][] dev = new double[n][]; double[] sxx = new double[n]; bool[] bad = new bool[n];
+			for (int i = 0; i < n; i++)
+			{
+				double[] x = series[i]; double m = 0; for (int k = 0; k < T; k++) m += x[k]; m /= T;
+				double[] d = new double[T]; double sq = 0; for (int k = 0; k < T; k++) { double dx = x[k] - m; d[k] = dx; sq += dx * dx; }
+				dev[i] = d; sxx[i] = sq; bad[i] = T < 3 || sq <= 1e-18;
+			}
+			const int B = 32; int nb = (n + B - 1) / B;
+			int th = EffThreads(threads);
+			Action<int> rowBlock = delegate(int bi)
+			{
+				int i0 = bi * B, i1 = Math.Min(n, i0 + B);
+				for (int bj = bi; bj < nb; bj++)
+				{
+					int j0 = bj * B, j1 = Math.Min(n, j0 + B);
+					for (int i = i0; i < i1; i++)
+					{
+						double[] di = dev[i]; double sxi = sxx[i]; bool bi_ = bad[i];
+						int j = Math.Max(j0, i + 1);
+						// 4 pares a la vez (4 sumas independientes, cada una secuencial: mismo resultado bit a bit, mas paralelismo de instrucciones)
+						for (; j + 3 < j1; j += 4)
+						{
+							if (bi_ || bad[j] || bad[j + 1] || bad[j + 2] || bad[j + 3]) { for (int q = j; q < j + 4; q++) SetD(D, dev, sxx, bad, di, sxi, bi_, i, q, T); continue; }
+							double[] d0 = dev[j], d1 = dev[j + 1], d2 = dev[j + 2], d3 = dev[j + 3]; double a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+							for (int k = 0; k < T; k++) { double v = di[k]; a0 += v * d0[k]; a1 += v * d1[k]; a2 += v * d2[k]; a3 += v * d3[k]; }
+							D[i, j] = D[j, i] = DistFrom(a0, sxi, sxx[j]); D[i, j + 1] = D[j + 1, i] = DistFrom(a1, sxi, sxx[j + 1]);
+							D[i, j + 2] = D[j + 2, i] = DistFrom(a2, sxi, sxx[j + 2]); D[i, j + 3] = D[j + 3, i] = DistFrom(a3, sxi, sxx[j + 3]);
+						}
+						for (; j < j1; j++) SetD(D, dev, sxx, bad, di, sxi, bi_, i, j, T);
+					}
+				}
+			};
+			if (th == 1 || nb == 1) { for (int bi = 0; bi < nb; bi++) rowBlock(bi); }
+			else
+			{   // bloques de fila de coste decreciente: reparto dinamico por contador atomico (sin orden fijo; el resultado no depende de el)
+				int next = -1; System.Threading.Thread[] ts = new System.Threading.Thread[th];
+				for (int t = 0; t < th; t++) { ts[t] = new System.Threading.Thread(delegate() { int b; while ((b = System.Threading.Interlocked.Increment(ref next)) < nb) rowBlock(b); }); ts[t].Start(); }
+				for (int t = 0; t < th; t++) ts[t].Join();
+			}
+			return D;
+		}
+
+		private static double DistFrom(double sxy, double sxi, double sxj)
+		{ double r = sxy / Math.Sqrt(sxi * sxj); r = Math.Max(-1.0, Math.Min(1.0, r)); return Math.Sqrt(0.5 * (1.0 - r)); }
+		private static void SetD(double[,] D, double[][] dev, double[] sxx, bool[] bad, double[] di, double sxi, bool bi_, int i, int j, int T)
+		{
+			double d;
+			if (bi_ || bad[j]) d = 1.0;
+			else { double[] dj = dev[j]; double sxy = 0; for (int k = 0; k < T; k++) sxy += di[k] * dj[k]; d = DistFrom(sxy, sxi, sxx[j]); }
+			D[i, j] = d; D[j, i] = d;
+		}
+
 		// nGross = ensayos brutos del ledger acumulado; series = series de P&L diario del IS (todas de la misma longitud).
 		public static NQCE7_NEffResult Compute(double[][] series, int nGross, double cut, double coverageMin, int maxSeries)
 		{
@@ -116,8 +180,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			R.Coverage = Math.Min(1.0, (double)n / nGross);
 			if (R.Coverage < coverageMin) { R.Fail = "cobertura de series " + R.Coverage.ToString("0.0000", CultureInfo.InvariantCulture) + " < minimo " + coverageMin.ToString("0.0000", CultureInfo.InvariantCulture); return R; }
 
-			double[,] D = new double[n, n];
-			for (int i = 0; i < n; i++) for (int j = i + 1; j < n; j++) { double d = Dist(Corr(series[i], series[j])); D[i, j] = d; D[j, i] = d; }
+			double[,] D = DistMatrix(series, n, T, Threads);
 			int[] size = new int[n]; bool[] act = new bool[n]; int[] rep = new int[n]; int[] label = new int[n];
 			for (int i = 0; i < n; i++) { size[i] = 1; act[i] = true; label[i] = i; }
 			int[] nn = new int[n]; double[] nd = new double[n];

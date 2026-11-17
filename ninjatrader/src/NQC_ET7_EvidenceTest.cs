@@ -67,6 +67,134 @@ namespace NinjaTrader.NinjaScript.Strategies
 			meanObs /= reps; meanEst /= reps; return NQCE_Const.Sha256Text(sb.ToString());
 		}
 
+		// ===== Equivalencia y carga del N_eff (optimizacion de rendimiento: matriz de distancias por bloques/paralela, sin cambiar resultados) =====
+		private static ulong rs;
+		private static double U() { rs ^= rs << 13; rs ^= rs >> 7; rs ^= rs << 17; return (rs >> 11) * (1.0 / 9007199254740992.0); }
+		private static double Gs() { double a = 1.0 - U(), b = U(); return Math.Sqrt(-2.0 * Math.Log(a)) * Math.Cos(2.0 * Math.PI * b); }
+		// kind: mix (grupos de ~5 miembros + 1/3 ruido), corr (20 grupos muy correlados), ties (series enteras duplicadas -> distancias exactamente iguales),
+		// special (planas, T corto no aplica aqui, duplicados, anticorrelacion).
+		private static double[][] GenSeries(int n, int T, string kind, ulong seed)
+		{
+			rs = seed * 2654435761UL + 88172645463325252UL; double[][] s = new double[n][];
+			int G = kind == "corr" ? 20 : Math.Max(2, n / 5); double rho = kind == "corr" ? 0.9 : 0.85;
+			double[][] bs = new double[G][]; bool[][] mk = new bool[G][];
+			for (int g = 0; g < G; g++) { bs[g] = new double[T]; mk[g] = new bool[T]; for (int t = 0; t < T; t++) { mk[g][t] = U() < 0.35; bs[g][t] = Gs(); } }
+			for (int i = 0; i < n; i++)
+			{
+				s[i] = new double[T]; int g = (int)(U() * G);
+				if (kind == "ties") { for (int t = 0; t < T; t++) s[i][t] = Math.Floor(bs[g][t] * 2.0); if (i % 7 == 3 && i > 0) s[i] = (double[])s[i - 1].Clone(); continue; }
+				if (kind == "special" && i % 11 == 0) { for (int t = 0; t < T; t++) s[i][t] = 0; continue; }
+				if (kind == "special" && i % 11 == 5 && i > 0) { for (int t = 0; t < T; t++) s[i][t] = -s[i - 1][t]; continue; }
+				bool noise = kind == "mix" && i % 3 == 0; double w = noise ? 0 : Math.Sqrt(rho), u = Math.Sqrt(1 - w * w);
+				for (int t = 0; t < T; t++) s[i][t] = (noise ? (U() < 0.35 ? 1 : 0) : (mk[g][t] ? 1 : 0)) * (w * bs[g][t] + u * Gs()) * 100.0;
+			}
+			return s;
+		}
+		private static bool SameNEff(NQCE7_NEffResult a, NQCE7_NEffResult b)
+		{
+			if (a.Fail != b.Fail || a.Clusters != b.Clusters || a.NSeries != b.NSeries || a.Coverage != b.Coverage) return false;
+			if (!a.NEff.Equals(b.NEff) || !a.SrVar.Equals(b.SrVar)) return false;
+			if ((a.Label == null) != (b.Label == null)) return false;
+			if (a.Label != null) { if (a.Label.Length != b.Label.Length) return false; for (int i = 0; i < a.Label.Length; i++) if (a.Label[i] != b.Label[i]) return false; }
+			return true;
+		}
+		private void RunNeffPerfTests()
+		{
+			int eq = 0, tot = 0; string bad = "";
+			string[] kinds = { "mix", "corr", "ties", "special" }; int[] ns = { 2, 3, 33, 64, 150, 400 }; double[] cuts = { 0.20, 0.40, 0.60 }; int[] ths = { 1, 3, 8 };
+			int saveTh = NQCE7_NEff.Threads;
+			foreach (string kd in kinds) foreach (int n in ns) foreach (double cut in cuts)
+			{
+				double[][] s = GenSeries(n, 120, kd, (ulong)(n * 31 + (int)(cut * 100) + kd.Length));
+				NQCE7_NEffResult o = OldNEff.Compute(s, n + 5, cut, 0.0, int.MaxValue);
+				foreach (int th in ths) { NQCE7_NEff.Threads = th; NQCE7_NEffResult nw = NQCE7_NEff.Compute(s, n + 5, cut, 0.0, int.MaxValue); tot++; if (SameNEff(o, nw)) eq++; else if (bad.Length < 120) bad += kd + "/" + n + "/" + cut + "/th" + th + " "; }
+			}
+			NQCE7_NEff.Threads = saveTh;
+			Chk("Q1 equivalencia del agrupamiento nuevo vs el anterior (copiado en la prueba): " + tot + " casos (4 tipos x 6 tamanos n<=400 x 3 cortes x hilos 1/3/8): grupos, etiquetas, N_eff y SrVar IDENTICOS", eq == tot, eq + "/" + tot + " " + bad);
+			// matriz de distancias bit a bit contra Dist(Corr) ingenuo, con series planas, duplicadas, anticorrelacionadas y T = 2 (Corr = NaN -> d = 1)
+			bool dbit = true; int cells = 0;
+			foreach (int T in new int[] { 2, 5, 120 })
+			{
+				double[][] s = GenSeries(70, T, "special", (ulong)(900 + T)); NQCE7_NEff.Threads = 3;
+				double[,] D = NQCE7_NEff.DistMatrix(s, 70, T, 3);
+				for (int i = 0; i < 70; i++) for (int j = i + 1; j < 70; j++) { cells++; double e = NQCE7_NEff.Dist(NQCE7_NEff.Corr(s[i], s[j])); if (!D[i, j].Equals(e) || !D[j, i].Equals(e)) dbit = false; }
+			}
+			NQCE7_NEff.Threads = saveTh;
+			Chk("Q2 matriz de distancias: " + cells + " celdas IDENTICAS bit a bit a Dist(Corr(x,y)) (incluye planas, duplicadas, anticorrelacion y T=2 -> NaN -> d=1)", dbit, "");
+			// ruta SAMPLE_CHAO1: el nuevo EstimateFromSample (grupos, f1, f2, IC) coincide con Chao1 sobre los grupos del agrupamiento anterior
+			double[][] sm = GenSeries(400, 200, "mix", 77); sm[3] = new double[200]; sm[9] = new double[200]; sm[200] = new double[200];
+			NQCE7_NeffResult en = NQCE7_Neff.EstimateFromSample(sm, 100000, 0.40);
+			List<double[]> act = new List<double[]>(); foreach (double[] x in sm) { double mm = 0; foreach (double v in x) mm += v; bool flat = true; foreach (double v in x) if (v != x[0]) flat = false; if (!flat) act.Add(x); }
+			NQCE7_NEffResult oo = OldNEff.Compute(act.ToArray(), act.Count, 0.40, 1.0, int.MaxValue);
+			int[] cnt = new int[oo.Clusters + 1]; foreach (int g in oo.Label) cnt[g]++; cnt[oo.Clusters] = 3;
+			NQCE7_NeffResult eo = NQCE7_Neff.EstimateFromAbundances(cnt, 100000);
+			Chk("Q3 EstimateFromSample con el agrupamiento nuevo == Chao1 sobre las abundancias del agrupamiento anterior (S_obs, f1, f2, S_est, IC, SrVar)", en.Falla.Length == 0 && en.GruposObservados == eo.GruposObservados && en.F1 == eo.F1 && en.F2 == eo.F2 && en.NEffEstimado.Equals(eo.NEffEstimado) && en.Inferior.Equals(eo.Inferior) && en.Superior.Equals(eo.Superior) && en.SrVar.Equals(oo.SrVar), "S_obs=" + en.GruposObservados + " f1=" + en.F1 + " f2=" + en.F2);
+			// carga: n = 5.000 series x 933 sesiones (lo del paso real de SAMPLE_CHAO1); mide tiempo y memoria (informativo; cota holgada)
+			double[][] big = GenSeries(5000, 933, "mix", 5000);
+			long m0 = GC.GetTotalMemory(true); System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+			NQCE7_NeffResult eb = NQCE7_Neff.EstimateFromSample(big, 150000, 0.40); sw.Stop();
+			double mb = (GC.GetTotalMemory(false) - m0) / 1048576.0;
+			Print("[CARGA Q4] n=5000 x 933: tiempo " + sw.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s, hilos " + (saveTh <= 0 ? Math.Min(Environment.ProcessorCount, 16) : saveTh) + ", memoria gestionada ~" + mb.ToString("0", CultureInfo.InvariantCulture) + " MB (informativo; NO entra en el informe para que sea determinista)");
+			Chk("Q4 carga n=5000 x 933 sesiones (SAMPLE_CHAO1): termina sin falla, grupos > 1000 y < 120 s (el tiempo y la memoria se imprimen aparte)", eb.Falla.Length == 0 && eb.GruposObservados > 1000 && sw.Elapsed.TotalSeconds < 120.0, "S_obs=" + eb.GruposObservados);
+		}
+
+		// Copia del agrupamiento ANTERIOR (implementacion ingenua de referencia: matriz con Corr por par, cache de vecino mas cercano); NO usar en produccion.
+		private static class OldNEff
+		{
+			private static double Corr(double[] x, double[] y) { return NQCE7_NEff.Corr(x, y); }
+			private static double Dist(double r) { return NQCE7_NEff.Dist(r); }
+			private static double DailySharpe(double[] x) { return NQCE7_NEff.DailySharpe(x); }
+			public static NQCE7_NEffResult Compute(double[][] series, int nGross, double cut, double coverageMin, int maxSeries)
+			{
+				NQCE7_NEffResult R = new NQCE7_NEffResult(); R.NGross = nGross; R.Cut = cut; R.NEff = double.NaN; R.SrVar = double.NaN;
+				int n = series == null ? 0 : series.Length; R.NSeries = n;
+				if (n == 0) { R.Fail = "sin series de ensayos"; return R; }
+				if (nGross < n) { R.Fail = "N bruto (" + nGross.ToString(CultureInfo.InvariantCulture) + ") menor que el numero de series"; return R; }
+				if (n > maxSeries) { R.Fail = "series (" + n.ToString(CultureInfo.InvariantCulture) + ") superan MaxSeries (" + maxSeries.ToString(CultureInfo.InvariantCulture) + "): reducir antes"; return R; }
+				if (double.IsNaN(cut) || cut <= 0 || cut >= 1) { R.Fail = "corte invalido"; return R; }
+				int T = series[0].Length; for (int i = 0; i < n; i++) if (series[i].Length != T) { R.Fail = "series de longitud distinta"; return R; }
+				R.Coverage = Math.Min(1.0, (double)n / nGross);
+				if (R.Coverage < coverageMin) { R.Fail = "cobertura de series " + R.Coverage.ToString("0.0000", CultureInfo.InvariantCulture) + " < minimo " + coverageMin.ToString("0.0000", CultureInfo.InvariantCulture); return R; }
+
+				double[,] D = new double[n, n];
+				for (int i = 0; i < n; i++) for (int j = i + 1; j < n; j++) { double d = Dist(Corr(series[i], series[j])); D[i, j] = d; D[j, i] = d; }
+				int[] size = new int[n]; bool[] act = new bool[n]; int[] rep = new int[n]; int[] label = new int[n];
+				for (int i = 0; i < n; i++) { size[i] = 1; act[i] = true; label[i] = i; }
+				int[] nn = new int[n]; double[] nd = new double[n];
+				for (int i = 0; i < n; i++) Near(D, act, n, i, nn, nd);
+				int clusters = n;
+				while (clusters > 1)
+				{
+					int bi = -1; double bd = double.MaxValue;
+					for (int i = 0; i < n; i++) if (act[i] && nn[i] >= 0 && (nd[i] < bd || (nd[i] == bd && i < bi))) { bd = nd[i]; bi = i; }
+					if (bi < 0 || bd > cut) break;
+					int bj = nn[bi]; int a = Math.Min(bi, bj), b = Math.Max(bi, bj); // a absorbe a b
+					for (int k = 0; k < n; k++) if (act[k] && k != a && k != b)
+					{
+						double nv = (size[a] * D[a, k] + size[b] * D[b, k]) / (size[a] + size[b]);
+						D[a, k] = nv; D[k, a] = nv;
+					}
+					size[a] += size[b]; act[b] = false; clusters--;
+					for (int i = 0; i < n; i++) if (label[i] == b) label[i] = a;
+					for (int i = 0; i < n; i++) if (act[i] && (i == a || nn[i] == a || nn[i] == b || nd[i] > D[i, a])) Near(D, act, n, i, nn, nd);
+				}
+				R.Clusters = clusters;
+				Dictionary<int, int> map = new Dictionary<int, int>(); R.Label = new int[n];
+				for (int i = 0; i < n; i++) { int g; if (!map.TryGetValue(label[i], out g)) { g = map.Count; map[label[i]] = g; rep[g] = i; } R.Label[i] = g; }
+				R.NEff = Math.Max(1.0, clusters / R.Coverage);
+				List<double> srs = new List<double>();
+				for (int g = 0; g < clusters; g++) { double s = DailySharpe(series[rep[g]]); if (!double.IsNaN(s)) srs.Add(s); }
+				if (srs.Count >= 2) { double m = 0; foreach (double s in srs) m += s; m /= srs.Count; double v = 0; foreach (double s in srs) v += (s - m) * (s - m); R.SrVar = v / (srs.Count - 1); }
+				else R.SrVar = 0;
+				return R;
+			}
+			private static void Near(double[,] D, bool[] act, int n, int i, int[] nn, double[] nd)
+			{
+				nn[i] = -1; nd[i] = double.MaxValue;
+				for (int k = 0; k < n; k++) if (act[k] && k != i && D[i, k] < nd[i]) { nd[i] = D[i, k]; nn[i] = k; }
+			}
+		}
+
 		private void RunNeffTests()
 		{
 			// ---- casos puntuales (referencia Python ref_neff.py)
@@ -245,6 +373,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Chk("R4 informe determinista, con umbrales, N bruto/N_eff y causas", r1 == r2 && r1.Contains("N_bruto=40") && r1.Contains("N_eff=40") && r1.Contains("causa_rechazo MC_DD_P95") && r1.Contains("RESUMEN: 1 de 4"), "");
 			string legacyPrefix = rep.ToString(); int legacyPass = pass;
 			RunNeffTests();
+			RunNeffPerfTests();
 			string legacyText = legacyPrefix + "\n--- informe de muestra (sintetico) ---\n" + r1 + "\nresultado: " + legacyPass + " PASS / 0 FALLA\n";
 			Chk("R5 compatibilidad: modo COVERED reproduce el hash de la prueba anterior (report_sha256 4eca95fe...)", NQCE_Const.Sha256Text(legacyText) == "4eca95fe38be59ea5b49e606c5dd4661552dbce66a578aa7819b1236db0fbf52", NQCE_Const.Sha256Text(legacyText));
 			rep.Append("\n--- informe de muestra (sintetico) ---\n").Append(r1);
