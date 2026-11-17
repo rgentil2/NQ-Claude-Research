@@ -5,7 +5,7 @@
 # Formato: lineas clave=valor globales (las claves de RUN_FUNNEL_CONFIG.txt salvo campaign/seed/population/generations/max_evals/top_k/transform/out_dir/stop_after/freeze/engine_dir,
 #   que van por campana o estan prohibidas) y lineas `campaign id=.. transform=IDENTITY|N1|N2|N1INJ tseed=.. gaseed=.. size=REDUCED|FULL|TIMING|CUSTOM [evals=N] [sample=K]`.
 batch=ET2_FASE_A
-commit=f91f5b8
+commit=5196dc0
 resume=1
 memo_budget_mb=4096
 max_memory_mb=8192
