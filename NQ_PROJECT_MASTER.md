@@ -66,6 +66,8 @@ Plan: **Rapid (intradía) 50K** (D-024). Detalle, fuentes y perfiles del simulad
 | D-030 | Genes de condición: periodo **y** umbral en múltiplos de ATR (2026-11-14). |
 | D-031 | Biblioteca ET3: 16 familias no reexpresables se mantienen como razones adimensionales (excepción R5); una familia por grupo de duplicados; ATR de cada condición = ATR de Wilder del gen de salida (2026-11-14). |
 | D-019 | Parámetros genéticos (delegado al asistente): pob. 500 × 200 gen., torneo 3, cruce uniforme, mutación 5%/gen, elitismo 5%, 5% inmigrantes, top-K 2.000, semilla C1 20261114; ajustables solo en ET2 (2026-11-14). |
+| D-039 | Rediseño menor del embudo tras la Fase A de ET2: mínimo de operaciones ≈ 250 con cobertura mensual, aptitud menos explotable, pool de ET6 equilibrado largos/cortos; repetir la Fase A con semillas nuevas (2026-11-17). |
+| D-040 | Control positivo como curva de edges +20/+60/+100 (5 campañas por nivel) en la repetición de la Fase A (2026-11-17). |
 | D-032 | Las 4 familias dudosas (32, 60, 85, 103) quedan activas como razones adimensionales (excepción R5 en 20 familias); delegado al asistente (2026-11-14). |
 | R1 | Serie NQ **Merge back adjusted** con el roll de NinjaTrader. No se excluyen sesiones de roll. |
 | R2 | Zona horaria: la configurada en NinjaTrader (Eastern), no la del PC. |
