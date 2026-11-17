@@ -1,0 +1,10 @@
+mundo=NULO_SINTETICO dias=780 barras=1076400 world_seed=28101 ga_seed=28102 pop=200 gen=50
+celda	evals	validos_top	best_fit	best_tRaw	med_tRaw_top	max_tRaw_top	med_trades	P5_trades	pct_lt150	pct_lt250	med_mean_net	med_meses
+T/100	8847	200	3.95	3.95	3.11	3.95	120	107	100	100	72.9	34
+T/250+24m	8701	200	4.21	4.21	3.04	4.21	268	250	0	0	37.3	36
+T_SHRUNK/100	8287	200	2.28	2.94	2.39	2.98	365	230	1	9	31.7	36
+T_SHRUNK/250+24m	7760	200	2.02	2.85	2.30	2.85	264	250	0	0	34.7	36
+
+real	5m17.549s
+user	18m22.795s
+sys	0m24.208s

@@ -99,6 +99,16 @@ Claves: `et3.fitness_mode=T|T_SHRUNK`, `et3.min_trades`, `et3.min_months_covered
 - **T_SHRUNK**: F = t_adj * sqrt(n/(n+n0)) * conc. (1) Encogimiento por muestra, n0=250: factor 0,71 con 250 operaciones, 0,89 con 1.000: a igual t gana el de mas operaciones, y desaparece el incentivo a quedarse en el minimo. (2) t_adj usa sd_eff = max(sd, 0,8 * media|neto|): los perfiles de alta tasa de acierto y perdida rara tienen sd << media|neto|; el suelo evita que una dispersion artificialmente baja infle el t. (3) conc = min(1, 0,25/share5), share5 = parte de la ganancia bruta que dan las 5 mejores operaciones: castiga la dependencia de pocas operaciones. Simple, determinista, sin parametros adaptativos.
 - **Prueba de decision** (sintetica, NO mercado): mundo nulo M1 de ~3 anos; GA reducido (pop 200, gen 50, 10.000 evals, top-K 200, semillas 20281001 mundo, 20281002 GA), biblioteca real; celdas T/100, T/250+24m, T_SHRUNK/100, T_SHRUNK/250+24m. Criterio declarado: T_SHRUNK/250 debe bajar la mediana de t crudo del top-200 y el % de candidatos < 150/< 250 operaciones frente a T/100. Si no, se reporta como fallo, sin retocar parametros para que salga.
 
+### Resultado de la prueba de decision (sintetica, mono; `runs/2026-11-17_ET3_FITNESSV2_synth/SUMMARY.txt`)
+Mundo nulo de 1.076.400 barras (780 dias), un solo mundo y una sola semilla (28101/28102), top-200 de cada celda. NO es mercado.
+| celda | t crudo mediana top | t crudo maximo | mediana operaciones | P5 operaciones | % < 150 | % < 250 | mediana mean_net |
+|---|---|---|---|---|---|---|---|
+| T/100 | 3,11 | 3,95 | 120 | 107 | 100 | 100 | 72,9 |
+| T/250+24m | 3,04 | 4,21 | 268 | 250 | 0 | 0 | 37,3 |
+| T_SHRUNK/100 | 2,39 | 2,98 | 365 | 230 | 1 | 9 | 31,7 |
+| T_SHRUNK/250+24m | 2,30 | 2,85 | 264 | 250 | 0 | 0 | 34,7 |
+Lectura: (1) subir el minimo solo (T/250) NO reduce el techo de t (4,21) y los candidatos siguen pegados al minimo (mediana 268). (2) T_SHRUNK baja el techo del ruido ~28% (3,95 -> 2,85) y la mediana del top ~26%. (3) T_SHRUNK/100 aleja a los candidatos del minimo (mediana 365); con T_SHRUNK/250 el piso de 250 vuelve a ser vinculante (mediana 264, P5 250): el encogimiento premia el tamano de forma suave (0,71 -> 0,89) y no basta para despegar del piso. Cumple el criterio en techo de t y en % < 150/< 250, no en "alejarse del minimo" con piso 250. Limitaciones: un mundo, una semilla; ruido gaussiano sin estructura intradia ni sesiones reales; ET5/ET6 no ejercitados. Posible ajuste (NO aplicado, requiere nueva declaracion): n0 mayor (500) o t_adj sobre P&L diario.
+
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
 
@@ -118,4 +128,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 - 2026-11-17 · Orquestador: optimización/paralelismo del agente (commits 29eb455, b0fba7f, 2f61555) registrada en D-037; verificación independiente en curso (PerfTest/FunnelTest/BatchTest). Cambio aditivo en NQC_ET1_Core.cs: repetir regresión de ET1 en NT8.
 - 2026-11-17 · NT8 pack4: ET1 Regression PASS (hash igual), Funnel 37/37, Batch 20/20, ET6 22/22, ET7 58/58 con digests iguales a mono; RunPerfTest 23/24 (A1: huella de familias distinta a la dorada de mono; diagnóstico delegado). Tiempos: 8 hilos ≈ 2,65 ms/eval de pared; escalado satura ~4×. Registro en runs/2026-11-17_PACK4_run1/.
 - 2026-11-17 · NT8: PerfTest 23/24, A1 (huella vs constante de mono) falla. A1 rediseñado (PerfTest 1.1.0): A1a referencia congelada 4006522 vs ruta optimizada en el MISMO runtime (mono: 269.376 comparaciones, 0 diferencias, control negativo OK); A1b/A1c constantes por runtime con tolerancia solo en 11 familias trascendentes (33,44,45,46,53,68,71,85,87,88,119) y <=4 ulps; digest separado (_A/_A_rt). Nuevo NQC_RUN_PerfDiag + DIAG_PERF_*.tsv. Pendiente: correr PerfDiag en NT8 y rellenar GoldHashNet.
-
+- 2026-11-17 · D-039: et3.fitness_mode/min_trades/min_months_covered (defecto T_SHRUNK/250/24; legado T/100/0 conserva hashes), et6.pool_balance cableado, target/tol por campana en el lote; FunnelTest 37/37 (digest dc126883... = HEAD con ET6 de otro agente), BatchTest 20/20 (d29dae05..., cambia solo por el texto del manifiesto pinneado a legado). Prueba sintetica: T_SHRUNK baja el techo de t 3,95->2,85; con piso 250 los candidatos siguen cerca del piso. Solo mono, NO NT8.
