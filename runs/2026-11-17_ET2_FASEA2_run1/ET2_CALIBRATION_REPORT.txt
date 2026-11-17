@@ -1,0 +1,456 @@
+ET2_CALIBRATION_REPORT | generador ET2REPORT-1.0.0 | contrato NQC 2.0.0 | SOLO DESARROLLO: informe MECANICO calculado de los archivos de un lote de NQC_RUN_Batch; no decide umbrales, no aprueba la etapa y no sustituye la evidencia de NT8 (log + hash)
+generado_utc=2026-11-17 fase=FASE_A_REDUCED etiqueta=FASE_A2 commit_protocolo=aff55a8
+convenciones: FP = campanas NULAS (N1/N2) con >=1 portafolio que pasa TODO (DSR, percentil nulo, MC P95, P_pass[, P_pass bootstrap]); potencia = campanas INYECTADAS con portafolio aprobado que contiene la regla inyectada o una EQUIVALENTE (D-037); IC = Clopper-Pearson exacto bilateral 95% y cotas unilaterales 95%; IDENTITY y campanas con ERROR/incompletas NO entran en las tasas.
+
+== 1. IDENTIFICACION ==
+lote=ET2_FASE_A2 estado_lote=COMPLETO campanas_en_lote=35 runner=NQCRUN-1.4.0 library=NQCL-3.1.0:dac56e19fbc7b431
+manifest_sha256=ff64418977de3cd2a110ba19ae79148a56a6bf09b2dcb97c47b3dec9b246ea50 target=20 tol=2 data_raw_sha256=0b44647c5d413095967e2fa6db6f6a18f7fb57fd50e942951aab50752e0f59d4
+batch_digest_sha256=46fbecaf30488efbe250eea052161b971174566466c43acfd6ad125255642d22 total_seconds=1177.25 peak_working_set_mb=6903
+engine_hash=288b4e09773daba26f16cad7dc84b93070101e99c74c4f3cf727b19b6477b1a5 runner_version=NQCRUN-1.4.0 library=NQCL-3.1.0:dac56e19fbc7b431 ET2_ppass_min_de_la_corrida=0
+campanas validas: nulas=20 (N1=10, N2=10) inyectadas=15 otras(IDENTITY/otro, fuera de las tasas)=0 excluidas(ERROR/incompletas)=0
+id	tipo	estado	ga_seed	tamano	data_run_sha256	funnel	inj_ok	segundos
+B00_N1_20282001	N1	OK	20281000	REDUCED	be3965425c55	CAMPANIA_CERRADA_EN_ET5 (PBO 0.58116883116883122 > 0.4)	NA	31.8
+B01_N1_20282002	N1	OK	20281001	REDUCED	a121689f300e	CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4)	NA	36.8
+B02_N1_20282003	N1	OK	20281002	REDUCED	424f4e2fc8fb	CAMPANIA_CERRADA_EN_ET5 (PBO 0.73376623376623373 > 0.4)	NA	35.4
+B03_N1_20282004	N1	OK	20281003	REDUCED	b5200b31ba03	CAMPANIA_CERRADA_EN_ET5 (PBO 0.79329004329004327 > 0.4)	NA	36.0
+B04_N1_20282005	N1	OK	20281004	REDUCED	014aa203d943	CAMPANIA_CERRADA_EN_ET5 (PBO 0.42424242424242425 > 0.4)	NA	35.7
+B05_N1_20282006	N1	OK	20281005	REDUCED	f738b748f2cd	CAMPANIA_CERRADA_EN_ET5 (PBO 0.96320346320346317 > 0.4)	NA	36.1
+B06_N1_20282007	N1	OK	20281006	REDUCED	ca8f611b2f1f	CAMPANIA_CERRADA_EN_ET5 (PBO 0.933982683982684 > 0.4)	NA	35.3
+B07_N1_20282008	N1	OK	20281007	REDUCED	176897718097	CAMPANIA_CERRADA_EN_ET5 (PBO 0.44913419913419911 > 0.4)	NA	38.0
+B08_N1_20282009	N1	OK	20281008	REDUCED	40720cc56557	CAMPANIA_CERRADA_EN_ET5 (PBO 0.90043290043290047 > 0.4)	NA	27.3
+B09_N1_20282010	N1	OK	20281009	REDUCED	9bac5b4dc0c5	CAMPANIA_CERRADA_EN_ET5 (PBO 0.87554112554112551 > 0.4)	NA	34.6
+B10_N2_20283001	N2	OK	20281010	REDUCED	56bc4b482f5a	CAMPANIA_CERRADA_EN_ET5 (PBO 0.79870129870129869 > 0.4)	NA	27.1
+B11_N2_20283002	N2	OK	20281011	REDUCED	55d5f0ee56c5	CAMPANIA_CERRADA_EN_ET5 (PBO 0.53679653679653683 > 0.4)	NA	30.7
+B12_N2_20283003	N2	OK	20281012	REDUCED	a5f6e8c980c3	CAMPANIA_CERRADA_EN_ET5 (PBO 0.64610389610389607 > 0.4)	NA	30.3
+B13_N2_20283004	N2	OK	20281013	REDUCED	9d17802bdf70	CAMPANIA_CERRADA_EN_ET5 (PBO 0.88636363636363635 > 0.4)	NA	33.2
+B14_N2_20283005	N2	OK	20281014	REDUCED	a7acc584b5a5	CAMPANIA_CERRADA_EN_ET5 (PBO 0.88419913419913421 > 0.4)	NA	28.1
+B15_N2_20283006	N2	OK	20281015	REDUCED	b7247eb4a2be	CAMPANIA_CERRADA_EN_ET5 (PBO 0.53787878787878785 > 0.4)	NA	36.1
+B16_N2_20283007	N2	OK	20281016	REDUCED	72608fb84298	CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4)	NA	35.1
+B17_N2_20283008	N2	OK	20281017	REDUCED	d3648839bac3	CAMPANIA_CERRADA_EN_ET5 (PBO 0.77489177489177485 > 0.4)	NA	30.4
+B18_N2_20283009	N2	OK	20281018	REDUCED	b928faebcced	CAMPANIA_CERRADA_EN_ET5 (PBO 0.696969696969697 > 0.4)	NA	24.8
+B19_N2_20283010	N2	OK	20281019	REDUCED	159c0c9f3d63	CAMPANIA_CERRADA_EN_ET5 (PBO 0.96969696969696972 > 0.4)	NA	41.8
+B20_INJ20_20284001	INJ	OK	20281020	REDUCED	c94b89f29571	CAMPANIA_CERRADA_EN_ET5 (PBO 0.63203463203463206 > 0.4)	1	32.2
+B21_INJ20_20284002	INJ	OK	20281021	REDUCED	69cacb9395a5	CAMPANIA_CERRADA_EN_ET5 (PBO 0.737012987012987 > 0.4)	1	32.9
+B22_INJ20_20284003	INJ	OK	20281022	REDUCED	8ea3bb7a360f	CAMPANIA_CERRADA_EN_ET5 (PBO 0.72619047619047616 > 0.4)	1	27.2
+B23_INJ20_20284004	INJ	OK	20281023	REDUCED	31c81410b532	CAMPANIA_CERRADA_EN_ET5 (PBO 0.64393939393939392 > 0.4)	1	33.4
+B24_INJ20_20284005	INJ	OK	20281024	REDUCED	6be55543456d	CAMPANIA_CERRADA_EN_ET5 (PBO 0.91341991341991347 > 0.4)	1	34.5
+B25_INJ60_20284101	INJ	OK	20281025	REDUCED	ce731b6f4343	CAMPANIA_CERRADA_EN_ET5 (PBO 0.47835497835497837 > 0.4)	1	32.2
+B26_INJ60_20284102	INJ	OK	20281026	REDUCED	4de0825ae194	CAMPANIA_CERRADA_EN_ET5 (PBO 0.5313852813852814 > 0.4)	1	40.0
+B27_INJ60_20284103	INJ	OK	20281027	REDUCED	d7803159f237	CAMPANIA_CERRADA_EN_ET5 (PBO 0.77705627705627711 > 0.4)	1	31.6
+B28_INJ60_20284104	INJ	OK	20281028	REDUCED	e26e259dc31a	CAMPANIA_CERRADA_EN_ET5 (PBO 0.88203463203463206 > 0.4)	1	37.2
+B29_INJ60_20284105	INJ	OK	20281029	REDUCED	896f5b8ba457	CAMPANIA_CERRADA_EN_ET5 (PBO 0.91450216450216448 > 0.4)	1	35.2
+B30_INJ100_20284201	INJ	OK	20281030	REDUCED	a75a5cf1f8e1	CAMPANIA_CERRADA_EN_ET5 (PBO 0.83549783549783552 > 0.4)	1	32.4
+B31_INJ100_20284202	INJ	OK	20281031	REDUCED	8661a3e3df88	CAMPANIA_CERRADA_EN_ET5 (PBO 0.84090909090909094 > 0.4)	1	39.5
+B32_INJ100_20284203	INJ	OK	20281032	REDUCED	ae136784c3ad	CAMPANIA_CERRADA_EN_ET5 (PBO 0.63961038961038963 > 0.4)	1	39.4
+B33_INJ100_20284204	INJ	OK	20281033	REDUCED	84ee40b6bbf5	CAMPANIA_CERRADA_EN_ET5 (PBO 0.98484848484848486 > 0.4)	1	29.5
+B34_INJ100_20284205	INJ	OK	20281034	REDUCED	c13616c5ca92	CAMPANIA_CERRADA_EN_ET5 (PBO 0.59956709956709953 > 0.4)	1	35.2
+
+== 2. ACEPTACION DE LOS DATASETS INYECTADOS (D-037: neto medido 20 +- 2 por operacion del par) ==
+id	a	measured_net	net_long	net_short	trades	rate_per_session	t_pair	ok
+B20_INJ20_20284001	0.0859	20.04	7.98	34.67	343	0.447	0.71	1
+B21_INJ20_20284002	0.0859	20.04	7.98	34.67	343	0.447	0.71	1
+B22_INJ20_20284003	0.0859	20.04	7.98	34.67	343	0.447	0.71	1
+B23_INJ20_20284004	0.0859	20.04	7.98	34.67	343	0.447	0.71	1
+B24_INJ20_20284005	0.0859	20.04	7.98	34.67	343	0.447	0.71	1
+B25_INJ60_20284101	0.3438	59.71	36.36	88.03	343	0.447	2.04	1
+B26_INJ60_20284102	0.3438	59.71	36.36	88.03	343	0.447	2.04	1
+B27_INJ60_20284103	0.3438	59.71	36.36	88.03	343	0.447	2.04	1
+B28_INJ60_20284104	0.3438	59.71	36.36	88.03	343	0.447	2.04	1
+B29_INJ60_20284105	0.3438	59.71	36.36	88.03	343	0.447	2.04	1
+B30_INJ100_20284201	0.5625	98.79	78.94	122.87	343	0.447	3.38	1
+B31_INJ100_20284202	0.5625	98.79	78.94	122.87	343	0.447	3.38	1
+B32_INJ100_20284203	0.5625	98.79	78.94	122.87	343	0.447	3.38	1
+B33_INJ100_20284204	0.5625	98.79	78.94	122.87	343	0.447	3.38	1
+B34_INJ100_20284205	0.5625	98.79	78.94	122.87	343	0.447	3.38	1
+inyectados con ok=1: 15/15
+t_pair: n=15 mediana=2.04 P5=0.71 P95=3.38 min=0.71 max=3.38
+
+== 3. FALSOS POSITIVOS Y POTENCIA ==
+umbral de P_pass de la corrida (ET6 ppass_min)=0. Percentil nulo: sin campanas que lleguen a ET7
+FP global (como corrio, tau=0): 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0%
+FP N1: 0/10 (0.0%) CP95=[0.0%,30.8%] cota_sup_unilateral95=25.9% cota_inf_unilateral95=0.0%
+FP N2: 0/10 (0.0%) CP95=[0.0%,30.8%] cota_sup_unilateral95=25.9% cota_inf_unilateral95=0.0%
+campanas nulas con FP: ninguna
+POTENCIA cota superior (cualquier portafolio aprobado en el inyectado; NO verifica que contenga la regla): 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+POTENCIA con regla inyectada o equivalente (D-037): 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+campanas inyectadas con portafolio aprobado: ninguna
+
+Embudo acumulado por puerta (campanas con >=1 candidato que llega/pasa la puerta; entre parentesis el motivo de rechazo mas frecuente en las campanas que cierran ahi):
+puerta	nulas	N1	N2	inyectadas	motivo_mas_frecuente
+ET3 databank con genomas validos	20/20	10/10	10/10	15/15	-
+ET4 F1 (neto 1,5x)	20/20	10/10	10/10	15/15	-
+ET4 F2	20/20	10/10	10/10	15/15	-
+ET4 F3 (pool>0)	20/20	10/10	10/10	15/15	-
+ET5 filtro de anios (robust>0)	20/20	10/10	10/10	15/15	-
+ET5 PBO (no cierra la campana)	0/20	0/10	0/10	0/15	PBO 0.8885281385281385 > 0.4 (x2)
+ET6 combinaciones aceptadas (>0)	0/20	0/10	0/10	0/15	-
+ET6 finalistas (>0)	0/20	0/10	0/10	0/15	-
+ET7 DSR	0/20	0/10	0/10	0/15	-
+ET7 + percentil nulo (recalculado si no hay vector)	0/20	0/10	0/10	0/15	-
+ET7 + MC DD P95	0/20	0/10	0/10	0/15	-
+ET7 + P_pass bootstrap (si hay umbral)	0/20	0/10	0/10	0/15	-
+P_pass >= tau (TODO)	0/20	0/10	0/10	0/15	-
+TODO y contiene la regla inyectada/equivalente	0/20	0/10	0/10	0/15	-
+(el motivo se cuenta solo en las campanas que llegaron a la puerta, es decir pasaron la fila anterior; tau usado en las filas P_pass/TODO = 0.5; las filas de ET7 usan el percentil recalculado cuando el runner no tenia vector nulo)
+Tasas de paso con IC por tipo (cada fila = proporcion de campanas del tipo que pasan la puerta):
+  ET3 databank con genomas validos: nulas 20/20 (100.0%) CP95=[83.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=86.1% | inyectadas 15/15 (100.0%) CP95=[78.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=81.9%
+  ET4 F1 (neto 1,5x): nulas 20/20 (100.0%) CP95=[83.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=86.1% | inyectadas 15/15 (100.0%) CP95=[78.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=81.9%
+  ET4 F2: nulas 20/20 (100.0%) CP95=[83.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=86.1% | inyectadas 15/15 (100.0%) CP95=[78.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=81.9%
+  ET4 F3 (pool>0): nulas 20/20 (100.0%) CP95=[83.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=86.1% | inyectadas 15/15 (100.0%) CP95=[78.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=81.9%
+  ET5 filtro de anios (robust>0): nulas 20/20 (100.0%) CP95=[83.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=86.1% | inyectadas 15/15 (100.0%) CP95=[78.2%,100.0%] cota_sup_unilateral95=100.0% cota_inf_unilateral95=81.9%
+  ET5 PBO (no cierra la campana): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET6 combinaciones aceptadas (>0): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET6 finalistas (>0): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET7 DSR: nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET7 + percentil nulo (recalculado si no hay vector): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET7 + MC DD P95: nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  ET7 + P_pass bootstrap (si hay umbral): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  P_pass >= tau (TODO): nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+  TODO y contiene la regla inyectada/equivalente: nulas 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% | inyectadas 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0%
+
+== 4. DISTRIBUCIONES POR ETAPA Y ESTADO DEL EMBUDO ==
+Estado del embudo por campana y por tipo:
+  N1: CAMPANIA_CERRADA_EN_ET5 (PBO 0.42424242424242425 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.44913419913419911 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.58116883116883122 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.73376623376623373 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.79329004329004327 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.87554112554112551 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.90043290043290047 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.933982683982684 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.96320346320346317 > 0.4) x1
+  N2: CAMPANIA_CERRADA_EN_ET5 (PBO 0.53679653679653683 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.53787878787878785 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.64610389610389607 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.696969696969697 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.77489177489177485 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.79870129870129869 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.88419913419913421 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.88636363636363635 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.96969696969696972 > 0.4) x1
+  INJ: CAMPANIA_CERRADA_EN_ET5 (PBO 0.47835497835497837 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.5313852813852814 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.59956709956709953 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.63203463203463206 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.63961038961038963 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.64393939393939392 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.72619047619047616 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.737012987012987 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.77705627705627711 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.83549783549783552 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.84090909090909094 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.88203463203463206 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.91341991341991347 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.91450216450216448 > 0.4) x1 | CAMPANIA_CERRADA_EN_ET5 (PBO 0.98484848484848486 > 0.4) x1
+por campana: id=estado
+  B00_N1_20282001=CAMPANIA_CERRADA_EN_ET5 (PBO 0.58116883116883122 > 0.4)
+  B01_N1_20282002=CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4)
+  B02_N1_20282003=CAMPANIA_CERRADA_EN_ET5 (PBO 0.73376623376623373 > 0.4)
+  B03_N1_20282004=CAMPANIA_CERRADA_EN_ET5 (PBO 0.79329004329004327 > 0.4)
+  B04_N1_20282005=CAMPANIA_CERRADA_EN_ET5 (PBO 0.42424242424242425 > 0.4)
+  B05_N1_20282006=CAMPANIA_CERRADA_EN_ET5 (PBO 0.96320346320346317 > 0.4)
+  B06_N1_20282007=CAMPANIA_CERRADA_EN_ET5 (PBO 0.933982683982684 > 0.4)
+  B07_N1_20282008=CAMPANIA_CERRADA_EN_ET5 (PBO 0.44913419913419911 > 0.4)
+  B08_N1_20282009=CAMPANIA_CERRADA_EN_ET5 (PBO 0.90043290043290047 > 0.4)
+  B09_N1_20282010=CAMPANIA_CERRADA_EN_ET5 (PBO 0.87554112554112551 > 0.4)
+  B10_N2_20283001=CAMPANIA_CERRADA_EN_ET5 (PBO 0.79870129870129869 > 0.4)
+  B11_N2_20283002=CAMPANIA_CERRADA_EN_ET5 (PBO 0.53679653679653683 > 0.4)
+  B12_N2_20283003=CAMPANIA_CERRADA_EN_ET5 (PBO 0.64610389610389607 > 0.4)
+  B13_N2_20283004=CAMPANIA_CERRADA_EN_ET5 (PBO 0.88636363636363635 > 0.4)
+  B14_N2_20283005=CAMPANIA_CERRADA_EN_ET5 (PBO 0.88419913419913421 > 0.4)
+  B15_N2_20283006=CAMPANIA_CERRADA_EN_ET5 (PBO 0.53787878787878785 > 0.4)
+  B16_N2_20283007=CAMPANIA_CERRADA_EN_ET5 (PBO 0.8885281385281385 > 0.4)
+  B17_N2_20283008=CAMPANIA_CERRADA_EN_ET5 (PBO 0.77489177489177485 > 0.4)
+  B18_N2_20283009=CAMPANIA_CERRADA_EN_ET5 (PBO 0.696969696969697 > 0.4)
+  B19_N2_20283010=CAMPANIA_CERRADA_EN_ET5 (PBO 0.96969696969696972 > 0.4)
+  B20_INJ20_20284001=CAMPANIA_CERRADA_EN_ET5 (PBO 0.63203463203463206 > 0.4)
+  B21_INJ20_20284002=CAMPANIA_CERRADA_EN_ET5 (PBO 0.737012987012987 > 0.4)
+  B22_INJ20_20284003=CAMPANIA_CERRADA_EN_ET5 (PBO 0.72619047619047616 > 0.4)
+  B23_INJ20_20284004=CAMPANIA_CERRADA_EN_ET5 (PBO 0.64393939393939392 > 0.4)
+  B24_INJ20_20284005=CAMPANIA_CERRADA_EN_ET5 (PBO 0.91341991341991347 > 0.4)
+  B25_INJ60_20284101=CAMPANIA_CERRADA_EN_ET5 (PBO 0.47835497835497837 > 0.4)
+  B26_INJ60_20284102=CAMPANIA_CERRADA_EN_ET5 (PBO 0.5313852813852814 > 0.4)
+  B27_INJ60_20284103=CAMPANIA_CERRADA_EN_ET5 (PBO 0.77705627705627711 > 0.4)
+  B28_INJ60_20284104=CAMPANIA_CERRADA_EN_ET5 (PBO 0.88203463203463206 > 0.4)
+  B29_INJ60_20284105=CAMPANIA_CERRADA_EN_ET5 (PBO 0.91450216450216448 > 0.4)
+  B30_INJ100_20284201=CAMPANIA_CERRADA_EN_ET5 (PBO 0.83549783549783552 > 0.4)
+  B31_INJ100_20284202=CAMPANIA_CERRADA_EN_ET5 (PBO 0.84090909090909094 > 0.4)
+  B32_INJ100_20284203=CAMPANIA_CERRADA_EN_ET5 (PBO 0.63961038961038963 > 0.4)
+  B33_INJ100_20284204=CAMPANIA_CERRADA_EN_ET5 (PBO 0.98484848484848486 > 0.4)
+  B34_INJ100_20284205=CAMPANIA_CERRADA_EN_ET5 (PBO 0.59956709956709953 > 0.4)
+Distribucion (por tipo): mediana, P5/P95 (interpolacion lineal), min/max
+ [N1]
+  fitness_t del mejor genoma de ET3 (best_fitness_t): n=10 mediana=4.709 P5=4.315 P95=5.499 min=4.182 max=5.697
+  fitness_t de TODO el databank top-K (agregado): n=2000 mediana=4.055 P5=3.616 P95=4.977 min=3.099 max=5.697
+  genomas validos en el databank (databank_valid): n=10 mediana=200 P5=200 P95=200 min=200 max=200
+  genomas con 0 operaciones (zero_trade_evals): n=10 mediana=213.5 P5=187.15 P95=244.65 min=175 max=246
+  supervivientes ET4 candidatos=n=10 mediana=200 P5=200 P95=200 min=200 max=200 | pool=n=10 mediana=200 P5=200 P95=200 min=200 max=200
+  supervivientes ET5 robust=n=10 mediana=200 P5=200 P95=200 min=200 max=200 | PBO=n=10 mediana=0.834 P5=0.435 P95=0.95 min=0.424 max=0.963
+  ET6 accepted=n=0 | finalists=n=0 | ET7 pasan=n=0
+  ensayos: ET3=n=10 mediana=7434.5 P5=7054.85 P95=7999.05 min=7049 max=8067 ET4_vecinos=n=10 mediana=2889 P5=2357.55 P95=3532 min=2331 max=3721 ET6_combinaciones=n=10 mediana=0 P5=0 P95=0 min=0 max=0 acumulado=n=10 mediana=10458.5 P5=9531.65 P95=11195.85 min=9380 max=11415
+  t del mejor portafolio (D-036): n=10 mediana=4.709 P5=4.315 P95=5.499 min=4.182 max=5.697
+  DSR de los portafolios de ET7: n=0
+  P_pass de los finalistas: n=0
+  MC DD_P95 (US$): n=0
+  operaciones/mes y eventos protectores: NO exportados por el runner (solo existe el conteo de operaciones del ledger; ver propuesta de exports al final)
+ [N2]
+  fitness_t del mejor genoma de ET3 (best_fitness_t): n=10 mediana=4.108 P5=3.203 P95=5.51 min=3.13 max=5.825
+  fitness_t de TODO el databank top-K (agregado): n=2000 mediana=3.305 P5=2.566 P95=4.837 min=2.346 max=5.825
+  genomas validos en el databank (databank_valid): n=10 mediana=200 P5=200 P95=200 min=200 max=200
+  genomas con 0 operaciones (zero_trade_evals): n=10 mediana=255.5 P5=209.45 P95=315.75 min=191 max=327
+  supervivientes ET4 candidatos=n=10 mediana=200 P5=200 P95=200 min=200 max=200 | pool=n=10 mediana=200 P5=200 P95=200 min=200 max=200
+  supervivientes ET5 robust=n=10 mediana=200 P5=200 P95=200 min=200 max=200 | PBO=n=10 mediana=0.787 P5=0.537 P95=0.933 min=0.537 max=0.97
+  ET6 accepted=n=0 | finalists=n=0 | ET7 pasan=n=0
+  ensayos: ET3=n=10 mediana=7557 P5=6829.2 P95=8846.1 min=6714 max=8910 ET4_vecinos=n=10 mediana=2783 P5=2330.1 P95=4844.7 min=2277 max=4887 ET6_combinaciones=n=10 mediana=0 P5=0 P95=0 min=0 max=0 acumulado=n=10 mediana=10473.5 P5=9221.15 P95=13690.8 min=9200 max=13797
+  t del mejor portafolio (D-036): n=10 mediana=4.108 P5=3.203 P95=5.51 min=3.13 max=5.825
+  DSR de los portafolios de ET7: n=0
+  P_pass de los finalistas: n=0
+  MC DD_P95 (US$): n=0
+  operaciones/mes y eventos protectores: NO exportados por el runner (solo existe el conteo de operaciones del ledger; ver propuesta de exports al final)
+ [INJ]
+  fitness_t del mejor genoma de ET3 (best_fitness_t): n=15 mediana=4.94 P5=4.032 P95=5.429 min=3.916 max=5.546
+  fitness_t de TODO el databank top-K (agregado): n=3000 mediana=4.227 P5=3.418 P95=4.965 min=3.194 max=5.546
+  genomas validos en el databank (databank_valid): n=15 mediana=200 P5=200 P95=200 min=200 max=200
+  genomas con 0 operaciones (zero_trade_evals): n=15 mediana=217 P5=173.3 P95=379.2 min=146 max=494
+  supervivientes ET4 candidatos=n=15 mediana=200 P5=200 P95=200 min=200 max=200 | pool=n=15 mediana=200 P5=200 P95=200 min=200 max=200
+  supervivientes ET5 robust=n=15 mediana=200 P5=200 P95=200 min=200 max=200 | PBO=n=15 mediana=0.737 P5=0.515 P95=0.936 min=0.478 max=0.985
+  ET6 accepted=n=0 | finalists=n=0 | ET7 pasan=n=0
+  ensayos: ET3=n=15 mediana=7519 P5=6645.1 P95=8306.1 min=6286 max=8374 ET4_vecinos=n=15 mediana=2799 P5=2103.5 P95=4211.6 min=2030 max=4787 ET6_combinaciones=n=15 mediana=0 P5=0 P95=0 min=0 max=0 acumulado=n=15 mediana=10745 P5=8754.9 P95=12517.7 min=8421 max=13161
+  t del mejor portafolio (D-036): n=15 mediana=4.94 P5=4.032 P95=5.429 min=3.916 max=5.546
+  DSR de los portafolios de ET7: n=0
+  P_pass de los finalistas: n=0
+  MC DD_P95 (US$): n=0
+  operaciones/mes y eventos protectores: NO exportados por el runner (solo existe el conteo de operaciones del ledger; ver propuesta de exports al final)
+
+== 5. CASCADA DE LA REGLA INYECTADA (diagnostico del §5/§6 de ET2.md) ==
+id	cierra_en	finalistas	mejor_t	t_par	sqrt(2ln N_eff)	contiene_regla	pasa_todo(tau)
+B20_INJ20_20284001	ET5: PBO 0.63203463203463206 > 0.4	0	4.135	0.71	NaN	NO	NO
+B21_INJ20_20284002	ET5: PBO 0.737012987012987 > 0.4	0	5.546	0.71	NaN	NO	NO
+B22_INJ20_20284003	ET5: PBO 0.72619047619047616 > 0.4	0	4.821	0.71	NaN	NO	NO
+B23_INJ20_20284004	ET5: PBO 0.64393939393939392 > 0.4	0	4.94	0.71	NaN	NO	NO
+B24_INJ20_20284005	ET5: PBO 0.91341991341991347 > 0.4	0	4.451	0.71	NaN	NO	NO
+B25_INJ60_20284101	ET5: PBO 0.47835497835497837 > 0.4	0	5.098	2.04	NaN	NO	NO
+B26_INJ60_20284102	ET5: PBO 0.5313852813852814 > 0.4	0	5.378	2.04	NaN	NO	NO
+B27_INJ60_20284103	ET5: PBO 0.77705627705627711 > 0.4	0	4.081	2.04	NaN	NO	NO
+B28_INJ60_20284104	ET5: PBO 0.88203463203463206 > 0.4	0	4.524	2.04	NaN	NO	NO
+B29_INJ60_20284105	ET5: PBO 0.91450216450216448 > 0.4	0	5.316	2.04	NaN	NO	NO
+B30_INJ100_20284201	ET5: PBO 0.83549783549783552 > 0.4	0	5.195	3.38	NaN	NO	NO
+B31_INJ100_20284202	ET5: PBO 0.84090909090909094 > 0.4	0	4.608	3.38	NaN	NO	NO
+B32_INJ100_20284203	ET5: PBO 0.63961038961038963 > 0.4	0	5.222	3.38	NaN	NO	NO
+B33_INJ100_20284204	ET5: PBO 0.98484848484848486 > 0.4	0	3.916	3.38	NaN	NO	NO
+B34_INJ100_20284205	ET5: PBO 0.59956709956709953 > 0.4	0	5.206	3.38	NaN	NO	NO
+(sqrt(2 ln N_eff) = orden de magnitud del maximo t esperado bajo el nulo entre N_eff pruebas; si t_par queda por debajo, el edge es indetectable POR DISENO -> §5(d) y D-020.)
+
+== 6. VECTOR NULO DEL PERCENTIL (D-036: t del mejor portafolio por campana nula) ==
+n_nulos_con_valor=20 de 20 | llego a ET7 (mejor finalista)=0 | no llego a ET7: t del mejor genoma de ET3=20 | sin valor=0 (el caso «mejor candidato de ET6» no se distingue: los finalistas de ET6 SON los candidatos de ET7)
+ADVERTENCIA: los valores de ET3 son t de un genoma suelto, no de un portafolio ejecutado; mezclarlos con los de ET7 sesga el vector (D-036 los admite como respaldo).
+vector ordenado: 3.1296, 3.2928, 3.5092, 3.7154, 4.0699, 4.1454, 4.1825, 4.1886, 4.3437, 4.4759, 4.5499, 4.5551, 4.5689, 4.8487, 4.9165, 4.931, 5.1244, 5.258, 5.6968, 5.8255
+percentiles del vector: n=20 mediana=4.513 P5=3.285 P95=5.703 min=3.13 max=5.825
+mejor portafolio de cada inyectado y su percentil frente al vector nulo (100*#{nulo<x}/n):
+  B20_INJ20_20284001 t=4.135 caso=ET3 percentil=25.0 (n=20)
+  B21_INJ20_20284002 t=5.546 caso=ET3 percentil=90.0 (n=20)
+  B22_INJ20_20284003 t=4.821 caso=ET3 percentil=65.0 (n=20)
+  B23_INJ20_20284004 t=4.94 caso=ET3 percentil=80.0 (n=20)
+  B24_INJ20_20284005 t=4.451 caso=ET3 percentil=45.0 (n=20)
+  B25_INJ60_20284101 t=5.098 caso=ET3 percentil=80.0 (n=20)
+  B26_INJ60_20284102 t=5.378 caso=ET3 percentil=90.0 (n=20)
+  B27_INJ60_20284103 t=4.081 caso=ET3 percentil=25.0 (n=20)
+  B28_INJ60_20284104 t=4.524 caso=ET3 percentil=50.0 (n=20)
+  B29_INJ60_20284105 t=5.316 caso=ET3 percentil=90.0 (n=20)
+  B30_INJ100_20284201 t=5.195 caso=ET3 percentil=85.0 (n=20)
+  B31_INJ100_20284202 t=4.608 caso=ET3 percentil=65.0 (n=20)
+  B32_INJ100_20284203 t=5.222 caso=ET3 percentil=85.0 (n=20)
+  B33_INJ100_20284204 t=3.916 caso=ET3 percentil=20.0 (n=20)
+  B34_INJ100_20284205 t=5.206 caso=ET3 percentil=85.0 (n=20)
+detalle de los portafolios que llegan a ET7 (pct: R=recalculado aqui, E=registrado por el runner; otras=pasa DSR+percentil+MC+P_pass_boot):
+  campana	tipo	portafolio	t	P_pass	DSR	pct	MC_DD_P95	otras_puertas	equiv_regla
+Fase A vs Fase B: la Fase A usa REDUCED (200x50): el maximo nulo crece ~sqrt(2 ln N) con el tamano de busqueda, asi que este vector queda SESGADO A LA BAJA frente a campanas FULL (percentiles optimistas). La comparacion con la Fase B requiere correr este generador sobre RUNBATCH_ET2_FASE_B y contrastar los vectores.
+
+== 7. TABLA DE FACTIBILIDAD DE CADA UMBRAL [B] ==
+(sin cambiar nada: solo mide que fraccion de campanas inyectadas pasa cada puerta y, donde los archivos lo permiten, barre el umbral con las demas puertas fijas y P_pass sin filtrar [tau=0]; no se tocan estructura ni umbrales)
+umbral	vigente	tipo	barrido o evidencia
+DSR minimo	0.95	barrible con estos archivos	0.5:FP=0/20,pot=0/15; 0.6:FP=0/20,pot=0/15; 0.7:FP=0/20,pot=0/15; 0.8:FP=0/20,pot=0/15; 0.9:FP=0/20,pot=0/15; 0.95:FP=0/20,pot=0/15; 0.99:FP=0/20,pot=0/15; => valor mas laxo con FP <= 5%: 0.5 (FP 0/20, potencia 0/15)
+percentil nulo minimo	95	barrible con estos archivos	50:FP=0/20,pot=0/15; 60:FP=0/20,pot=0/15; 70:FP=0/20,pot=0/15; 80:FP=0/20,pot=0/15; 90:FP=0/20,pot=0/15; 95:FP=0/20,pot=0/15; 99:FP=0/20,pot=0/15; => valor mas laxo con FP <= 5%: 50 (FP 0/20, potencia 0/15)
+MC DD P95 maximo (US$; solo endurecible <= 2000)	2000	barrible con estos archivos	2000:FP=0/20,pot=0/15; 1750:FP=0/20,pot=0/15; 1500:FP=0/20,pot=0/15; 1250:FP=0/20,pot=0/15; 1000:FP=0/20,pot=0/15; 750:FP=0/20,pot=0/15; 500:FP=0/20,pot=0/15; => valor mas laxo con FP <= 5%: 2000 (FP 0/20, potencia 0/15)
+ppass_boot_min (P_pass bootstrap de ET7; hoy solo se reporta)	solo_reporta	barrible con estos archivos	0:FP=0/20,pot=0/15; 0.25:FP=0/20,pot=0/15; 0.5:FP=0/20,pot=0/15; 0.6:FP=0/20,pot=0/15; 0.7:FP=0/20,pot=0/15; 0.8:FP=0/20,pot=0/15; 0.9:FP=0/20,pot=0/15; 0.95:FP=0/20,pot=0/15; => valor mas laxo con FP <= 5%: 0 (FP 0/20, potencia 0/15)
+ppass_min (P_pass de ET6; piso 0,50)	0 (corrida)	barrible con estos archivos	0:FP=0/20,pot=0/15; 0.25:FP=0/20,pot=0/15; 0.5:FP=0/20,pot=0/15; 0.6:FP=0/20,pot=0/15; 0.7:FP=0/20,pot=0/15; 0.8:FP=0/20,pot=0/15; 0.9:FP=0/20,pot=0/15; 0.95:FP=0/20,pot=0/15; 1:FP=0/20,pot=0/15; => valor mas laxo con FP <= 5%: 0 (FP 0/20, potencia 0/15)
+F2 (>=7/12 vecinos)	>=7/12	NO ajustable con estos archivos	fraccion de inyectadas con >=1 superviviente tras F2 y FP acumulado: filas «ET4 F2» de la seccion 3 (para barrer hay que re-correr ET4 con otro umbral)
+F3 (>=70%)	>=70%	NO ajustable con estos archivos	filas «ET4 F3 (pool>0)» de la seccion 3
+anios positivos (>=2/3) y PBO <= 0,40	>=2/3 ; 0,40	NO ajustable con estos archivos	filas «ET5 ...» de la seccion 3 (PBO por campana en la seccion 4); requiere re-correr ET5
+PF>=1,25 / Stability>30 / Symmetry>30 / ops>=150 y >=5/mes (ET6)	vigentes	NO ajustable con estos archivos	combinaciones descartadas duras por PRIMERA puerta (N1/N2/INJ): ninguna registrada (ET6_TRIALS.tsv trae pf/stability/symmetry/trades por combinacion; no se barre aqui porque el runner no marca cuales eran aceptables)
+corte de N_eff (0,40) y parametros neff_sample_*	0,40 ; 0,90 ; 1000	NO ajustable por estos datos	se mide en la seccion 9 (requiere re-agrupar series)
+parametros geneticos (D-019), edge de referencia (D-020)	D-019/D-020	NO ajustables con estos datos	requieren re-correr ET3 / curva de potencia
+DD<=2.000 y peor dia<=1.000 (derivados de la cuenta): solo endurecibles, nunca aflojables (propuesta D-037); no se barren.
+
+== 8. CURVA DE P_pass Y UMBRAL ==
+regla de ET2: menor umbral (multiplo de 0.05) con FP <= 5% sobre los nulos, piso 0.50; potencia = con regla/equivalente
+tau	FP	FP_N1	FP_N2	potencia	potencia_cota_superior
+0.00	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.05	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.10	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.15	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.20	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.25	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.30	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.35	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.40	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.45	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.50	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.55	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.60	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.65	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.70	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.75	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.80	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.85	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.90	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+0.95	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+1.00	0/20 (0.0%)	0/10 (0.0%)	0/10 (0.0%)	0/15 (0.0%)	0/15 (0.0%)
+umbral propuesto (ppass_min): 0.50 -> FP 0/20 (0.0%) ; potencia 0/15 (0.0%) ; potencia cota superior 0/15 (0.0%). Sin el piso el menor tau factible seria 0.00.
+NOTA: ninguna campana nula pasa las demas puertas (FP=0 para todo tau): el umbral queda en el piso por defecto, NO porque P_pass sea la puerta que discrimina. No es evidencia de que 0,50 sea el valor adecuado.
+
+== 9. N_eff (D-038): muestra, IC, cobertura y series planas ==
+id	tipo	n_muestra	observados	f1	f2	N_eff_Chao1	IC95_inf	IC95_sup	cobertura_GT	N_eff_usado	planas	fraccion_planas	falla_cerrada
+B00_N1_20282001	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B01_N1_20282002	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B02_N1_20282003	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B03_N1_20282004	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B04_N1_20282005	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B05_N1_20282006	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B06_N1_20282007	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B07_N1_20282008	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B08_N1_20282009	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B09_N1_20282010	N1	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B10_N2_20283001	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B11_N2_20283002	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B12_N2_20283003	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B13_N2_20283004	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B14_N2_20283005	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B15_N2_20283006	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B16_N2_20283007	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B17_N2_20283008	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B18_N2_20283009	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B19_N2_20283010	N2	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B20_INJ20_20284001	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B21_INJ20_20284002	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B22_INJ20_20284003	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B23_INJ20_20284004	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B24_INJ20_20284005	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B25_INJ60_20284101	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B26_INJ60_20284102	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B27_INJ60_20284103	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B28_INJ60_20284104	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B29_INJ60_20284105	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B30_INJ100_20284201	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B31_INJ100_20284202	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B32_INJ100_20284203	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B33_INJ100_20284204	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+B34_INJ100_20284205	INJ	5000	NA	NA	NA	NaN	NaN	NaN	NaN	NaN	NA	NaN	no_llega_a_ET7
+campanas que llegan a ET7: 0 | de ellas con N_eff en FALLA CERRADA (muestra insuficiente, cobertura, planas...): 0
+DSR de los portafolios con tres N_eff (punto / IC inferior / IC superior), recalculado con SR, asimetria, curtosis y T impresos en ET7 y la varianza del SR implicita en SR0 (precision de 3 decimales en asimetria/curtosis):
+campana	tipo	portafolio	SR_diario	DSR_usado	DSR@N_eff_inf	DSR@N_eff_punto	DSR@N_eff_sup
+DSR >= 0.95 con el N_eff SUPERIOR (el de SAMPLE_CHAO1/UPPER): inyectadas 0/0 (que llegan a ET7), nulas 0/0. Si es 0 en los inyectados el DSR NO es alcanzable con el edge de referencia (+US$20) y el IC superior del N_eff.
+(NA = no recalculable: N_eff en falla cerrada, SR0 = 0 o sin portafolios; DSR_usado es el del informe de ET7)
+cobertura empirica del IC del N_eff (¿cubre el N_eff de una referencia?): NO EVALUABLE con los archivos del lote: exige agrupar el top-K o las pruebas completas de un par de campanas como referencia; el runner solo exporta la muestra uniforme (ET3_NEFF_SAMPLE.bin). La salvaguarda real son los FP de la seccion 3 (D-038).
+propuesta mecanica de parametros (informativa, no decide): cobertura GT observada n=0 ; n_muestra observado n=35 mediana=5000 P5=5000 P95=5000 min=5000 max=5000 -> `neff_sample_cov_min` vigente 0.90 y `neff_sample_min_n` vigente 1000 solo son coherentes si ninguna campana valida cae por debajo; con la distribucion de arriba decide el orquestador/usuario.
+
+== 10. COSTE REAL ==
+segundos por campana (solo las ejecutadas en esta sesion; las reanudadas figuran 0): n=35 mediana=34.52 P5=27.189 P95=39.674 min=24.8 max=41.77 ; suma=0.33 h ; pico working set MB: n=35 mediana=6903 P5=6903 P95=6903 min=6903 max=6903
+ms/evaluacion (Paso 0) y horas de la Fase B: no estan en el lote (TIMING); citarlos del SUMMARY de TIMING.
+
+== 11. VEREDICTO MECANICO DEL GATE DE ET2 Y SIGUIENTE PASO (sin decidir por el usuario) ==
+criterio (D-037): FP puntual <= 5% Y potencia puntual >= 70%; los IC se muestran siempre; con n pequeno NO se afirma «demostrado».
+tau evaluado=0.50 (umbral propuesto de la seccion 8)
+FP: 0/20 (0.0%) CP95=[0.0%,16.8%] cota_sup_unilateral95=13.9% cota_inf_unilateral95=0.0% -> CUMPLE_PUNTUAL_NO_DEMOSTRADO
+potencia (con regla/equivalente): 0/15 (0.0%) CP95=[0.0%,21.8%] cota_sup_unilateral95=18.1% cota_inf_unilateral95=0.0% -> NO_CUMPLE
+VEREDICTO MECANICO: GATE NO CUMPLIDO
+Siguiente paso sugerido (mecanico; decide el usuario/orquestador):
+  - potencia < 70%: diagnosticar con la cascada (seccion 5) que puerta mata a la regla; si t_par < sqrt(2 ln N_eff) correr la CURVA DE POTENCIA a +40 y +60 (D-037) y elevar D-020; aflojar solo una puerta [B] con holgura de FP; si no, redisenar el embudo como version menor.
+Sesgos declarados: Fase A usa tamano REDUCED (menos pruebas que deflactar: potencia optimista, vector nulo sesgado a la baja); percentil recalculado leave-one-out con n<20 (relajado a n>=19 solo en este recalculo); equivalencia evaluada.
+Exports pendientes en el runner (si faltan): ET6_MEMBER_TRADES.tsv e INJ_PAIR_TRADES.tsv (seccion 3); operaciones/mes y eventos protectores por finalista (seccion 4); tasas de paso por puerta DENTRO de ET4 (F1/F2/F3 por candidato solo se conoce como conteo y causa de ET4_REJECTS.tsv) y de ET6 por combinacion aceptada (solo se exportan las descartadas duras).
+
+== ADVERTENCIAS DEL GENERADOR ==
+- campanas inyectadas validas = 15 (esperadas 10)
+
+== HASHES DE TRAZABILIDAD ==
+archivos_leidos=107 inputs_manifest_sha256=3edf27ab6d4b70134cae30642614f1405fb065bc17daedcc230c12d1f16e51f7
+sha256  bytes  ruta (relativa a la carpeta del lote)
+13272fd910af147cc184fcd2c32a8a1be34b252516b1df2269556d0cf611a906  121365  B00_N1_20282001/ET3/ET3_DATABANK.tsv
+31d1567b1c7e791d55cc2a13ab51d1708d92fc7af82e00703d4748062860a2b7  61241  B00_N1_20282001/ET4/ET4_REJECTS.tsv
+ff98060a0700fa77a35c6717e337a76f4a7cddf63a47f5dfeab2575770607215  4740  B00_N1_20282001/SUMMARY.txt
+f538114f46837519d95548e39a48da0d8da725bf3743b315bd28b0cd1622de37  135621  B01_N1_20282002/ET3/ET3_DATABANK.tsv
+4b0f591d55523b7246ff42333ab78af08daae0e5663899c9e84263acdbf8ae14  62663  B01_N1_20282002/ET4/ET4_REJECTS.tsv
+e40d4669aa1d263bdaa102ad9001b7bcd3cee0a2f42483d6eb0f545046e795d4  4736  B01_N1_20282002/SUMMARY.txt
+8e745bc4579f2e5c16a08cda0434620e7e91cb179a2fb7e0db1d416c09e20b29  132312  B02_N1_20282003/ET3/ET3_DATABANK.tsv
+ca61d7cabfc811f36b03763bed9a7aff15dcfc413adffe8366de7f07423afafc  61323  B02_N1_20282003/ET4/ET4_REJECTS.tsv
+56b75cd3b90c2e0e030b9ea4255f9d9626adfe092210f6dc99590b8140c1f7a2  4741  B02_N1_20282003/SUMMARY.txt
+a68eb3779d0ff4ff55dee96126bb626d4b98ac2cdff378cbd48901c28548d8ad  142536  B03_N1_20282004/ET3/ET3_DATABANK.tsv
+1cf768d5e3abd7c9f33fffc6ed60034f2e718ab783308287b279344f9b561024  61153  B03_N1_20282004/ET4/ET4_REJECTS.tsv
+3d8595df02e6aaab459b998aba0f9413e4bd0291f47d3c922020e9a8da2cfde1  4740  B03_N1_20282004/SUMMARY.txt
+aecaf135051adfb3d2a3feb28f4b545e5ba4d5e2ab39634ebd9ec68240e009c1  130442  B04_N1_20282005/ET3/ET3_DATABANK.tsv
+df3c6a0486ed8ea5462a35a07478de36eadc65c4b891f0e7f88cc94f981b790f  62771  B04_N1_20282005/ET4/ET4_REJECTS.tsv
+7305fc8c39d5d5bee0c82a41c0d9c73a153543ebadfe5b795760b98fda04d493  4740  B04_N1_20282005/SUMMARY.txt
+1aebfbb156b5c9114744001f2e471cb1f053340ef3ae540b09ab6f5ff7d7e070  123723  B05_N1_20282006/ET3/ET3_DATABANK.tsv
+e276291c8e19f84552607761683d2f27f8486f8f47fc24828a17f63b0c0b60f7  61706  B05_N1_20282006/ET4/ET4_REJECTS.tsv
+689757e0257dde9e8f567ec77e5ae4634c2ecbee14d1b2d24f642bfbaac69a0c  4738  B05_N1_20282006/SUMMARY.txt
+dc26743626c5e7537c56912f2793b99d74632ff79b96aee6dd48d345cb1d495f  115072  B06_N1_20282007/ET3/ET3_DATABANK.tsv
+aaf636dce0a9eb0af787998811de0c2a12624f6273bdf75e7096c4051ebdcb8a  61455  B06_N1_20282007/ET4/ET4_REJECTS.tsv
+7f8e2cb8531b1d5238b014d3e6ac12ef0af1592912ac1f30ba631c13280c38be  4730  B06_N1_20282007/SUMMARY.txt
+e9a9b2600ccc0c2ce1f3614698db66fed49bdeae2475b09f86298d6b74daa54e  105256  B07_N1_20282008/ET3/ET3_DATABANK.tsv
+798695abe4e725ba74792828f700356b64747f0778df9b5c15640ee561583c9e  61925  B07_N1_20282008/ET4/ET4_REJECTS.tsv
+57cc288c0f25a7ec96fba8ed15e8679a57334469d06f10029ac53da6f7151443  4739  B07_N1_20282008/SUMMARY.txt
+cff6c84f3a723acb314325e5f95e83af3b13abbd26d35fa9b4170be1751447b3  117787  B08_N1_20282009/ET3/ET3_DATABANK.tsv
+347621e68d6df58f0b778d5eee74c153beab6562fd80950c19e473a93f3e14cd  61638  B08_N1_20282009/ET4/ET4_REJECTS.tsv
+7ab836ddf22b319d78ade0955ef1c80f859da6224b02acb88b2c2e9184298f06  4740  B08_N1_20282009/SUMMARY.txt
+e4dfce6cd5bcffe9b33db1a644cde1d69076aad02ea65be375a8d59c61a96439  108016  B09_N1_20282010/ET3/ET3_DATABANK.tsv
+fb0b86346ee2f7f7951d9adf1fb3b8679ae867dce8d853cbdc9696fa30956af1  62099  B09_N1_20282010/ET4/ET4_REJECTS.tsv
+9171d09dac79ece7632d4fbe0ea2fd4549cc56cf2e5a1dffacac461fe0f2faca  4738  B09_N1_20282010/SUMMARY.txt
+e51ebb1eff229d1a389b7b012d3d40a1265b2651943217cacd664eb6be778952  109961  B10_N2_20283001/ET3/ET3_DATABANK.tsv
+057e511ac5dd3faf5d876a5d8f60c66fa9423d662312c7644f1b5ddf4e6ee6be  61670  B10_N2_20283001/ET4/ET4_REJECTS.tsv
+c28ad5112171894c2ff807696f26a71695badce6c23ac7b6ef5513968c315066  4744  B10_N2_20283001/SUMMARY.txt
+070f9b20bb6c6884521e50bfe9c8a3b438d09186a547e43dc1d233a40670797c  121651  B11_N2_20283002/ET3/ET3_DATABANK.tsv
+de6686d5c6d94e1aea1037b2c4df1539f1cb5224dbaf49ce8848bf3a396b0fe8  61960  B11_N2_20283002/ET4/ET4_REJECTS.tsv
+edfea9c37298c6db81b09f47ad31b43bf3a965634a7c5eda803b1ac1744c7340  4746  B11_N2_20283002/SUMMARY.txt
+30538d18401112ddf4ebdb8846a93c9d60bab9fce5c3066a8d1b4a4d9c7b7e07  162574  B12_N2_20283003/ET3/ET3_DATABANK.tsv
+1b031622bf259cb514fe59083479e3e3c155a4a8973160aef3e4afdc0a1ea386  61589  B12_N2_20283003/ET4/ET4_REJECTS.tsv
+9715b6910351848becd07598a379b30697e0cd9b702916dc7a1f90013c77afb1  4746  B12_N2_20283003/SUMMARY.txt
+03e5d529f03b8bed1b508643e752ab67d03e3bd0a5088497ed94306c32149ac8  158566  B13_N2_20283004/ET3/ET3_DATABANK.tsv
+87676bd68e6a2358efc95772ed2a13dd09a367c06684e669a37dfb7bd5d05835  63253  B13_N2_20283004/ET4/ET4_REJECTS.tsv
+73ec327b332105cb7e6388b0b48f628f662b0a4ccc73f366866c6d512b038b40  4746  B13_N2_20283004/SUMMARY.txt
+b649b62bada31e6cfb21e2755fd53eefa979bc656489a0da39cdbe142700a336  122665  B14_N2_20283005/ET3/ET3_DATABANK.tsv
+f1d6abd8307bf72aa06ffa3c2fcbadf59c62b561e5f4f59cfaa38c3309a60c53  61766  B14_N2_20283005/ET4/ET4_REJECTS.tsv
+59e031d4552994a0f664393a5bed01ae21316dc1471e1311b8ef5a3d1cddd7ba  4746  B14_N2_20283005/SUMMARY.txt
+c30b8ef8be91d17bfae09d940c4b7316e9641ab7d29d5c9b96822461cc80f181  143460  B15_N2_20283006/ET3/ET3_DATABANK.tsv
+e4851e5f9f7231c6d2211e302b06e7fc604d0896e66340849066525b3a375ad1  61246  B15_N2_20283006/ET4/ET4_REJECTS.tsv
+5a7e1d60f74f1dd5ee95316f2ad97eba6e3a68e5839a431623b6c781ae32da7c  4747  B15_N2_20283006/SUMMARY.txt
+d80ad3e7d7604a624c008ba40861a2ecef8d0692f576a40f2977a5990ee6a4cd  171420  B16_N2_20283007/ET3/ET3_DATABANK.tsv
+6bcabccf7412c39b2befb762bdc0be5811e8f78cf94dbedeeee5ea6135f41ff9  60752  B16_N2_20283007/ET4/ET4_REJECTS.tsv
+7c548bf1752329a58386a92b87acf631e78258002d35b1d0616fbb5ece56e32a  4742  B16_N2_20283007/SUMMARY.txt
+697c1622cd1620227bb8bb90ae5cebef3af0e697f2d8e18c2b778383fbc71dbc  107908  B17_N2_20283008/ET3/ET3_DATABANK.tsv
+7504a677dbe97f6fd4379ac0906dfb4958f38285d4b23cfd3757fc6c8cac9a43  62327  B17_N2_20283008/ET4/ET4_REJECTS.tsv
+8f04e59ba55340d992fda3fa1478ffee8c2d810398770f703d65844e73898e13  4744  B17_N2_20283008/SUMMARY.txt
+d2ecb2bd7ca9de76324b418c712cb03e2fd87bbf2f97d202223236288da7e2ca  103338  B18_N2_20283009/ET3/ET3_DATABANK.tsv
+6effb8baabab10e616847882fd8935aeb70e24d46a77728972c0af667cecc339  62258  B18_N2_20283009/ET4/ET4_REJECTS.tsv
+be3df210e0ca31249556b2e3a23b6d4b00a1b5f2ddef6e2dfb71e3b1ee34e50f  4738  B18_N2_20283009/SUMMARY.txt
+071695b02359594071c0d18a1f9994930abd85e95850e49bd771184afb6505a1  115419  B19_N2_20283010/ET3/ET3_DATABANK.tsv
+af570999ec18bca500f6acde989ca43ce7168d9c5b82591348fa362ae1b6f148  63333  B19_N2_20283010/ET4/ET4_REJECTS.tsv
+59ff3a8d7ba1a0f7643b6b11badfef2b2d79e8e798ddc86870130d76f415ee08  4745  B19_N2_20283010/SUMMARY.txt
+cd5e698ebed960171126f7da02086050bd4149d2517b4cefead80cddb94b07c7  98789  B20_INJ20_20284001/ET3/ET3_DATABANK.tsv
+de2ae5eddfc7bdb1ff87c716eeef543061097867c5932e5382a455899f85e189  61373  B20_INJ20_20284001/ET4/ET4_REJECTS.tsv
+fd701c6ef23c1e6a726a033f18d0b08ccdbcf26adadf7bd5ce28ff4ea8c6381f  5144  B20_INJ20_20284001/SUMMARY.txt
+c753ea988ddb80960abb3855e6666b0d6655a3b72ff6ae85be081527cc66404c  140615  B21_INJ20_20284002/ET3/ET3_DATABANK.tsv
+6a81fe575951f14edb3abb8d9de9b727cca9d034d50378a34063ed81ea605ee8  61983  B21_INJ20_20284002/ET4/ET4_REJECTS.tsv
+b82be17f8a6f7c346f724b04c5b630f563da8db577e4df3ee55fa13491f6ae52  5138  B21_INJ20_20284002/SUMMARY.txt
+b0e11e2fc52ec754ec06360590b66c9fe928097e80ba0c99306f250670e8c7fa  107760  B22_INJ20_20284003/ET3/ET3_DATABANK.tsv
+93c39c10b1d4efb896a97b11a46563d44a626f6eb636962f07e687f6d6a11deb  61333  B22_INJ20_20284003/ET4/ET4_REJECTS.tsv
+5c5f1d4c8a25926d9ccd4ee483695a8ae7d6da155eb3b7f19f1e10d294d00622  5144  B22_INJ20_20284003/SUMMARY.txt
+40354152a1ff7bd5c2f252ac24c7810a9d851b6d098c433eb9d1f04f2f12235d  116621  B23_INJ20_20284004/ET3/ET3_DATABANK.tsv
+344da10ee1a9713eba31680f2cbfe122d41e19f65de8fc7431fbf4dfb3dd5d24  61290  B23_INJ20_20284004/ET4/ET4_REJECTS.tsv
+bf11e4a7657f5379a2203ae37c333d2f08447b972d6c12dc1cf9bd6112a57aa2  5146  B23_INJ20_20284004/SUMMARY.txt
+88dd1f0f4146e3129f73b3b1bc311f967c80ed1d23ae7482d90770a9516a34f6  104629  B24_INJ20_20284005/ET3/ET3_DATABANK.tsv
+a3f6e2e3416d052abe0d0bde16761151e37e05e50ca1e5d2bb56cf2933c38ece  61254  B24_INJ20_20284005/ET4/ET4_REJECTS.tsv
+4a0464c021ed8ede9fbff8ff111f8b786ce73a8077e1260ef32bd516d518de42  5144  B24_INJ20_20284005/SUMMARY.txt
+440a28cd791e4343656e299ba5df1f72474eabeddc21b949f1ebe7345848f3d2  114714  B25_INJ60_20284101/ET3/ET3_DATABANK.tsv
+bc07f5db42072824dd4339b1d8fc19839cb7d13255fa4b1038de63576ca1771c  61364  B25_INJ60_20284101/ET4/ET4_REJECTS.tsv
+24c9ef486d4d2db844e702b32dd3b5283325c5a067758695098604e258af2362  5145  B25_INJ60_20284101/SUMMARY.txt
+d5d25a531ddb17a8fee2a3a4db48a65f0110b807603764796c62cf0430939db1  148728  B26_INJ60_20284102/ET3/ET3_DATABANK.tsv
+db6c41242f63ccf6976ef95cbcbd08b2b5ee33ab12f080207014d97b56cfa179  61939  B26_INJ60_20284102/ET4/ET4_REJECTS.tsv
+cfe77cc3f36892b860531b642ed93e6c8ca6e7f453fb95367b5a0ce074638ce7  5144  B26_INJ60_20284102/SUMMARY.txt
+32060c74372c4442d1a258adb325910246341261fca68e384152faab2d7c2631  139967  B27_INJ60_20284103/ET3/ET3_DATABANK.tsv
+2082b3eaf0613f0bbdb89e0ff17b1f084a6b7b9661832ddd5880a9e2723b36f9  62341  B27_INJ60_20284103/ET4/ET4_REJECTS.tsv
+e7350d749e150586e36ef342570f78029617283c94ca3d87ce6e2bf79283a173  5144  B27_INJ60_20284103/SUMMARY.txt
+dbf359e237327e827d16bd34a659114b2568888fa867e7ba89b595721002a305  126647  B28_INJ60_20284104/ET3/ET3_DATABANK.tsv
+2936f6e6e38f17df95ed48cb321e4cdfc07966663432ab87c5d74838cbe6907d  61848  B28_INJ60_20284104/ET4/ET4_REJECTS.tsv
+a45553bbde26fd3e9ecb82ca3c9c8d7c84f6a2c06fb69dc15e267f0404ecc16e  5148  B28_INJ60_20284104/SUMMARY.txt
+0e122d7cdcfa62ce0cfb133e8310ab3d08ab33d60bbb49bd6a8b864718827e94  145429  B29_INJ60_20284105/ET3/ET3_DATABANK.tsv
+0917b08974a0c21003661a7e7195da83e459068e78bdf1cca9c6403c0fd36cc1  62326  B29_INJ60_20284105/ET4/ET4_REJECTS.tsv
+f50d63f5469706babed171f0be006d59b18ba98937a6e976e2b05d5132f794e7  5147  B29_INJ60_20284105/SUMMARY.txt
+318b2035e67a3eba394925553aa00d0a386df3e49e99eb1e96e8c2381a3c8fb3  110103  B30_INJ100_20284201/ET3/ET3_DATABANK.tsv
+f89ca523e19b999fe3f49cc27e84210a2d6ccff6b560e318613ecd49a18bb8a7  61944  B30_INJ100_20284201/ET4/ET4_REJECTS.tsv
+db6ce90757d23f0290be879ae9282397b523a0b08fcc2f0dbfc376804498457d  5147  B30_INJ100_20284201/SUMMARY.txt
+3bbbd40e5daec573746918fce93505e629542516212694fcdf9854e3ccb43a82  135844  B31_INJ100_20284202/ET3/ET3_DATABANK.tsv
+117d19dce6a6fb26b1a37f5f2c659b4710859da2f82c36baa2bdb92f7ed2ca30  61665  B31_INJ100_20284202/ET4/ET4_REJECTS.tsv
+a31f7aadeb57dcf5626f368e7910b8db2aed6c588266683a323443465cda8d1a  5151  B31_INJ100_20284202/SUMMARY.txt
+f1a83843684252199c4b404233d0810fb86d6006c24f0bc05dc0cba7a9422f48  153799  B32_INJ100_20284203/ET3/ET3_DATABANK.tsv
+7642ac56a57fe4a9769a9c0e18eeff08ec82248e4287056dcf385f3b810a5e3f  61158  B32_INJ100_20284203/ET4/ET4_REJECTS.tsv
+dbcf59222f43e810a5494d383b8dd195c9119ae9d1206a22e91bc6d7002468c6  5152  B32_INJ100_20284203/SUMMARY.txt
+27ea13b32a44207988fdf328d641506ebf7a2a6c0d2d3a8d671c7c79582b730b  180171  B33_INJ100_20284204/ET3/ET3_DATABANK.tsv
+f077b7e9415a6805588b74e124fbb4c66e46b515b451680fe28c7fd0dbbdac11  62254  B33_INJ100_20284204/ET4/ET4_REJECTS.tsv
+60cdd63a6bcdef50b242659c8a45c8a45dac1efefeadf35b4a179e25932f3bce  5151  B33_INJ100_20284204/SUMMARY.txt
+5960d35a918364b3fbdcee667f7dca02c682922a2074d15b01f334bc0fd22941  116048  B34_INJ100_20284205/ET3/ET3_DATABANK.tsv
+3e6eb800a21d4f7155cfd606fa0fbaf58abd64aa62cd08f49b6ed898b86bfa6a  61526  B34_INJ100_20284205/ET4/ET4_REJECTS.tsv
+e60253f5106e8d871b52a81a29fb7e0a186f68a9cecccbacfb9112cb787c2d2c  5148  B34_INJ100_20284205/SUMMARY.txt
+3ff4c051d92fa2cd3b6b86931406dc92a23ee35393c249d8cf23b41d75129358  128596  BATCH_LOG.txt
+0752d26c5dc28d046bab392e050954ea44f3ec46fc4fa2d92234eabf48eadf78  8478  SUMMARY.txt
+report_sha256=fe25efd0a80af3bd7c8d90c03e5f44399e54265721d02c37c0ce3d25ae492bee (sha256 del texto anterior a esta linea)
