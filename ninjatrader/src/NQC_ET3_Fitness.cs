@@ -15,6 +15,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public sealed class NQCE3_Eval
 	{
+		public int MonthsCovered; public double TRaw, Top5Share;
 		public string TrialId, GenomeText; public double Fitness, MeanNet, StdNet, TotalNet; public int Trades; public bool Valid;
 		public bool ZeroTradesWithRejects;   // 0 operaciones y alguna condicion sin senal por calentamiento/volumen/no finito (diagnostico A4)
 		public string TradeFingerprint;    // SHA256 de la secuencia (EntryTick, Dir) para deduplicar el databank
@@ -24,9 +25,21 @@ namespace NinjaTrader.NinjaScript.Strategies
 	// Resultado de un genoma dentro de un lote (NQCE3_Fitness.EvaluateBatch). Skipped = omitido por el tope de evaluaciones; Fresh = ensayo nuevo.
 	public sealed class NQCE3_BatchItem { public NQCE3_Eval Eval; public bool Fresh, Skipped; }
 
+	// D-039: especificacion de la aptitud y del minimo de operaciones. DEFECTO DEL CODIGO = legado (T, 100, sin cobertura): hashes anteriores intactos.
+	// T_SHRUNK (aptitud v2): F = t_adj * sqrt(n/(n+n0)) * conc, con t_adj = mean/(max(sd, sd_floor_k*mean|net|)/sqrt(n)) y conc = min(1, top5_max/share5) (share5 = parte de la ganancia bruta que dan las 5 mejores operaciones).
+	public sealed class NQCE3_FitnessSpec
+	{
+		public int MinTrades = 100, MinMonths = 0; public string Mode = "T"; public double N0 = 250.0, SdFloorK = 0.8, Top5Max = 0.25;
+		public bool IsLegacy { get { return Mode == "T" && MinTrades == 100 && MinMonths == 0; } }
+		public string Text() { return "mode=" + Mode + " min_trades=" + MinTrades.ToString(CultureInfo.InvariantCulture) + " min_months=" + MinMonths.ToString(CultureInfo.InvariantCulture) + (Mode == "T_SHRUNK" ? " n0=" + N0.ToString("R", CultureInfo.InvariantCulture) + " sd_floor_k=" + SdFloorK.ToString("R", CultureInfo.InvariantCulture) + " top5_max=" + Top5Max.ToString("R", CultureInfo.InvariantCulture) : ""); }
+		public string Validate() { if (Mode != "T" && Mode != "T_SHRUNK") return "et3.fitness_mode debe ser T o T_SHRUNK"; if (MinTrades < 2 || MinTrades > 100000) return "et3.min_trades fuera de 2..100000"; if (MinMonths < 0 || MinMonths > 36) return "et3.min_months_covered fuera de 0..36"; if (N0 < 0 || SdFloorK < 0 || Top5Max <= 0 || Top5Max > 1) return "parametros de T_SHRUNK fuera de rango"; return ""; }
+		public static NQCE3_FitnessSpec Shrunk() { NQCE3_FitnessSpec f = new NQCE3_FitnessSpec(); f.Mode = "T_SHRUNK"; f.MinTrades = 250; f.MinMonths = 24; return f; }
+	}
+
 	public sealed class NQCE3_Fitness
 	{
 		public const int MinTrades = 100;
+		public NQCE3_FitnessSpec Spec = new NQCE3_FitnessSpec();
 		public const int IsFromKey = 20200101, IsToKey = 20221231;
 		private NQCE_Bars bars; private NQCE_Config cfg; private INQCE3_Library lib;
 		private Dictionary<string, NQCE3_Eval> cache = new Dictionary<string, NQCE3_Eval>();
@@ -162,6 +175,23 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return items;
 		}
 
+		// Aptitud v2 (ver NQCE3_FitnessSpec). Solo se llama con n >= min_trades >= 2.
+		private double Shrunk(List<NQCE_Trade> trades, double mean, double sd, NQCE3_Eval e)
+		{
+			int n = trades.Count; double absSum = 0, gross = 0; double[] top = new double[5]; for (int i = 0; i < 5; i++) top[i] = double.NegativeInfinity;
+			foreach (NQCE_Trade t in trades)
+			{
+				absSum += Math.Abs(t.Net);
+				if (t.Net > 0) { gross += t.Net; int m = 0; for (int i = 1; i < 5; i++) if (top[i] < top[m]) m = i; if (t.Net > top[m]) top[m] = t.Net; }
+			}
+			double s5 = 0; for (int i = 0; i < 5; i++) if (top[i] > 0) s5 += top[i];
+			e.Top5Share = gross > 0 ? s5 / gross : 0;
+			double sdEff = Math.Max(sd, Spec.SdFloorK * absSum / n); if (sdEff <= 0) return 0;
+			double tAdj = mean / (sdEff / Math.Sqrt((double)n));
+			double conc = (tAdj > 0 && e.Top5Share > Spec.Top5Max) ? Spec.Top5Max / e.Top5Share : 1.0;
+			return tAdj * Math.Sqrt(n / (n + Spec.N0)) * conc;
+		}
+
 		// Una evaluacion nueva: funcion pura de (genoma, barras, cfg). Solo escribe en su Job (nada compartido salvo la cache de numeradores).
 		private void Run(Job j)
 		{
@@ -176,9 +206,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			e.Trades = res.Trades.Count;
 			double mean, sd; double t = TStat(res.Trades, out mean, out sd);
 			e.MeanNet = mean; e.StdNet = sd; foreach (NQCE_Trade tr in res.Trades) e.TotalNet += tr.Net;
-			e.Valid = e.Trades >= MinTrades;
-			// invalido (<100 operaciones): por debajo de todo valido, ordenado por numero de operaciones (A3)
-			e.Fitness = e.Valid ? t : InvalidBase + (double)e.Trades / MinTrades;
+			e.TRaw = t;
+			HashSet<int> mo = new HashSet<int>(); foreach (NQCE_Trade tr in res.Trades) mo.Add(tr.DayKey / 100); e.MonthsCovered = mo.Count;
+			int minT = Spec.MinTrades;
+			e.Valid = e.Trades >= minT && e.MonthsCovered >= Spec.MinMonths;
+			// invalido: por debajo de todo valido; primero por operaciones (<min), luego por cobertura de meses (A3)
+			if (e.Valid)
+			{
+				if (Spec.Mode == "T_SHRUNK") e.Fitness = Shrunk(res.Trades, mean, sd, e);
+				else e.Fitness = t;
+			}
+			else e.Fitness = e.Trades < minT ? InvalidBase + (double)e.Trades / minT : InvalidBase + 1.0 + (double)e.MonthsCovered / Math.Max(1, Spec.MinMonths);
 			System.Text.StringBuilder sb = new System.Text.StringBuilder();
 			foreach (NQCE_Trade tr in res.Trades) sb.Append(tr.EntryTick.ToString(CultureInfo.InvariantCulture)).Append(tr.Dir == 1 ? "L" : "S").Append(';');
 			e.TradeFingerprint = NQCE_Const.Sha256Text(sb.ToString());

@@ -173,7 +173,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 		private static NQCRUN_Params ToyParams(string dir)
 		{
-			NQCRUN_Params p = new NQCRUN_Params(); p.OutDir = dir; p.Population = 60; p.Generations = 12; p.TopK = 200; p.MemoBudgetMb = 64; p.Resume = false;
+			NQCRUN_Params p = new NQCRUN_Params(); p.Fitness = new NQCE3_FitnessSpec(); p.OutDir = dir; p.Population = 60; p.Generations = 12; p.TopK = 200; p.MemoBudgetMb = 64; p.Resume = false;
 			p.LibraryFactory = delegate() { return new NQCRT_ToyLib(); };
 			p.Config = new NQCE_Config(); p.Config.Excluded = new HashSet<int>();
 			p.Et6PpassMin = 0.0;                                   // SOLO PRUEBA: el umbral real lo fija ET2
@@ -236,7 +236,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				string e; NQCRUN_Params q = NQCRUN_Params.Parse("campaign=c1\nseed=20261114\npopulation=500\net7.mc_mode=CONFIRMATORY\net6.ppass_min=\nfreeze=0\n", out e);
 				bool okParse = q != null && q.Campaign == "C1" && q.Et7Text.Trim() == "mc_mode=CONFIRMATORY" && double.IsNaN(q.Et6PpassMin) && q.Validate() == "";
 				string e2; NQCRUN_Params u = NQCRUN_Params.Parse("campaign=C1\nfoo=1\n", out e2);
-				NQCRUN_Params d = new NQCRUN_Params(); NQCE3_Params gp = new NQCE3_Params();
+				NQCRUN_Params d = new NQCRUN_Params(); d.Fitness = new NQCE3_FitnessSpec(); NQCE3_Params gp = new NQCE3_Params();
 				bool defaults = d.Population == gp.PopSize && d.Generations == gp.Generations && d.TopK == gp.TopK && d.Seed == gp.Seed && d.MaxEvals == 100000 && d.Campaign == "C1" && !d.Freeze && d.MemoBudgetMb == 2048;
 				Chk("F2.1 configuracion: defectos D-019 (500x200, top-K 2.000, semilla 20261114), clave desconocida = error, freeze desactivado", okParse && u == null && e2.Contains("foo") && defaults, "ok");
 				NQCRUN_Params a = new NQCRUN_Params(); a.Campaign = "C6"; NQCRUN_Params b = new NQCRUN_Params(); b.MaxEvals = 100001; NQCRUN_Params c = new NQCRUN_Params(); c.Campaign = "C2";

@@ -44,7 +44,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private void Chk(string name, bool ok, string info) { if (ok) pass++; else fail++; rep.Append(ok ? "[PASS] " : "[FALLA] ").Append(name).Append(" | ").Append(info).Append("\n"); }
 
-		private const string Glob = "batch=TOY\nallow_custom=1\net2_approved=1\ntol=10\nmemo_budget_mb=64\nneff_sample=40\net6.ppass_min=0\net7.neff_coverage_min=0.01\nresume=1\n";
+		private const string Glob = "batch=TOY\nallow_custom=1\net2_approved=1\ntol=10\nmemo_budget_mb=64\nneff_sample=40\net6.ppass_min=0\net7.neff_coverage_min=0.01\nresume=1\net3.fitness_mode=T\net3.min_trades=100\net3.min_months_covered=0\n";
 		private const string Sz = " size=CUSTOM pop=24 gen=4 maxevals=2000 topk=50";
 		private static string Manifest4() { return Glob + "campaign id=C1 transform=IDENTITY gaseed=20269001" + Sz + "\ncampaign id=T-N1 transform=N1 tseed=11 gaseed=20269002" + Sz + "\ncampaign id=T-N2 transform=N2 tseed=12 gaseed=20269003" + Sz + "\ncampaign id=T-INJ transform=N1+INJ tseed=13 gaseed=20269004" + Sz + "\n"; }
 

@@ -85,6 +85,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Calibration;                           // campana de CALIBRACION (ET2, datos transformados; la fija el lanzador por lotes): etiqueta libre en vez de C1..C5, no consume las 5 campanas
 		public int Et6MaxPool = 30, Et6BeamWidth = 10; public double Et6PpassMin = double.NaN;
 		public string Et7Text = "";
+		// D-039 (NQCRUN-1.4.0): aptitud y minimo de operaciones de ET3 (DEFECTO de la repeticion: T_SHRUNK, 250 operaciones, 24 meses; el legado se pide con et3.fitness_mode=T et3.min_trades=100 et3.min_months_covered=0) y pool equilibrado de ET6.
+		public NQCE3_FitnessSpec Fitness = NQCE3_FitnessSpec.Shrunk(); public bool Et6PoolBalance = false;
 		// D-038 integrado (NQCRUN-1.2.0): con neff_sample>0 el veredicto de ET7 usa neff_method=SAMPLE_CHAO1 con neff_bound=UPPER. Las claves que el usuario no declare se completan con los defectos
 		// propuestos y quedan en la config EFECTIVA (ET7_CONFIG.txt y config_sha256 la sellan). Una clave declarada por el usuario manda. neff_sample=0 deja el texto intacto (modo COVERED, hashes anteriores).
 		public string EffectiveEt7Text()
@@ -142,6 +144,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 						case "neff_sample": p.NeffSample = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "engine_dir": p.EngineDir = v; break;
 						case "stop_after": p.StopAfter = v.ToUpperInvariant(); break;
+						case "et3.fitness_mode": p.Fitness.Mode = v.ToUpperInvariant(); break;
+						case "et3.min_trades": p.Fitness.MinTrades = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "et3.min_months_covered": p.Fitness.MinMonths = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "et3.n0": p.Fitness.N0 = D(v); break;
+						case "et3.sd_floor_k": p.Fitness.SdFloorK = D(v); break;
+						case "et3.top5_max": p.Fitness.Top5Max = D(v); break;
+						case "et6.pool_balance": p.Et6PoolBalance = B(v); break;
 						case "et6.max_pool": p.Et6MaxPool = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "et6.beam_width": p.Et6BeamWidth = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "et6.ppass_min": p.Et6PpassMin = v.Length == 0 ? double.NaN : D(v); break;
@@ -169,6 +178,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (Campaign.Length != 2 || Campaign[0] != 'C' || Campaign[1] < '1' || Campaign[1] > '5') return "campaign debe ser C1..C5 (maximo 5 campanas)";
 				if (Campaign != "C1" && (!SeedGiven || Seed == 20261114)) return "campana " + Campaign + ": la semilla debe declararse antes (clave seed) y no puede reutilizar la de C1";
 			}
+			{ string fe = Fitness.Validate(); if (fe.Length > 0) return fe; }
 			if (NeffSample < 0 || NeffSample > 100000) return "neff_sample fuera de 0..100000";
 			if (Population < 1 || Generations < 1 || TopK < 1) return "population, generations y top_k deben ser >= 1";
 			if (MaxEvals < 1 || MaxEvals > NQCE3_Campaign.MaxEvaluations) return "max_evals fuera de 1..100000 (tope duro D-019)";
@@ -197,6 +207,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			 .Append(" topk=").Append(gp.TopK.ToString(CultureInfo.InvariantCulture)).Append(" initmax=").Append(gp.InitMaxActive.ToString(CultureInfo.InvariantCulture)).Append(" inittries=").Append(gp.MaxInitTries.ToString(CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("cfg: ").Append(NQCRUN_Funnel.CfgText(Config)).Append('\n');
 			b.Append("et6: max_pool=").Append(Et6MaxPool.ToString(CultureInfo.InvariantCulture)).Append(" beam=").Append(Et6BeamWidth.ToString(CultureInfo.InvariantCulture)).Append(" ppass_min=").Append(double.IsNaN(Et6PpassMin) ? "NaN" : Et6PpassMin.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
+			if (Et6PoolBalance) b.Append("et6_pool_balance=1\n");
+			if (!Fitness.IsLegacy) b.Append("et3_fitness: ").Append(Fitness.Text()).Append('\n');
 			b.Append("et7_config_sha256=").Append(NQCE_Const.Sha256Text(EffectiveEt7Text())).Append('\n');
 			b.Append("neff_sample=").Append(NeffSample.ToString(CultureInfo.InvariantCulture)).Append('\n');
 			b.Append("freeze=").Append(Freeze ? "1" : "0").Append(" strict_is_range=").Append(StrictIsRange ? "1" : "0").Append(" commit=").Append(Commit).Append('\n');
@@ -614,7 +626,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				Invalidate("ET3"); Invalidate("ET4"); Invalidate("ET5"); Invalidate("ET6"); Invalidate("ET7");
 				sw.Reset(); sw.Start(); c3 = new NQCRUN_Ckpt("ET3", in3);
-				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib);
+				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib); fit.Spec = p.Fitness;
 				NQCE3_Reservoir rsv = p.NeffSample > 0 ? new NQCE3_Reservoir(p.NeffSample, p.Seed) : null; fit.Reservoir = rsv;   // D-038: muestra uniforme de TODOS los ensayos evaluados (no solo el top-K)
 				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = p.Campaign; camp.MaxEvals = p.MaxEvals; camp.Threads = threadsEff;
 				Stopwatch gs = Stopwatch.StartNew();
@@ -698,7 +710,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				sw.Reset(); sw.Start(); c6 = new NQCRUN_Ckpt("ET6", in6);
 				List<NQCE6_PoolEntry> pool = new List<NQCE6_PoolEntry>(); string[] rl = Read("ET5/ET5_ROBUST.tsv").Split('\n');
 				for (int i = 1; i < rl.Length; i++) { if (rl[i].Length == 0) continue; string id = rl[i].Split('\t')[1]; NQCRUN_Cand k; if (!byId.TryGetValue(id, out k)) throw new NQCRUN_Exception("RUN: candidato robusto ausente del databank: " + id); pool.Add(new NQCE6_PoolEntry(id, k.Genome.Clone(), k.Fitness)); }
-				NQCE6_Params p6 = new NQCE6_Params(); p6.MaxPool = p.Et6MaxPool; p6.BeamWidth = p.Et6BeamWidth; p6.Seed = p.Seed; p6.PpassMin = p.Et6PpassMin; p6.Campaign = p.Campaign;
+				NQCE6_Params p6 = new NQCE6_Params(); p6.MaxPool = p.Et6MaxPool; p6.BeamWidth = p.Et6BeamWidth; p6.Seed = p.Seed; p6.PpassMin = p.Et6PpassMin; p6.Campaign = p.Campaign; p6.PoolBalance = p.Et6PoolBalance;
 				p6.EngineHash = p.EngineHash; p6.LibraryHash = lib.Version; p6.PriorTrials = et3Fresh + et4Fresh;
 				NQCE6_Builder b6 = new NQCE6_Builder(bars, volume, cfg, lib, pool, p6);
 				NQCE6_Result r6 = b6.Search();
@@ -817,6 +829,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			d.Append("library=").Append(lib.Version).Append(" et4=").Append(NQCE4_Prune.Version).Append(" et6_schema=").Append(NQCE6_Params.SchemaVersion).Append(" engine_hash=").Append(P.EngineHash.Length == 0 ? "NA" : P.EngineHash).Append('\n');
 			d.Append("campaign=").Append(P.Campaign).Append(" seed=").Append(I(P.Seed)).Append(" population=").Append(I(P.Population)).Append(" generations=").Append(I(P.Generations)).Append(" max_evals=").Append(I(P.MaxEvals)).Append(" top_k=").Append(I(P.TopK))
 			 .Append(" et6_max_pool=").Append(I(P.Et6MaxPool)).Append(" et6_beam=").Append(I(P.Et6BeamWidth)).Append(" et6_ppass_min=").Append(R(P.Et6PpassMin)).Append(" mc_paths=").Append(I(cfg7.Paths)).Append(" mc_mode=").Append(cfg7.McMode).Append('\n');
+			if (!P.Fitness.IsLegacy || P.Et6PoolBalance) d.Append("et3_fitness: ").Append(P.Fitness.Text()).Append(" et6_pool_balance=").Append(P.Et6PoolBalance ? "1" : "0").Append('\n');   // el legado (T/100/0, sin balance) no escribe la linea: digests anteriores intactos
 			d.Append("transform=").Append(tr.Name).Append(" transform_params=").Append(tr.ParamsText).Append('\n');
 			d.Append("data: bars=").Append(I(rep.Bars)).Append(" sessions=").Append(I(rep.Sessions)).Append(" first_day=").Append(I(rep.FirstDay)).Append(" last_day=").Append(I(rep.LastDay)).Append(" warmup_coverage=").Append(R(rep.WarmupCoverage))
 			 .Append(" r2_zone=").Append(I(rep.ZoneHits)).Append('/').Append(I(rep.ZoneSessions)).Append(" (").Append(R(rep.ZoneFrac)).Append("%) strict_is_range=").Append(P.StrictIsRange ? "1" : "0").Append('\n');

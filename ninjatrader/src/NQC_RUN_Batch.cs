@@ -34,6 +34,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		public string Id = "", Transform = "IDENTITY", Size = "REDUCED";
 		public long TSeed, GaSeed; public bool HasTSeed, HasGaSeed;
+		public double Target = double.NaN, Tol = double.NaN;   // por campana (NaN = el global del manifiesto)
 		public int Evals = 2000, Pop, Gen, MaxEvals, TopK; public int Sample = -1;     // Sample: -1 = el global neff_sample
 		public int[] Threads;      // NQCRUN_Batch 1.1.0: hilos de la campana. Una campana normal usa el primero; TIMING con varios valores (threads=1,4,8,16,24) BARRE y compara. NO entra en ningun hash (el resultado no depende de los hilos).
 		public string Spec(double target, double tol)
@@ -41,7 +42,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return "id=" + Id + ";transform=" + Transform + ";tseed=" + (HasTSeed ? TSeed.ToString(CultureInfo.InvariantCulture) : "-") + ";gaseed=" + GaSeed.ToString(CultureInfo.InvariantCulture) + ";size=" + Size
 				+ ";evals=" + Evals.ToString(CultureInfo.InvariantCulture) + ";pop=" + Pop.ToString(CultureInfo.InvariantCulture) + ";gen=" + Gen.ToString(CultureInfo.InvariantCulture) + ";maxevals=" + MaxEvals.ToString(CultureInfo.InvariantCulture)
 				+ ";topk=" + TopK.ToString(CultureInfo.InvariantCulture) + ";sample=" + Sample.ToString(CultureInfo.InvariantCulture)
-				+ (Transform == "N1INJ" ? ";target=" + target.ToString("R", CultureInfo.InvariantCulture) + ";tol=" + tol.ToString("R", CultureInfo.InvariantCulture) : "");
+				+ (Transform == "N1INJ" ? ";target=" + (double.IsNaN(Target) ? target : Target).ToString("R", CultureInfo.InvariantCulture) + ";tol=" + (double.IsNaN(Tol) ? tol : Tol).ToString("R", CultureInfo.InvariantCulture) : "");
 		}
 	}
 
@@ -101,6 +102,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 								case "gen": c.Gen = int.Parse(v, CultureInfo.InvariantCulture); break;
 								case "maxevals": c.MaxEvals = int.Parse(v, CultureInfo.InvariantCulture); break;
 								case "topk": c.TopK = int.Parse(v, CultureInfo.InvariantCulture); break;
+								case "target": c.Target = double.Parse(v.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture); break;
+								case "tol": c.Tol = double.Parse(v.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture); break;
 								case "sample": c.Sample = int.Parse(v, CultureInfo.InvariantCulture); break;
 								case "threads":
 								{
@@ -113,6 +116,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 							}
 						}
 						c.Size = sz;
+						if ((!double.IsNaN(c.Target) || !double.IsNaN(c.Tol)) && c.Transform != "N1INJ") { error = "campana " + c.Id + ": target/tol solo con transform=N1INJ"; return null; }
+						if (!double.IsNaN(c.Target) && !(c.Target > 0)) { error = "campana " + c.Id + ": target debe ser > 0"; return null; }
+						if (!double.IsNaN(c.Tol) && !(c.Tol > 0)) { error = "campana " + c.Id + ": tol debe ser > 0"; return null; }
 						if (c.Id.Length == 0) { error = "linea " + ln + ": falta id"; return null; }
 						if (!ids.Add(c.Id)) { error = "linea " + ln + ": id repetido '" + c.Id + "'"; return null; }
 						if (!c.HasGaSeed) { error = "campana " + c.Id + ": falta gaseed (la semilla del GA se declara antes de correr)"; return null; }
@@ -195,7 +201,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (c.Transform == "N1") return new NQCET2_N1(c.TSeed, cfg.Excluded);
 			if (c.Transform == "N2") return new NQCET2_N2(c.TSeed);
-			if (c.Transform == "N1INJ") return new NQCET2_InjectedN1(c.TSeed, cfg, m.Target, m.Tol);
+			if (c.Transform == "N1INJ") return new NQCET2_InjectedN1(c.TSeed, cfg, double.IsNaN(c.Target) ? m.Target : c.Target, double.IsNaN(c.Tol) ? m.Tol : c.Tol);
 			return new NQCRUN_IdentityTransform();
 		}
 

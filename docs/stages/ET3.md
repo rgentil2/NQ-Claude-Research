@@ -93,6 +93,12 @@ Genes 1–16: pares (familia/condición de la biblioteca, parámetro discretizad
 - WP6 Runner NT8 (Strategy Analyzer) y runbook; pruebas con datos sintéticos (sin resultados como validados).
 - WP7 Campaña C1 en NT8 con evidencia (log + hash) y SUMMARY.txt en runs/<fecha>_ET3_C1/. Depende de ET2 aprobada técnicamente.
 
+## Aptitud v2 y minimo de operaciones (D-039) - VALORES DECLARADOS ANTES DE CORRER (2026-11-17)
+Claves: `et3.fitness_mode=T|T_SHRUNK`, `et3.min_trades`, `et3.min_months_covered`, `et3.n0`, `et3.sd_floor_k`, `et3.top5_max`, `et6.pool_balance=0|1`. Defecto de la repeticion: T_SHRUNK, 250, 24, n0=250, sd_floor_k=0,8, top5_max=0,25. Legado (regresion): `T`, 100, 0 (no cambia ningun hash anterior). Sellado: la linea `et3_fitness:` entra en CanonicalText/params_sha256/run_input solo si no es el legado.
+- **Minimo**: 250 operaciones (~7 por mes en 36 meses; ET6 pide >= 150 y >= 5 por mes para el PORTAFOLIO, asi cada miembro debe aportar sobrado) y **cobertura: >= 24 de 36 meses con al menos 1 operacion** (2/3 del IS; ser portafolio-compatible no exige que un miembro cubra todos los meses, pero uno concentrado en < 2/3 del tiempo es un efecto de regimen). Por debajo: aptitud invalida (-1000 + trades/min; si solo falla la cobertura, -999 + meses/min_meses).
+- **T_SHRUNK**: F = t_adj * sqrt(n/(n+n0)) * conc. (1) Encogimiento por muestra, n0=250: factor 0,71 con 250 operaciones, 0,89 con 1.000: a igual t gana el de mas operaciones, y desaparece el incentivo a quedarse en el minimo. (2) t_adj usa sd_eff = max(sd, 0,8 * media|neto|): los perfiles de alta tasa de acierto y perdida rara tienen sd << media|neto|; el suelo evita que una dispersion artificialmente baja infle el t. (3) conc = min(1, 0,25/share5), share5 = parte de la ganancia bruta que dan las 5 mejores operaciones: castiga la dependencia de pocas operaciones. Simple, determinista, sin parametros adaptativos.
+- **Prueba de decision** (sintetica, NO mercado): mundo nulo M1 de ~3 anos; GA reducido (pop 200, gen 50, 10.000 evals, top-K 200, semillas 20281001 mundo, 20281002 GA), biblioteca real; celdas T/100, T/250+24m, T_SHRUNK/100, T_SHRUNK/250+24m. Criterio declarado: T_SHRUNK/250 debe bajar la mediana de t crudo del top-200 y el % de candidatos < 150/< 250 operaciones frente a T/100. Si no, se reporta como fallo, sin retocar parametros para que salga.
+
 ## Bitácora de traspasos
 Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueos`. Máximo 5 líneas por entrada.
 
