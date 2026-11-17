@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | NO EJECUTADA. Código de datasets nulos/inyectados + plan + runbook listos (desarrollo, prueba sintética 21/21). El estado oficial vive en el master §6 |
+| Estado | NO EJECUTADA como calibración final (Fase A medida; Fase A2 con curva de edges lista para correr). Código y plan listos (desarrollo; DatasetTest 22/22, ReportTest 36/36 sintéticos). El estado oficial vive en el master §6 |
 | Depende de | ET3–ET7 (código) |
 | Objetivo | Medir falsos positivos y potencia del embudo completo y fijar umbrales [B] en NQC 2.1.0. |
 | Entradas | Módulos ET3–ET7 aprobados técnicamente; datasets nulos e inyectados (STATISTICS_PLAN). |
@@ -16,6 +16,8 @@
 ## Pendientes y notas vigentes
 - **Siguiente (usuario en NT8, en orden):** (1) Paso 0.3: `NQC_RUN_Batch` modo TIMING con `ET2_BATCH_MANIFEST_PASO0_TIMING.txt` y devolver el `SUMMARY.txt`; (2) con `ms/eval` decidir con la tabla del runbook (Paso 0.4); (3) Paso 1 (pre-chequeo de potencia); (4) Fase A (`ET2_BATCH_MANIFEST_FASE_A.txt`); (5) Fase B y FULL inyectados (`ET2_BATCH_MANIFEST_FASE_B.txt`, `ET2_BATCH_MANIFEST_FULL_INYECTADOS.txt`) solo tras la decisión de tiempo.
 - **Por confirmar con el orquestador antes de la Fase A:** que el veredicto de ET7 use `neff_method=SAMPLE_CHAO1` (hoy el runner lo calcula solo como informe y el veredicto sigue con D-036; ver D-038) y que `et7.neff_method/neff_bound` en el manifiesto sean aceptadas por el lote. Faltan por exportar (si no se puede reconstruir): tasas de paso por puerta de ET6.
+- **Siguiente (D-040, Fase A2):** completar `commit=` de `ET2_BATCH_MANIFEST_FASE_A2.txt` (hoy PLACEHOLDER) y confirmar con ET3 los valores de `et3.min_trades`/`et3.min_months_covered`/`et3.fitness_mode`; correr en NT8 `NQC_ET2_DatasetTest` y el lote A2 (35 campañas: 20 nulas + 5 inyectadas a +20, +60, +100); informe con `expected_inj=15`.
+- **Curva de edges (sintético, mundo de prueba, 286 ops, desvío ~US$200):** la bisección converge en los 3 niveles (a = 0,45 / 1,16 / 1,88 ATR para +20/+60/+100; +150 → 2,88). ATR medio cambia <0,3% (+150: 0,5%), barras válidas, causal. Límite: el sesgo no condicional crece (siempre-corto −16,5→+14,5 a +100; siempre-largo −49,6→−28,8): una regla «siempre» captura ~0,2-0,3 del edge: explotabilidad residual declarada. t_par esperado con ~350 ops y desvío real ~US$520: +20 ≈ 0,7; +60 ≈ 2,1; +100 ≈ 3,6 (vs ruido t ≈ 6). Máximo viable por deriva ≈ +150 (a ≈ 2,9 ATR; ATR +0,5%); +100 es viable y no altera el ATR.
 - **Informe (2026-11-17):** generador `NQC_ET2_Report` / `NQCET2_ReportBuilder` + `NQC_ET2_ReportTest` 29/29 (sintético, formato real del runner). Falta: correrlo en NT8/mono sobre la carpeta real de la Fase A. Exports que faltan en el runner: `ET6_MEMBER_TRADES.tsv` e `INJ_PAIR_TRADES.tsv` (potencia con regla equivalente) y, opcional, operaciones/mes y eventos protectores por finalista.
 - Es el cuello de botella: exige el embudo completo implementado.
 - Al cerrar, los umbrales [B] se congelan y ya no se mueven.
@@ -106,3 +108,4 @@ Formato: `AAAA-MM-DD · qué se hizo · artefactos/hash · qué queda · bloqueo
 - 2026-11-16 · Paso 0 medido en NT8 (`runs/2026-11-16_ET2_PASO0_run1/`): 284 ms/eval de media (mediana 117, p90 404, máx 28,7 s); 30 FULL ≈ 237 h solo en ET3 (supera el umbral de 48 h del runbook). Pendiente decisión del usuario.
 - 2026-11-17 · ET2 (agente, solo desarrollo): generador del informe de calibración (`NQC_ET2_ReportBuilder.cs` puro + `NQC_ET2_Report.cs` estrategia + `ET2_REPORT_CLI.cs`) y `NQC_ET2_ReportTest.cs` 29/29 con 30 campañas sintéticas en el formato real (FP 1/20, potencia 8/10, CP vs Python); probado también contra la salida real del runner de juguete (30 campañas). NO ejecutado sobre la Fase A real. Pide al orquestador los 2 exports de operaciones. Hashes en el reporte.
 - 2026-11-17 · Fase A ejecutada (30 campañas, 21 min): FP 0/20, potencia 0/10; informe y diagnóstico en `runs/2026-11-17_ET2_FASEA_run1/`. Gate NO cumplido: rediseño del embudo (versión menor) y repetición pendientes de decisión del usuario.
+- 2026-11-17 · ET2 (agente, solo desarrollo): D-040. Inyector con AMax=8 y `TolFor` (2/5/8); DatasetTest 22/22 (I7: +60 y +100 convergen, ATR ±1%). Manifiesto `ET2_BATCH_MANIFEST_FASE_A2.txt` (35 campañas, semillas nuevas, sin solapes con Fase A). Informe ET2REPORT-1.1.0: potencia por nivel (CP, t_par, techo, edge mínimo ≥70%), veredicto por nivel, ET6_GATES.txt; ReportTest 36/36 (fixture de 35: 0/5, 3/5, 5/5). Runbook Paso 2b. NO ejecutado en NT8.
