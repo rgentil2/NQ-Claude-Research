@@ -5,7 +5,7 @@
 # Tolerancia de aceptacion del inyectado por nivel (NQCET2_EdgeInjector.TolFor = max(2, 8% del objetivo)): +20 -> 2; +60 -> 5; +100 -> 8. Un inyectado con ok=0 NO cuenta en la potencia de su nivel.
 # Formato: lineas clave=valor globales y lineas `campaign id=.. transform=IDENTITY|N1|N2|N1INJ tseed=.. gaseed=.. size=REDUCED|FULL|TIMING|CUSTOM [target=..] [tol=..]`.
 batch=ET2_FASE_A2
-commit=PLACEHOLDER
+commit=aff55a8
 resume=1
 memo_budget_mb=4096
 max_memory_mb=8192
@@ -16,7 +16,7 @@ target=20
 tol=2
 # P_pass: el umbral se deja en 0 para REGISTRAR el P_pass de cada finalista; el definitivo se elige en la calibracion con FP <= 5% (piso 0,50).
 et6.ppass_min=0
-# D-039 (valores DEFINITIVOS pendientes de ET3: confirmar contra docs/stages/ET3.md antes de correr; defecto de la repeticion segun ET3: T_SHRUNK, 250, 24)
+# D-039: valores DECLARADOS (docs/DECISIONS.md D-039 y docs/stages/ET3.md): T_SHRUNK, min_trades 250, cobertura 24 de 36 meses, n0 250, sd_floor_k 0,8, top5_max 0,25 (estos tres ultimos son los defectos del runner)
 et3.min_trades=250
 et3.min_months_covered=24
 et3.fitness_mode=T_SHRUNK
