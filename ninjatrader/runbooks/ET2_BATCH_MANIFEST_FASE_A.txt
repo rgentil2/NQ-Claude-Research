@@ -5,15 +5,18 @@
 # Formato: lineas clave=valor globales (las claves de RUN_FUNNEL_CONFIG.txt salvo campaign/seed/population/generations/max_evals/top_k/transform/out_dir/stop_after/freeze/engine_dir,
 #   que van por campana o estan prohibidas) y lineas `campaign id=.. transform=IDENTITY|N1|N2|N1INJ tseed=.. gaseed=.. size=REDUCED|FULL|TIMING|CUSTOM [evals=N] [sample=K]`.
 batch=ET2_FASE_A
-commit=REEMPLAZAR_POR_EL_COMMIT_DE_PROTOCOLO
+commit=f91f5b8
 resume=1
-memo_budget_mb=2048
+memo_budget_mb=4096
+max_memory_mb=8192
+threads=8
 neff_sample=5000
 # edge inyectado: +US$20 netos por operacion, tolerancia +-2 (D-037)
 target=20
 tol=2
 # umbral de P_pass vacio = falla cerrada hasta que ET2 lo fije; et7.* se declaran aqui antes de correr (corte N_eff 0,40 por defecto)
-et6.ppass_min=
+# P_pass: en la Fase A el umbral se deja en 0 para que ET6 acepte y REGISTRE el P_pass de cada finalista; el umbral definitivo se elige despues, en la calibracion, con FP <= 5% (piso 0,50).
+et6.ppass_min=0
 et7.neff_cut=0.40
 # D-038: N_eff por muestra uniforme + Chao1 (limite superior del IC); surte efecto en el veredicto cuando el orquestador integre ET7 con la muestra
 et7.neff_method=SAMPLE_CHAO1
