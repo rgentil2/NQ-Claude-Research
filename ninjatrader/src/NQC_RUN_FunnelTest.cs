@@ -91,7 +91,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public class NQC_RUN_FunnelTest : Strategy
 	{
-		private const string ScriptVersion = "RUNFUNNELTEST-1.2.0";
+		private const string ScriptVersion = "RUNFUNNELTEST-1.3.0";
 		private bool started, done; private StringBuilder rep = new StringBuilder(); private int pass, fail;
 		public string SummaryText = "";
 
@@ -160,6 +160,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return w;
 		}
 
+		// Mundo de juguete RUIDOSO (paseo aleatorio M1 por sesion sobre la forma del mundo de juguete; semilla fija): el par inyectado de ET2 necesita rupturas del rango de apertura para operar.
+		public static World NoisyWorld(World w)
+		{
+			World n = CopyW(w); Random rnd = new Random(5); int per = 696; double cum = 0;
+			for (int k = 0; k < n.T.Length; k++)
+			{
+				if (k % per == 0) cum = 0; double st = (rnd.NextDouble() - 0.5) * 1.2; cum += st; double e = rnd.NextDouble() * 0.3;
+				n.O[k] += cum - st; n.C[k] += cum; n.H[k] = Math.Max(n.H[k] + cum, Math.Max(n.O[k], n.C[k]) + e); n.L[k] = Math.Min(n.L[k] + cum, Math.Min(n.O[k], n.C[k]) - e);
+			}
+			return n;
+		}
 		private static NQCRUN_Params ToyParams(string dir)
 		{
 			NQCRUN_Params p = new NQCRUN_Params(); p.OutDir = dir; p.Population = 60; p.Generations = 12; p.TopK = 200; p.MemoBudgetMb = 64; p.Resume = false;
@@ -174,7 +185,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		private static NQCRUN_Result Go(World w, NQCRUN_Params p) { return new NQCRUN_Funnel().Run(w.T, w.O, w.H, w.L, w.C, w.V, p); }
 		private static string Err(World w, NQCRUN_Params p) { try { Go(w, p); return ""; } catch (NQCRUN_Exception e) { return e.Message; } }
-		private static World CopyW(World w) { World c = new World(); c.T = (long[])w.T.Clone(); c.O = (double[])w.O.Clone(); c.H = (double[])w.H.Clone(); c.L = (double[])w.L.Clone(); c.C = (double[])w.C.Clone(); c.V = (double[])w.V.Clone(); c.Sessions = w.Sessions; return c; }
+		public static World CopyW(World w) { World c = new World(); c.T = (long[])w.T.Clone(); c.O = (double[])w.O.Clone(); c.H = (double[])w.H.Clone(); c.L = (double[])w.L.Clone(); c.C = (double[])w.C.Clone(); c.V = (double[])w.V.Clone(); c.Sessions = w.Sessions; return c; }
 
 		private void RunAll()
 		{

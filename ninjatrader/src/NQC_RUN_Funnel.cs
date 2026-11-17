@@ -357,8 +357,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public sealed class NQCRUN_Funnel
 	{
-		public const string Version = "NQCRUN-1.3.0";
+		public const string Version = "NQCRUN-1.4.0";
 		private NQCRUN_Params P; private string dir; private Action<string> log;
+		private string exMember = null, exPair = null;   // exports de NQCRUN-1.4.0 (texto TSV; null = no calculado)
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private static string R(double v) { return double.IsNaN(v) ? "NaN" : (double.IsPositiveInfinity(v) ? "INF" : (double.IsNegativeInfinity(v) ? "-INF" : v.ToString("R", CultureInfo.InvariantCulture))); }
 		private static double PR(string s) { if (s == "NaN") return double.NaN; if (s == "INF") return double.PositiveInfinity; if (s == "-INF") return double.NegativeInfinity; return double.Parse(s, NumberStyles.Float, CultureInfo.InvariantCulture); }
@@ -427,6 +428,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 		private void Reg(NQCRUN_Ckpt c, string rel) { c.Files[rel] = NQCE7_Freeze.Sha256File(Path.Combine(dir, rel.Replace('/', Path.DirectorySeparatorChar))); }
 		private string Read(string rel) { return File.ReadAllText(Path.Combine(dir, rel.Replace('/', Path.DirectorySeparatorChar))); }
+		private static int CountRows(string tsv) { int n = 0; foreach (string x in tsv.Split('\n')) if (x.Length > 0) n++; return Math.Max(0, n - 1); }
 		private static long MemMb() { return GC.GetTotalMemory(false) / 1048576; }
 		private static long PeakMb() { try { return Process.GetCurrentProcess().PeakWorkingSet64 / 1048576; } catch { return -1; } }
 
@@ -484,6 +486,48 @@ namespace NinjaTrader.NinjaScript.Strategies
 				l.Add(new NQCE5_Candidate(f[0], qv, qc));
 			}
 			return l;
+		}
+
+
+		// ------------------------------------------------------------------ exports de operaciones para el informe de calibracion de ET2 (NQCRUN-1.4.0)
+		// ET6_MEMBER_TRADES.tsv: una fila por operacion ejecutada de CADA miembro de CADA finalista (miembro corrido SOLO, ejecutor del IS con el dataset de la corrida y P.Config, sin capa protectora distinta de la de ET6).
+		private string MemberTradesTsv(Dictionary<string, NQCRUN_Cand> byId, INQCE3_Library lib, NQCE_Bars bars)
+		{
+			StringBuilder sb = new StringBuilder("trial_id\tday\tdir\n");
+			SortedDictionary<string, bool> ids = new SortedDictionary<string, bool>(StringComparer.Ordinal);
+			foreach (string line in Read("ET6/ET6_FINALISTS.tsv").Split('\n'))
+			{
+				if (line.Length == 0 || line.StartsWith("rank\t", StringComparison.Ordinal)) continue;
+				foreach (string id in line.Split('\t')[5].Split(',')) if (id.Length > 0) ids[id] = true;
+			}
+			foreach (KeyValuePair<string, bool> kv in ids)
+			{
+				NQCRUN_Cand k; if (!byId.TryGetValue(kv.Key, out k)) throw new NQCRUN_Exception("RUN: miembro de finalista ausente del databank: " + kv.Key);
+				List<NQCRUN_Cand> one = new List<NQCRUN_Cand>(); one.Add(k);
+				sb.Append(TradeRows(kv.Key, RunPortfolio(bars, lib, one)));
+			}
+			return sb.ToString();
+		}
+		private static string TradeRows(string idOrNull, NQCE_Result r)
+		{
+			List<string> rows = new List<string>();
+			foreach (NQCE_Trade t in r.Trades) rows.Add(I(t.DayKey).PadLeft(8, '0') + "\t" + (t.Dir > 0 ? "1" : "-1"));
+			rows.Sort(StringComparer.Ordinal);   // dia yyyymmdd y luego dir ("-1" < "1")
+			StringBuilder sb = new StringBuilder(); foreach (string x in rows) { if (idOrNull != null) sb.Append(idOrNull).Append('\t'); sb.Append(x).Append('\n'); }
+			return sb.ToString();
+		}
+		// INJ_PAIR_TRADES.tsv: solo para N1+INJ. La regla se reconstruye desde rules= del transform_params con la API del inyector (MakePair) y se ejecuta sobre el MISMO dataset inyectado.
+		private string PairTradesTsv(NQCRUN_IDatasetTransform tr, NQCE_Bars bars)
+		{
+			string pt = tr.ParamsText; int ix = pt.IndexOf(";rules=", StringComparison.Ordinal);
+			if (tr.Name != "N1+INJ" || ix < 0) return null;
+			string rules = pt.Substring(ix + 7);
+			System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(rules, "CIERRE>MAX\\(([0-9]+)\\.\\.([0-9]+)\\)@>([0-9]+)");
+			if (!m.Success) throw new NQCRUN_Exception("RUN: rules= del inyector sin la condicion CIERRE>MAX(a..b)@>b del par espejo: " + rules);
+			List<NQCE_Member> pair = NQCET2_EdgeInjector.MakePair(int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture));
+			if (new NQCET2_EdgeInjector(pair, P.Config, 0).RulesText != rules) throw new NQCRUN_Exception("RUN: la regla reconstruida del inyector no coincide con rules= del transform_params");
+			NQCE_Result r = NQCET2_EdgeInjector.RunRules(bars, pair, P.Config, null);
+			return "day\tdir\n" + TradeRows(null, r);
 		}
 
 		// A4: corre un portafolio de miembros (en orden de prioridad) y devuelve resultado + insumos de ET7.
@@ -557,6 +601,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			string runInput = NQCE_Const.Sha256Text(ri.ToString()); res.RunInputSha = runInput;
 			Log("RUN input_sha256=" + runInput.Substring(0, 16) + " transform=" + tr.Name + " barras=" + I(bars.Count) + " sesiones=" + I(rep.Sessions));
 			NQCE_Config cfg = p.Config;
+			exMember = null; exPair = PairTradesTsv(tr, bars);
 			NQCE7_Config cfg7; { string e7; cfg7 = NQCE7_Config.Parse(p.EffectiveEt7Text(), out e7); }
 			Stopwatch sw = new Stopwatch();
 			int threadsEff = NQCRUN_Threads.Resolve(p.Threads, p.MemoBudgetMb, p.MaxMemoryMb);
@@ -675,6 +720,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			res.Stages.Add(c6); Log("ET6 " + (c6.Resumed ? "REANUDADA" : "calculada") + " ensayos=" + c6.M("trials") + " finalistas=" + c6.M("finalists"));
 			string out6 = c6.OutputHash();
+			exMember = MemberTradesTsv(byId, lib, bars);
 			if (p.StopAfter == "ET6") return Finish(res, rep, rawSha, runSha, tr, lib, paramsText, total, "DETENIDO_TRAS_ET6", cfg7);
 			if (c6.M("finalists") == "0") return Finish(res, rep, rawSha, runSha, tr, lib, paramsText, total, "SIN_FINALISTAS_EN_ET6", cfg7);
 			int nGross = int.Parse(c6.M("cumulative_trials"), CultureInfo.InvariantCulture);
@@ -784,6 +830,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				d.Append('[').Append(c.Stage).Append("] input_hash=").Append(c.InputHash).Append(" output_hash=").Append(c.OutputHash()).Append('\n');
 				foreach (KeyValuePair<string, string> kv in c.Meta) d.Append("  ").Append(kv.Key).Append('=').Append(kv.Value).Append('\n');
 				foreach (KeyValuePair<string, string> kv in c.Files) if (kv.Key.IndexOf("PORTFOLIO_FROZEN", StringComparison.Ordinal) < 0) d.Append("  sha256 ").Append(kv.Key).Append(' ').Append(kv.Value).Append('\n');
+			}
+			// exports NQCRUN-1.4.0 (ET6_MEMBER_TRADES.tsv siempre; INJ_PAIR_TRADES.tsv solo con N1+INJ); fuera de la cadena de checkpoints de ET3..ET7 (no cambian sus hashes); se recalculan en cada corrida y quedan sellados aqui y en CKPT_EXPORTS.txt
+			{
+				NQCRUN_Ckpt ce = new NQCRUN_Ckpt("EXPORTS", NQCE_Const.Sha256Text(res.RunInputSha + "|EXPORTS"));
+				Put(ce, "ET6/ET6_MEMBER_TRADES.tsv", exMember != null ? exMember : "trial_id\tday\tdir\n");
+				if (exPair != null) Put(ce, "INJ_PAIR_TRADES.tsv", exPair);
+				Commit(ce);
+				d.Append("[EXPORTS] member_trades_rows=").Append(I(CountRows(Read("ET6/ET6_MEMBER_TRADES.tsv")))).Append(" pair_trades_rows=").Append(exPair == null ? "NA" : I(CountRows(exPair))).Append('\n');
+				foreach (KeyValuePair<string, string> kv in ce.Files) d.Append("  sha256 ").Append(kv.Key).Append(' ').Append(kv.Value).Append('\n');
 			}
 			res.DeterministicSha = NQCE_Const.Sha256Text(d.ToString());
 			StringBuilder s = new StringBuilder(d.ToString());
