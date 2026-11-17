@@ -74,6 +74,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		public const double RefNetPerTrade = 20.0;   // D-020 [B]
 		public const double RefRate = 0.5;           // D-020 [B]
+		public const double AMax = 8.0;              // techo de la biseccion (deriva total en ATR); D-040: +100 exige ~1,9 ATR en el mundo sintetico (ver STATISTICS/ET2.md); 8 deja margen para ATR/ruido reales
+		// Tolerancia por nivel de edge (D-040): max(2, 8% del objetivo) -> +20: 2; +60: 5 (4,8); +100: 8.
+		public static double TolFor(double target) { return Math.Max(2.0, Math.Round(0.08 * target)); }
 		public List<NQCE_Member> Rules; public NQCE_Config Cfg; public double A; public int MaxIter = 6;
 		public bool Converged; public int Iterations, Signals;
 
@@ -186,7 +189,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		// Biseccion de a para que la expectativa neta medida por el ejecutor sea target +- tol. Usa el mismo cfg del embudo.
 		public static double Calibrate(NQCE_Bars baseBars, List<NQCE_Member> rules, NQCE_Config cfg, double target, double tol, out double measured, out int trades, out bool ok, out bool converged)
 		{
-			double lo = 0, hi = 4.0; double bestA = 0, bestM = double.NaN, bestD = double.MaxValue; int bestN = 0; bool bestC = false;
+			double lo = 0, hi = AMax; double bestA = 0, bestM = double.NaN, bestD = double.MaxValue; int bestN = 0; bool bestC = false;
 			for (int it = 0; it < 18; it++)
 			{
 				double a = it == 0 ? hi : (lo + hi) / 2.0;

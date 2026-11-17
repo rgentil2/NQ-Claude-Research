@@ -161,6 +161,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double lB = NQCET2_EdgeInjector.MeanNet(RunRules1(b1, allLong, cfg, null)), lI = NQCET2_EdgeInjector.MeanNet(RunRules1(bi, allLong, cfg, null));
 			double sB = NQCET2_EdgeInjector.MeanNet(RunRules1(b1, allShort, cfg, null)), sI2 = NQCET2_EdgeInjector.MeanNet(RunRules1(bi, allShort, cfg, null));
 			Chk("I5 efecto en otras reglas: ATR(14) medio +-1%; exposicion NO condicional neutra: 'siempre largo' y 'siempre corto' (09:31-11:30, stop ancho) cambian < US$15 por operacion", Math.Abs(aRatio - 1) < 0.01 && Math.Abs(lI - lB) < 15.0 && Math.Abs(sI2 - sB) < 15.0, "ATR ratio=" + F(aRatio) + " largo base=" + F2(lB) + " largo inyectado=" + F2(lI) + " corto base=" + F2(sB) + " corto inyectado=" + F2(sI2));
+			// I7 curva de edges (D-040): +60 y +100 con tolerancia por nivel; barras validas, causalidad por construccion (mismo Build), ATR y exposicion no condicional
+			bool curveOk = true; string curveInfo = "";
+			foreach (double tg in new double[] { 60.0, 100.0 })
+			{
+				double tl = NQCET2_EdgeInjector.TolFor(tg); NQCET2_InjectedN1 ic = new NQCET2_InjectedN1(20284101, cfg, tg, tl); NQCE_Bars bc; double[] vc; ic.Apply(w, vol, out bc, out vc);
+				NQCE_Result rc = NQCET2_EdgeInjector.RunRules(bc, ic.Rules, cfg, null); double muc = NQCET2_EdgeInjector.MeanNet(rc);
+				NQCET2_N1 nn = new NQCET2_N1(20284101, excl); NQCE_Bars bb; double[] vb; nn.Apply(w, vol, out bb, out vb);
+				double ar = Mean(bc.Atr(14)) / Mean(bb.Atr(14)); double l2 = NQCET2_EdgeInjector.MeanNet(RunRules1(bc, allLong, cfg, null)), s2 = NQCET2_EdgeInjector.MeanNet(RunRules1(bc, allShort, cfg, null));
+				double lb2 = NQCET2_EdgeInjector.MeanNet(RunRules1(bb, allLong, cfg, null)), sb3 = NQCET2_EdgeInjector.MeanNet(RunRules1(bb, allShort, cfg, null));
+				bool okc = ic.Ok && ic.Converged && NQCET2_Core.Validate(bc) == "" && SameT(w, bc) && Math.Abs(muc - tg) <= tl && Math.Abs(ar - 1) < 0.01 && (l2 - lb2) < 0.35 * tg + 15 && (s2 - sb3) < 0.35 * tg + 15 && ic.A < NQCET2_EdgeInjector.AMax / 2;
+				if (!okc) curveOk = false;
+				curveInfo += "[+" + F2(tg) + " tol " + F2(tl) + ": neto=" + F2(muc) + " a=" + F(ic.A) + " t_par=" + F2(ic.TPair) + " ops=" + rc.Trades.Count + " ATR=" + F(ar) + " siempre-largo " + F2(lb2) + "->" + F2(l2) + " siempre-corto " + F2(sb3) + "->" + F2(s2) + "] ";
+			}
+			Chk("I7 curva de edges: +60 (+-5) y +100 (+-8) convergen por biseccion, barras validas, ATR +-1%, deriva a < AMax/2, el sesgo no condicional (siempre largo/corto) crece < 35% del edge + 15", curveOk, curveInfo);
 			Chk("I6 determinista: dos corridas completas (N1 -> regla -> calibrar -> inyectar) dan el mismo hash y los mismos parametros", hI == hIb && inj.ParamsText == injb.ParamsText && hI != hN1, "INJ=" + hI + " repetido=" + hIb);
 
 			// ---------------- Estadistica de calibracion
