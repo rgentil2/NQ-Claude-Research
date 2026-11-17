@@ -137,7 +137,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 
 		// Dias habiles con las barras de sello 09:29..11:32 (i >= 1), como ET1B.
+		// NQCRUN-1.3.0 (cambio ADITIVO de rendimiento, sin cambio de semantica ni de hashes): el resultado depende solo de T/Stamp/DayKey (inmutables tras construir la serie) y
+		// el ejecutor solo lo LEE, asi que se calcula una vez (con candado, seguro entre hilos) y se reutiliza. Antes se recalculaba en cada corrida del ejecutor (~32 ms sobre 1 M de barras).
+		private volatile SortedDictionary<int, List<int>> daysCache; private readonly object daysLock = new object();
 		public SortedDictionary<int, List<int>> BuildDays()
+		{
+			SortedDictionary<int, List<int>> c = daysCache;
+			if (c != null) return c;
+			lock (daysLock) { if (daysCache == null) daysCache = BuildDaysCore(); return daysCache; }
+		}
+		private SortedDictionary<int, List<int>> BuildDaysCore()
 		{
 			SortedDictionary<int, List<int>> days = new SortedDictionary<int, List<int>>();
 			for (int i = 1; i < Count; i++)

@@ -53,6 +53,21 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public void Apply(NQCE_Bars bars, double[] volume, out NQCE_Bars outBars, out double[] outVolume) { outBars = bars; outVolume = volume; }
 	}
 
+	// Hilos de evaluacion (NQCRUN-1.3.0). Defecto = min(nucleos logicos - 4, 16) (deja 4 hilos al sistema y a NT8; mas de 16 rinde poco: la cache y la memoria son compartidas).
+	// Tope por memoria: BaseMb (datos, volumen, hasta 96 series ATR de 8,4 MB, resultados de etapas) + memo_budget_mb + PerThreadMb x hilos <= max_memory_mb.
+	// PerThreadMb = estimacion CONSERVADORA por hilo: resultado del ejecutor en vuelo (~2 MB), ~10 entradas de cache en vuelo (~0,93 MB cada una) y temporales.
+	public static class NQCRUN_Threads
+	{
+		public const int BaseMb = 1600, PerThreadMb = 40;
+		public static int Auto() { int lc = Environment.ProcessorCount; return Math.Max(1, Math.Min(lc - 4, 16)); }
+		public static int MemoryCap(int memoBudgetMb, int maxMemoryMb) { return Math.Max(1, (maxMemoryMb - memoBudgetMb - BaseMb) / PerThreadMb); }
+		public static int Resolve(int requested, int memoBudgetMb, int maxMemoryMb)
+		{
+			int t = requested > 0 ? requested : Auto();
+			return Math.Max(1, Math.Min(t, MemoryCap(memoBudgetMb, maxMemoryMb)));
+		}
+	}
+
 	public sealed class NQCRUN_Exception : Exception { public NQCRUN_Exception(string m) : base(m) { } }
 
 	public sealed class NQCRUN_Params
@@ -60,6 +75,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public string Campaign = "C1"; public long Seed = 20261114; public bool SeedGiven;
 		public int Population = 500, Generations = 200, MaxEvals = 100000, TopK = 2000;
 		public int MemoBudgetMb = 2048;
+		// NQCRUN-1.3.0: paralelismo. Claves de EJECUCION (no entran en CanonicalText ni en ningun hash: el resultado es identico para cualquier numero de hilos).
+		public int Threads = 0;              // 0 = automatico: min(nucleos logicos - 4, 16); >0 = ese numero (con tope por memoria, ver NQCRUN_Threads.Resolve)
+		public int MaxMemoryMb = 6144;       // presupuesto de memoria del proceso para el tope de hilos (cache + base + hilos); no limita nada mas
 		public bool StrictIsRange = true, Resume = true;
 		public string OutDir = "", TransformName = "", TransformArgs = "", NullBestFile = "", Commit = "", EngineDir = "", StopAfter = "", FrozenUtc = "";
 		public bool Freeze, Et2Approved;
@@ -110,6 +128,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						case "max_evals": p.MaxEvals = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "top_k": p.TopK = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "memo_budget_mb": p.MemoBudgetMb = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "threads": p.Threads = int.Parse(v, CultureInfo.InvariantCulture); break;
+						case "max_memory_mb": p.MaxMemoryMb = int.Parse(v, CultureInfo.InvariantCulture); break;
 						case "strict_is_range": p.StrictIsRange = B(v); break;
 						case "resume": p.Resume = B(v); break;
 						case "out_dir": p.OutDir = v; break;
@@ -153,6 +173,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (Population < 1 || Generations < 1 || TopK < 1) return "population, generations y top_k deben ser >= 1";
 			if (MaxEvals < 1 || MaxEvals > NQCE3_Campaign.MaxEvaluations) return "max_evals fuera de 1..100000 (tope duro D-019)";
 			if (MemoBudgetMb < 16 || MemoBudgetMb > 16384) return "memo_budget_mb fuera de 16..16384";
+			if (Threads < 0 || Threads > 128) return "threads fuera de 0..128 (0 = automatico)";
+			if (MaxMemoryMb < 1024 || MaxMemoryMb > 262144) return "max_memory_mb fuera de 1024..262144";
 			if (Et6MaxPool < 1 || Et6BeamWidth < 1) return "et6.max_pool y et6.beam_width deben ser >= 1";
 			if (!(StopAfter == "" || StopAfter == "ET3" || StopAfter == "ET4" || StopAfter == "ET5" || StopAfter == "ET6")) return "stop_after debe ser vacio o ET3/ET4/ET5/ET6";
 			string e7; if (NQCE7_Config.Parse(EffectiveEt7Text(), out e7) == null) return "config de ET7 invalida: " + e7;
@@ -335,7 +357,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public sealed class NQCRUN_Funnel
 	{
-		public const string Version = "NQCRUN-1.2.0";
+		public const string Version = "NQCRUN-1.3.0";
 		private NQCRUN_Params P; private string dir; private Action<string> log;
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private static string R(double v) { return double.IsNaN(v) ? "NaN" : (double.IsPositiveInfinity(v) ? "INF" : (double.IsNegativeInfinity(v) ? "-INF" : v.ToString("R", CultureInfo.InvariantCulture))); }
@@ -537,6 +559,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			NQCE_Config cfg = p.Config;
 			NQCE7_Config cfg7; { string e7; cfg7 = NQCE7_Config.Parse(p.EffectiveEt7Text(), out e7); }
 			Stopwatch sw = new Stopwatch();
+			int threadsEff = NQCRUN_Threads.Resolve(p.Threads, p.MemoBudgetMb, p.MaxMemoryMb);
+			Log("RUN hilos=" + I(threadsEff) + " (pedidos=" + (p.Threads == 0 ? "auto" : I(p.Threads)) + ", nucleos_logicos=" + I(Environment.ProcessorCount) + ", tope_memoria=" + I(NQCRUN_Threads.MemoryCap(p.MemoBudgetMb, p.MaxMemoryMb)) + "); el resultado NO depende de los hilos");
 
 			// ============================== ET3: campana evolutiva
 			string in3 = NQCE_Const.Sha256Text(runInput + "|ET3");
@@ -547,7 +571,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				sw.Reset(); sw.Start(); c3 = new NQCRUN_Ckpt("ET3", in3);
 				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib);
 				NQCE3_Reservoir rsv = p.NeffSample > 0 ? new NQCE3_Reservoir(p.NeffSample, p.Seed) : null; fit.Reservoir = rsv;   // D-038: muestra uniforme de TODOS los ensayos evaluados (no solo el top-K)
-				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = p.Campaign; camp.MaxEvals = p.MaxEvals;
+				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = p.Campaign; camp.MaxEvals = p.MaxEvals; camp.Threads = threadsEff;
 				Stopwatch gs = Stopwatch.StartNew();
 				camp.OnGeneration = delegate(int g, NQCE3_Campaign cm) { Log("ET3 gen " + I(g + 1) + "/" + I(gp.Generations) + " evaluaciones=" + I(fit.FreshEvaluations) + " t=" + (gs.ElapsedMilliseconds / 1000.0).ToString("0.0", CultureInfo.InvariantCulture) + "s mem=" + I(MemMb()) + "MB"); };
 				camp.Run(fit, lib, gp, null);
@@ -563,7 +587,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				c3.Meta["fresh_evals"] = I(fit.FreshEvaluations); c3.Meta["ledger_rows"] = I(camp.Ledger.Rows); c3.Meta["ledger_sha256"] = camp.Ledger.Sha256();
 				c3.Meta["zero_trade_evals"] = I(fit.ZeroTradeEvals); c3.Meta["zero_trade_with_reject"] = I(fit.ZeroTradeWithRejectEvals); c3.Meta["databank_valid"] = I(top.Count);
 				c3.Meta["best_fitness_t"] = R(best); c3.Meta["warmup_coverage"] = R(fit.WarmupCoverage); c3.Meta["seed"] = I(p.Seed); c3.Meta["campaign"] = p.Campaign;
-				sw.Stop(); c3.Perf["seconds"] = (sw.ElapsedMilliseconds / 1000.0).ToString("0.00", CultureInfo.InvariantCulture); c3.Perf["mem_mb"] = I(MemMb());
+				sw.Stop(); c3.Perf["seconds"] = (sw.ElapsedMilliseconds / 1000.0).ToString("0.00", CultureInfo.InvariantCulture); c3.Perf["mem_mb"] = I(MemMb()); c3.Perf["threads"] = I(threadsEff);
 				Commit(c3);
 			}
 			res.Stages.Add(c3); Log("ET3 " + (c3.Resumed ? "REANUDADA" : "calculada") + " evaluaciones=" + c3.M("fresh_evals") + " databank=" + c3.M("databank_valid"));
@@ -582,6 +606,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				sw.Reset(); sw.Start(); c4 = new NQCRUN_Ckpt("ET4", in4);
 				List<NQCE4_Candidate> c4in = new List<NQCE4_Candidate>(); foreach (NQCRUN_Cand k in cands) c4in.Add(new NQCE4_Candidate(k.TrialId, k.Genome.Clone(), k.Fingerprint));
 				NQCE4_Prune pr = new NQCE4_Prune(bars, volume, cfg, lib, NQCE4_Prune.LoadLedgerIds(Read("ET3/ET3_LEDGER.tsv")));
+				pr.Threads = threadsEff;
 				pr.Evaluate(c4in);
 				pr.Save(Path.Combine(dir, "ET4"), c4in, et3Fresh);
 				Reg(c4, "ET4/ET4_POOL.tsv"); Reg(c4, "ET4/ET4_REJECTS.tsv"); Reg(c4, "ET4/ET4_LEDGER.tsv"); Reg(c4, "ET4/SUMMARY.txt");
@@ -589,7 +614,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				c4.Meta["candidates"] = I(pr.Outcomes.Count); c4.Meta["f1_rejected"] = I(pr.Count("F1")); c4.Meta["f2_rejected"] = I(pr.Count("F2")); c4.Meta["f3_rejected"] = I(pr.Count("F3")); c4.Meta["pool"] = I(pr.Count("PASS"));
 				c4.Meta["fresh_trials"] = I(pr.FreshTrials); c4.Meta["neighbor_evals"] = I(pr.NeighborEvaluations); c4.Meta["executor_runs"] = I(pr.ExecutorRuns); c4.Meta["cumulative_trials"] = I(et3Fresh + pr.FreshTrials);
 				c4.Meta["pool_sha256"] = pr.PoolSha256(c4in); c4.Meta["rejects_sha256"] = pr.RejectsSha256(); c4.Meta["ledger_sha256"] = pr.LedgerSha256();
-				sw.Stop(); c4.Perf["seconds"] = (sw.ElapsedMilliseconds / 1000.0).ToString("0.00", CultureInfo.InvariantCulture); c4.Perf["mem_mb"] = I(MemMb());
+				sw.Stop(); c4.Perf["seconds"] = (sw.ElapsedMilliseconds / 1000.0).ToString("0.00", CultureInfo.InvariantCulture); c4.Perf["mem_mb"] = I(MemMb()); c4.Perf["threads"] = I(threadsEff);
 				Commit(c4);
 			}
 			res.Stages.Add(c4); Log("ET4 " + (c4.Resumed ? "REANUDADA" : "calculada") + " pool=" + c4.M("pool") + " ensayos_nuevos=" + c4.M("fresh_trials"));

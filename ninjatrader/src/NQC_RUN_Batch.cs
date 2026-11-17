@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.IO;
 using System.Text;
 using NinjaTrader.Cbi;
@@ -34,6 +35,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public string Id = "", Transform = "IDENTITY", Size = "REDUCED";
 		public long TSeed, GaSeed; public bool HasTSeed, HasGaSeed;
 		public int Evals = 2000, Pop, Gen, MaxEvals, TopK; public int Sample = -1;     // Sample: -1 = el global neff_sample
+		public int[] Threads;      // NQCRUN_Batch 1.1.0: hilos de la campana. Una campana normal usa el primero; TIMING con varios valores (threads=1,4,8,16,24) BARRE y compara. NO entra en ningun hash (el resultado no depende de los hilos).
 		public string Spec(double target, double tol)
 		{
 			return "id=" + Id + ";transform=" + Transform + ";tseed=" + (HasTSeed ? TSeed.ToString(CultureInfo.InvariantCulture) : "-") + ";gaseed=" + GaSeed.ToString(CultureInfo.InvariantCulture) + ";size=" + Size
@@ -74,7 +76,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			foreach (string raw in (text ?? "").Split('\n'))
 			{
 				ln++; string line = raw.Trim(); if (line.Length == 0 || line[0] == '#') continue;
-				if (!line.StartsWith("out_root", StringComparison.OrdinalIgnoreCase)) canon.Append(line).Append('\n');   // la ruta de salida no entra en el hash del manifiesto (el lote es el mismo en otra carpeta)
+				// la ruta de salida y los HILOS (threads, max_memory_mb, o el token threads= de una campana) no entran en el hash del manifiesto: el lote es el mismo en otra carpeta o con otros hilos
+				bool execKey = line.StartsWith("threads", StringComparison.OrdinalIgnoreCase) || line.StartsWith("max_memory_mb", StringComparison.OrdinalIgnoreCase);
+				if (!line.StartsWith("out_root", StringComparison.OrdinalIgnoreCase) && !execKey)
+					canon.Append(line.StartsWith("campaign", StringComparison.Ordinal) ? System.Text.RegularExpressions.Regex.Replace(line, @"[ \t]+threads=\S*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase) : line).Append('\n');
 				try
 				{
 					if (line.StartsWith("campaign ", StringComparison.Ordinal) || line.StartsWith("campaign\t", StringComparison.Ordinal))
@@ -97,6 +102,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 								case "maxevals": c.MaxEvals = int.Parse(v, CultureInfo.InvariantCulture); break;
 								case "topk": c.TopK = int.Parse(v, CultureInfo.InvariantCulture); break;
 								case "sample": c.Sample = int.Parse(v, CultureInfo.InvariantCulture); break;
+								case "threads":
+								{
+									string[] parts = v.Split(','); c.Threads = new int[parts.Length];
+									for (int q = 0; q < parts.Length; q++) { c.Threads[q] = int.Parse(parts[q], CultureInfo.InvariantCulture); if (c.Threads[q] < 1 || c.Threads[q] > 128) { error = "linea " + ln + ": threads fuera de 1..128"; return null; } }
+									if (c.Threads.Length > 12) { error = "linea " + ln + ": threads admite a lo sumo 12 valores"; return null; }
+									break;
+								}
 								default: error = "linea " + ln + ": clave de campana desconocida '" + k + "'"; return null;
 							}
 						}
@@ -106,6 +118,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						if (!c.HasGaSeed) { error = "campana " + c.Id + ": falta gaseed (la semilla del GA se declara antes de correr)"; return null; }
 						if (c.Transform != "IDENTITY" && !c.HasTSeed) { error = "campana " + c.Id + ": el transformador " + c.Transform + " exige tseed"; return null; }
 						if (c.Transform == "IDENTITY" && c.HasTSeed) { error = "campana " + c.Id + ": IDENTITY no admite tseed"; return null; }
+						if (c.Threads != null && c.Threads.Length > 1 && c.Size != "TIMING") { error = "campana " + c.Id + ": una lista de threads (barrido) solo se admite en TIMING"; return null; }
 						if (c.Size == "TIMING")
 						{
 							if (c.Transform != "N1" && c.Transform != "N2") { error = "campana " + c.Id + ": TIMING solo sobre un dataset N1 (o N2), nunca sobre el IS original ni N1+INJ"; return null; }
@@ -173,7 +186,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 	public static class NQCRUN_Batch
 	{
-		public const string Version = "NQCRUNBATCH-1.0.0";
+		public const string Version = "NQCRUNBATCH-1.1.0";
 		private static string I(long v) { return v.ToString(CultureInfo.InvariantCulture); }
 		private static string F(double v, string fmt) { return v.ToString(fmt, CultureInfo.InvariantCulture); }
 		private static long PeakMb() { try { return Process.GetCurrentProcess().PeakWorkingSet64 / 1048576; } catch { return -1; } }
@@ -191,6 +204,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			string e; NQCRUN_Params p = NQCRUN_Params.Parse(m.GlobalText, out e); if (p == null) throw new NQCRUN_Exception("RUN: configuracion global ilegible: " + e);
 			p.Campaign = c.Id; p.Seed = c.GaSeed; p.SeedGiven = true; p.Population = c.Pop; p.Generations = c.Gen; p.MaxEvals = c.MaxEvals; p.TopK = c.TopK;
 			if (c.Sample >= 0) p.NeffSample = c.Sample;
+			if (c.Threads != null && c.Threads.Length >= 1) p.Threads = c.Threads[0];
 			p.Calibration = c.Transform != "IDENTITY"; p.OutDir = Path.Combine(outRoot, c.Id);
 			p.Config = cfg; p.EngineHash = opt.EngineHash ?? ""; p.Log = opt.Log; p.LibraryFactory = opt.LibraryFactory; p.NullBest = opt.NullBest;
 			return p;
@@ -211,10 +225,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private static string Nearest(List<double> sorted, double q) { int n = sorted.Count; int idx = (int)Math.Ceiling(q * n) - 1; if (idx < 0) idx = 0; if (idx >= n) idx = n - 1; return F(sorted[idx], "0.000"); }
 
 		// ------------------------------------------------------------------ TIMING (paso 0 del runbook de ET2): N evaluaciones de ET3 sobre N1; solo tiempos y memoria, NO se guarda ni se escribe ninguna economia
-		private static NQCRUN_BatchRow RunTiming(NQCRUN_BatchManifest m, NQCRUN_BatchCampaign c, NQCRUN_BatchOptions opt, NQCE_Config cfg, string outRoot, NQCE_Bars rawBars, double[] vol, NQCRUN_Params baseP)
+		// NQCRUN_Batch 1.1.0: threads=N mide con N hilos; threads=1,4,8,16,24 BARRE varios valores en una sola corrida (cada uno con datos y cache FRIOS; defecto 200 evaluaciones por valor)
+		// y reporta speed-up y eficiencia por hilo. Ademas compara el hash del ledger entre valores (el resultado debe ser identico: lo unico que cambia es el tiempo). No se guarda economia.
+		private sealed class TimingStats
 		{
-			NQCRUN_BatchRow row = new NQCRUN_BatchRow(); row.Id = c.Id; row.Transform = c.Transform; row.Size = "TIMING"; row.GaSeed = c.GaSeed;
-			string dir = Path.Combine(outRoot, c.Id); Directory.CreateDirectory(dir);
+			public int Threads, Applied, N; public double WallS, SumMs, Mean, Median, P90, Max, MeanWarm, MemGestMb, TransformS, Mem0Mb; public long PeakMb; public string LedgerSha = "", LibVersion = "", TrName = "", TrParams = ""; public int Sessions, Bars; public List<double> Ms;
+		}
+
+		private static TimingStats TimingOnce(NQCRUN_BatchManifest m, NQCRUN_BatchCampaign c, NQCRUN_BatchOptions opt, NQCE_Config cfg, NQCE_Bars rawBars, double[] vol, NQCRUN_Params baseP, int requested)
+		{
+			TimingStats ts = new TimingStats(); ts.Threads = requested;
+			ts.Applied = NQCRUN_Threads.Resolve(requested, baseP.MemoBudgetMb, baseP.MaxMemoryMb);
 			NQCRUN_IDatasetTransform tr = MakeTransform(c, m, cfg); NQCE_Bars bars; double[] volume; Stopwatch swT = Stopwatch.StartNew(); tr.Apply(rawBars, vol, out bars, out volume); swT.Stop();
 			if (bars == null || volume == null) throw new NQCRUN_Exception("RUN: el transformador devolvio datos nulos");
 			NQCRUN_DataReport rep2 = new NQCRUN_DataReport(); string err = NQCRUN_Data.Check(bars.T, bars.O, bars.H, bars.L, bars.C, volume, baseP.StrictIsRange, false, rep2); if (err.Length > 0) throw new NQCRUN_Exception("RUN: salida del transformador " + tr.Name + " invalida: " + err);
@@ -226,28 +247,63 @@ namespace NinjaTrader.NinjaScript.Strategies
 				NQCE3_Params gp = new NQCE3_Params(); gp.PopSize = 200; gp.Generations = 10 * (c.Evals / 200 + 1) + 10; gp.TopK = 200; gp.Seed = c.GaSeed;
 				long mem0 = GC.GetTotalMemory(true);
 				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib); fit.FreshEvalMs = new List<double>(c.Evals + 256);
-				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = c.Id; camp.MaxEvals = c.Evals;
+				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = c.Id; camp.MaxEvals = c.Evals; camp.Threads = ts.Applied;
 				Stopwatch sw = Stopwatch.StartNew(); camp.Run(fit, lib, gp, null); sw.Stop();
-				long memManaged = GC.GetTotalMemory(false); long peak = PeakMb();
+				ts.WallS = sw.Elapsed.TotalSeconds; ts.MemGestMb = GC.GetTotalMemory(false) / 1048576.0; ts.Mem0Mb = mem0 / 1048576.0; ts.PeakMb = PeakMb();
 				List<double> ms = new List<double>(fit.FreshEvalMs); int n = ms.Count; if (n == 0) throw new NQCRUN_Exception("RUN: TIMING sin evaluaciones");
-				double sum = 0; foreach (double x in ms) sum += x; double mean = sum / n;
-				int skip = n / 20; double sum2 = 0; for (int i = skip; i < n; i++) sum2 += ms[i]; double meanWarm = n - skip > 0 ? sum2 / (n - skip) : mean;
-				ms.Sort(); double median = n % 2 == 1 ? ms[n / 2] : 0.5 * (ms[n / 2 - 1] + ms[n / 2]);
-				StringBuilder s = new StringBuilder();
-				s.Append("NQC RUN BATCH TIMING | ").Append(Version).Append(" | dataset transformado (").Append(tr.Name).Append("), NUNCA el IS original | solo tiempos y memoria; NO se guarda ni se mira ninguna economia | SOLO DESARROLLO\n");
-				s.Append("id=").Append(c.Id).Append(" transform=").Append(tr.Name).Append(" transform_params=").Append(tr.ParamsText).Append(" ga_seed=").Append(I(c.GaSeed)).Append(" pop=200 evals_pedidas=").Append(I(c.Evals)).Append('\n');
-				s.Append("evaluaciones_medidas=").Append(I(n)).Append(" barras=").Append(I(bars.Count)).Append(" sesiones=").Append(I(rep2.Sessions)).Append(" library=").Append(lib.Version).Append(" runner=").Append(NQCRUN_Funnel.Version).Append('\n');
-				s.Append("ms_por_evaluacion: media=").Append(F(mean, "0.000")).Append(" mediana=").Append(F(median, "0.000")).Append(" p90=").Append(Nearest(ms, 0.90)).Append(" max=").Append(F(ms[n - 1], "0.000")).Append(" media_sin_el_5%_inicial=").Append(F(meanWarm, "0.000")).Append(" (el arranque incluye el calentamiento de la memoria de la biblioteca)\n");
-				s.Append("tiempo_total_evaluaciones_s=").Append(F(sw.ElapsedMilliseconds / 1000.0, "0.00")).Append(" tiempo_transformador_s=").Append(F(swT.ElapsedMilliseconds / 1000.0, "0.00")).Append('\n');
-				s.Append("memoria_gestionada_antes_mb=").Append(I(mem0 / 1048576)).Append(" despues_mb=").Append(I(memManaged / 1048576)).Append(" pico_working_set_mb=").Append(I(peak)).Append(" memo_budget_mb=").Append(I(baseP.MemoBudgetMb)).Append('\n');
-				double h10k = mean * 10000.0 / 3600000.0, h100k = mean * 100000.0 / 3600000.0;
-				s.Append("extrapolacion (SOLO ET3, media x evaluaciones; ET4-ET7 NO medidos): 10.000 evaluaciones = ").Append(F(h10k, "0.00")).Append(" h; 100.000 = ").Append(F(h100k, "0.00")).Append(" h; 30 campanas REDUCED = ").Append(F(30 * h10k, "0.0")).Append(" h; 30 FULL = ").Append(F(30 * h100k, "0.0")).Append(" h; 20 FULL = ").Append(F(20 * h100k, "0.0")).Append(" h\n");
-				File.WriteAllText(Path.Combine(dir, "SUMMARY.txt"), s.ToString(), new UTF8Encoding(false));
-				row.State = "TIMING"; row.FunnelStatus = "TIMING_MEDIDO"; row.Trials = I(fit.FreshEvaluations); row.Seconds = sw.ElapsedMilliseconds / 1000.0; row.PeakMb = peak;
-				row.Note = "ms/eval media=" + F(mean, "0.000") + " mediana=" + F(median, "0.000") + " p90=" + Nearest(ms, 0.90) + " mem_gest_mb=" + I(memManaged / 1048576);
-				return row;
+				double sum = 0; foreach (double x in ms) sum += x; ts.SumMs = sum; ts.Mean = sum / n; ts.N = n;
+				int skip = n / 20; double sum2 = 0; for (int i = skip; i < n; i++) sum2 += ms[i]; ts.MeanWarm = n - skip > 0 ? sum2 / (n - skip) : ts.Mean;
+				ms.Sort(); ts.Median = n % 2 == 1 ? ms[n / 2] : 0.5 * (ms[n / 2 - 1] + ms[n / 2]); ts.Ms = ms; ts.P90 = ms[Math.Max(0, Math.Min(n - 1, (int)Math.Ceiling(0.90 * n) - 1))]; ts.Max = ms[n - 1];
+				ts.LedgerSha = camp.Ledger.Sha256();      // solo el hash (determinismo entre hilos); NO se guarda ni se muestra ninguna economia
+				ts.LibVersion = lib.Version; ts.TrName = tr.Name; ts.TrParams = tr.ParamsText; ts.Sessions = rep2.Sessions; ts.Bars = bars.Count; ts.TransformS = swT.Elapsed.TotalSeconds;
+				return ts;
 			}
 			finally { NQCE3_Series.MemoBudgetBytes = oldMemo; }
+		}
+
+		private static NQCRUN_BatchRow RunTiming(NQCRUN_BatchManifest m, NQCRUN_BatchCampaign c, NQCRUN_BatchOptions opt, NQCE_Config cfg, string outRoot, NQCE_Bars rawBars, double[] vol, NQCRUN_Params baseP)
+		{
+			NQCRUN_BatchRow row = new NQCRUN_BatchRow(); row.Id = c.Id; row.Transform = c.Transform; row.Size = "TIMING"; row.GaSeed = c.GaSeed;
+			string dir = Path.Combine(outRoot, c.Id); Directory.CreateDirectory(dir);
+			int[] tl = c.Threads != null ? c.Threads : new int[] { baseP.Threads };    // 0 = automatico
+			List<TimingStats> all = new List<TimingStats>();
+			for (int i = 0; i < tl.Length; i++)
+			{
+				if (i > 0) { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); }
+				all.Add(TimingOnce(m, c, opt, cfg, rawBars, vol, baseP, tl[i]));
+				opt.Log("BATCH " + c.Id + " TIMING threads=" + I(all[i].Applied) + " pared=" + F(all[i].WallS, "0.0") + "s");
+			}
+			TimingStats a0 = all[0]; StringBuilder s = new StringBuilder();
+			s.Append("NQC RUN BATCH TIMING | ").Append(Version).Append(" | dataset transformado (").Append(a0.TrName).Append("), NUNCA el IS original | solo tiempos y memoria; NO se guarda ni se mira ninguna economia | SOLO DESARROLLO\n");
+			s.Append("id=").Append(c.Id).Append(" transform=").Append(a0.TrName).Append(" transform_params=").Append(a0.TrParams).Append(" ga_seed=").Append(I(c.GaSeed)).Append(" pop=200 evals_pedidas=").Append(I(c.Evals)).Append(" threads=").Append(c.Threads == null ? (baseP.Threads == 0 ? "auto" : I(baseP.Threads)) : string.Join(",", Array.ConvertAll(c.Threads, delegate(int x) { return I(x); }))).Append('\n');
+			s.Append("evaluaciones_medidas=").Append(I(a0.N)).Append(" barras=").Append(I(a0.Bars)).Append(" sesiones=").Append(I(a0.Sessions)).Append(" library=").Append(a0.LibVersion).Append(" runner=").Append(NQCRUN_Funnel.Version).Append(" nucleos_logicos=").Append(I(Environment.ProcessorCount)).Append('\n');
+			foreach (TimingStats t in all)
+			{
+				double wallMsPerEval = t.WallS * 1000.0 / t.N;
+				s.Append("[threads=").Append(I(t.Applied)).Append(t.Applied != t.Threads && t.Threads > 0 ? " (pedido " + I(t.Threads) + ", limitado por memoria)" : "").Append("] ms_por_evaluacion: media=").Append(F(t.Mean, "0.000")).Append(" mediana=").Append(F(t.Median, "0.000")).Append(" p90=").Append(F(t.P90, "0.000")).Append(" max=").Append(F(t.Max, "0.000")).Append(" media_sin_el_5%_inicial=").Append(F(t.MeanWarm, "0.000")).Append(" (tiempo de cada evaluacion dentro de su hilo)\n");
+				s.Append("[threads=").Append(I(t.Applied)).Append("] tiempo_total_evaluaciones_s=").Append(F(t.WallS, "0.00")).Append(" ms_por_evaluacion_de_PARED=").Append(F(wallMsPerEval, "0.000")).Append(" tiempo_transformador_s=").Append(F(t.TransformS, "0.00")).Append(" memoria_gestionada_antes_mb=").Append(F(t.Mem0Mb, "0")).Append(" despues_mb=").Append(F(t.MemGestMb, "0")).Append(" pico_working_set_mb=").Append(I(t.PeakMb)).Append(" memo_budget_mb=").Append(I(baseP.MemoBudgetMb)).Append('\n');
+			}
+			if (all.Count > 1)
+			{
+				s.Append("BARRIDO DE HILOS (cada valor con datos y cache FRIOS, ").Append(I(a0.N)).Append(" evaluaciones; speed-up = pared(").Append(I(a0.Applied)).Append(" hilo(s)) / pared; eficiencia = speed-up / (hilos / ").Append(I(a0.Applied)).Append("))\n");
+				s.Append("hilos\tpared_s\tms_pared_por_eval\tspeedup\teficiencia\tms_medio_en_hilo\tledger_sha12\n");
+				bool same = true; foreach (TimingStats t in all) { if (t.LedgerSha != a0.LedgerSha) same = false; }
+				foreach (TimingStats t in all)
+				{
+					double sp = a0.WallS / t.WallS, eff = sp / ((double)t.Applied / a0.Applied);
+					s.Append(I(t.Applied)).Append('\t').Append(F(t.WallS, "0.00")).Append('\t').Append(F(t.WallS * 1000.0 / t.N, "0.000")).Append('\t').Append(F(sp, "0.00")).Append('\t').Append(F(eff, "0.00")).Append('\t').Append(F(t.Mean, "0.000")).Append('\t').Append(t.LedgerSha.Substring(0, 12)).Append('\n');
+				}
+				s.Append("resultado_identico_entre_hilos=").Append(same ? "SI" : "NO (DEFECTO: el ledger depende de los hilos; no usar threads>1 hasta corregirlo)").Append('\n');
+				if (!same) row.Note = "LEDGER_DIFIERE_ENTRE_HILOS";
+			}
+			TimingStats best = a0; foreach (TimingStats t in all) if (t.WallS < best.WallS) best = t;
+			double wallBest = best.WallS * 1000.0 / best.N, wall0 = a0.WallS * 1000.0 / a0.N;
+			double h10k = wallBest * 10000.0 / 3600000.0, h100k = wallBest * 100000.0 / 3600000.0;
+			s.Append("extrapolacion con tiempo de PARED y ").Append(I(best.Applied)).Append(" hilo(s) (SOLO ET3, ").Append(F(wallBest, "0.000")).Append(" ms/eval; ET4-ET7 NO medidos; la cache en regimen real puede cambiar el costo): 10.000 evaluaciones = ").Append(F(h10k, "0.00")).Append(" h; 100.000 = ").Append(F(h100k, "0.00")).Append(" h; 30 campanas REDUCED = ").Append(F(30 * h10k, "0.0")).Append(" h; 30 FULL = ").Append(F(30 * h100k, "0.0")).Append(" h; 20 FULL = ").Append(F(20 * h100k, "0.0")).Append(" h\n");
+			File.WriteAllText(Path.Combine(dir, "SUMMARY.txt"), s.ToString(), new UTF8Encoding(false));
+			row.State = "TIMING"; row.FunnelStatus = "TIMING_MEDIDO"; row.Trials = I(a0.N); row.Seconds = all.Count == 1 ? a0.WallS : all.Sum(delegate(TimingStats t) { return t.WallS; }); row.PeakMb = all[all.Count - 1].PeakMb;
+			row.Note = (row.Note.Length > 0 ? row.Note + " " : "") + "hilos=" + I(best.Applied) + " ms/eval_pared=" + F(wallBest, "0.000") + " ms/eval_hilo_media=" + F(best.Mean, "0.000") + " mediana=" + F(best.Median, "0.000") + " p90=" + F(best.P90, "0.000") + " mem_gest_mb=" + F(best.MemGestMb, "0");
+			return row;
 		}
 
 		public static NQCRUN_BatchResult Run(string manifestText, long[] t, double[] o, double[] h, double[] l, double[] c, double[] vol, string defaultOutRoot, NQCRUN_BatchOptions opt)

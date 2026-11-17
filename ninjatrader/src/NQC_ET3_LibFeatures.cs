@@ -505,17 +505,23 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					int startIdx=at-2*n;
 					double kama=sr.C[startIdx];
+					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Kama,n);
 					for(int k=startIdx+1;k<=at;k++)
 					{
 						int t=Math.Max(startIdx,k-n),diffs=0;
-						double travel=0;
-						for(int j=t+1;j<=k;j++)
+						double er;
+						if(t==k-n)er=sr.AuxAt(ae,NQCE3_Aux.Kama,k,n);   // ventana completa (n diferencias): no depende de `at`, memorizada
+						else
 						{
-							travel+=Math.Abs(sr.C[j]-sr.C[j-1]);
-							diffs++;
+							double travel=0;
+							for(int j=t+1;j<=k;j++)
+							{
+								travel+=Math.Abs(sr.C[j]-sr.C[j-1]);
+								diffs++;
+							}
+							er=diffs==0?0:
+								Math.Abs(NQCE3_M.Div(sr.C[k]-sr.C[t],travel));
 						}
-						double er=diffs==0?0:
-							Math.Abs(NQCE3_M.Div(sr.C[k]-sr.C[t],travel));
 						double a=Math.Pow(er*(2.0/3-2.0/31)+2.0/31,2);
 						kama+=a*(sr.C[k]-kama);
 					}
@@ -524,22 +530,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 45: // FRAMA fractal adaptive EMA
 				{
 					double frama=sr.C[at-2*n];
-					int h=Math.Max(2,n/2);
+					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Frama,n);   // alpha(k) no depende de `at`: memorizado por barra (mismo valor)
 					for(int k=at-2*n+1;k<=at;k++)
 					{
 						if(k<n)continue;
-						double hi1=NQCE3_M.Highest(sr,k,h,2),
-							   lo1=NQCE3_M.Lowest(sr,k,h,3),
-							   hi2=NQCE3_M.Highest(sr,k-h,h,2),
-							   lo2=NQCE3_M.Lowest(sr,k-h,h,3),
-							   hi=NQCE3_M.Highest(sr,k,2*h,2),
-							   lo=NQCE3_M.Lowest(sr,k,2*h,3);
-						double d1=(hi1-lo1)/h,d2=(hi2-lo2)/h,
-							   d3=(hi-lo)/(2.0*h);
-						double dimension=d1+d2<=NQCE3_M.Eps||d3<=NQCE3_M.Eps?
-							1:Math.Log((d1+d2)/d3)/Math.Log(2);
-						double alpha=NQCE3_M.Clip(Math.Exp(-4.6*
-							(dimension-1)),0.01,1);
+						double alpha=sr.AuxAt(ae,NQCE3_Aux.Frama,k,n);
 						frama+=alpha*(sr.C[k]-frama);
 					}
 					return (p-frama)/atr;
@@ -602,16 +597,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 54: // VIDYA via magnitude of Chande momentum
 				{
 					double vidya=sr.C[at-2*n];
+					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Cmo,n);
 					for(int k=at-2*n+1;k<=at;k++)
 					{
 						int look=Math.Min(n,k-(at-2*n));
-						double gain=0,loss=0;
-						for(int j=k-look+1;j<=k;j++)
+						double cmo;
+						if(look==n)cmo=sr.AuxAt(ae,NQCE3_Aux.Cmo,k,n);   // ventana completa: no depende de `at`, memorizada
+						else
 						{
-							double d=sr.C[j]-sr.C[j-1];
-							gain+=Math.Max(0,d);loss+=Math.Max(0,-d);
+							double gain=0,loss=0;
+							for(int j=k-look+1;j<=k;j++)
+							{
+								double d=sr.C[j]-sr.C[j-1];
+								gain+=Math.Max(0,d);loss+=Math.Max(0,-d);
+							}
+							cmo=Math.Abs(NQCE3_M.Div(gain-loss,gain+loss));
 						}
-						double cmo=Math.Abs(NQCE3_M.Div(gain-loss,gain+loss));
 						vidya+=2.0/(n+1)*cmo*(sr.C[k]-vidya);
 					}
 					return (p-vidya)/atr;
@@ -663,12 +664,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int startIdx=at-n+1;
 			double alpha=2.0/(Math.Max(2,n/2)+1);
 			double d=0,d2=0;
+			NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Smi,n);   // x(k) no depende de `at`: memorizado por barra
 			for(int k=startIdx;k<=at;k++)
 			{
-				int look=Math.Min(n,k+1);
-				double hi=NQCE3_M.Highest(sr,k,look,2),
-					   lo=NQCE3_M.Lowest(sr,k,look,3);
-				double x=sr.C[k]-(hi+lo)/2;
+				double x=sr.AuxAt(ae,NQCE3_Aux.Smi,k,n);
 				if(k==startIdx){d=x;d2=d;}
 				else
 				{
@@ -722,12 +721,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 59: // stochastic RSI with rolling RSI extrema
 				{
 					double lo=Double.PositiveInfinity,hi=Double.NegativeInfinity;
+					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Rsi,n);   // RSI(k,n) no depende de `at`: memorizado por barra
 					for(int k=start;k<=at;k++)
 					{
-						double x=NQCE3_M.RSI(sr,k,n);
+						double x=sr.AuxAt(ae,NQCE3_Aux.Rsi,k,n);
 						lo=Math.Min(lo,x);hi=Math.Max(hi,x);
 					}
-					return NQCE3_M.Div(2*NQCE3_M.RSI(sr,at,n)-hi-lo,hi-lo);
+					return NQCE3_M.Div(2*sr.AuxAt(ae,NQCE3_Aux.Rsi,at,n)-hi-lo,hi-lo);
 				}
 				case 60: // Connors RSI: RSI3 + streak RSI2 + percent rank ROC1
 				{
@@ -807,24 +807,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 					return Math.Tanh(2.5*NQCE3_M.RSI(sr,at,n));
 				case 69: // STC-like double stochastic normalization MACD
 				{
+					// los n valores MACD(start..at) se leen UNA vez a un buffer del hilo (antes ~n*n/2 lecturas con candado); mismas operaciones y mismo orden
+					int cnt=at-start+1;
+					double[] mv=NQCE3_Aux.Scratch(cnt);
+					for(int i=0;i<cnt;i++)mv[i]=MACD(sr,start+i,n);
 					double lo=Double.PositiveInfinity,hi=Double.NegativeInfinity;
-					for(int k=start;k<=at;k++)
+					for(int i=0;i<cnt;i++)
 					{
-						double m=MACD(sr,k,n);
+						double m=mv[i];
 						lo=Math.Min(lo,m);hi=Math.Max(hi,m);
 					}
-					double stoch=NQCE3_M.Div(MACD(sr,at,n)-lo,hi-lo);
+					double stoch=NQCE3_M.Div(mv[cnt-1]-lo,hi-lo);
 					double mean=0;
-					for(int k=start;k<=at;k++)
+					for(int ki=0;ki<cnt;ki++)
 					{
 						double min=Double.PositiveInfinity,
 							   max=Double.NegativeInfinity;
-						for(int j=Math.Max(start,k-half+1);j<=k;j++)
+						for(int ji=Math.Max(0,ki-half+1);ji<=ki;ji++)
 						{
-							double v=MACD(sr,j,n);
+							double v=mv[ji];
 							min=Math.Min(min,v);max=Math.Max(max,v);
 						}
-						mean+=NQCE3_M.Div(MACD(sr,k,n)-min,max-min);
+						mean+=NQCE3_M.Div(mv[ki]-min,max-min);
 					}
 					return 2*(0.5*stoch+0.5*mean/n)-1;
 				}
@@ -1037,10 +1041,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				case 92: // downside ulcer drawdown scaled by trend
 				{
 					double ulcer=0;
+					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Ulcer,n);   // C[k]-maximo(k) no depende de `at`; solo la division por el ATR de `at` cambia
 					for(int k=start;k<=at;k++)
 					{
-						double hi=NQCE3_M.Highest(sr,k,Math.Min(n,k+1),0);
-						double dd=NQCE3_M.Div(sr.C[k]-hi,atr);   // D-018b: caida en ATR (antes % del maximo)
+						double dd=NQCE3_M.Div(sr.AuxAt(ae,NQCE3_Aux.Ulcer,k,n),atr);   // D-018b: caida en ATR (antes % del maximo)
 						ulcer+=dd*dd;
 					}
 					return NQCE3_M.Div(trend,
@@ -1054,13 +1058,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 					// stop is the minimum of ATR-adjusted lows.
 					double longStop=Double.NegativeInfinity,
 						shortStop=Double.PositiveInfinity;
+					NQCE3_Series.Entry aeH=sr.AuxEntry(NQCE3_Aux.ChHi,n),aeL=sr.AuxEntry(NQCE3_Aux.ChLo,n);   // maximo/minimo de n barras en k: no dependen de `at`
 					for(int k=at-h+1;k<=at;k++)
 					{
 						double a=NQCE3_M.ATR(sr,k,n);
 						longStop=Math.Max(longStop,
-							NQCE3_M.Highest(sr,k,n,2)-2*a);
+							sr.AuxAt(aeH,NQCE3_Aux.ChHi,k,n)-2*a);
 						shortStop=Math.Min(shortStop,
-							NQCE3_M.Lowest(sr,k,n,3)+2*a);
+							sr.AuxAt(aeL,NQCE3_Aux.ChLo,k,n)+2*a);
 					}
 					if(p>longStop)return (p-longStop)/atr;
 					if(p<shortStop)return (p-shortStop)/atr;
@@ -1386,4 +1391,66 @@ namespace NinjaTrader.NinjaScript.Strategies
 		}
 	}
 
+
+	// Cantidades por barra (independientes de la barra de senal) que se memorizan en NQCE3_Series.AuxAt. Cada una es COPIA LITERAL de la expresion original de la familia.
+	internal static class NQCE3_Aux
+	{
+		public const int Frama=1, Cmo=2, Kama=3, Rsi=4, Smi=5, Ulcer=6, ChHi=7, ChLo=8;
+		[ThreadStatic] private static double[] scratch;
+		public static double[] Scratch(int n) { if (scratch == null || scratch.Length < n) scratch = new double[Math.Max(n, 64)]; return scratch; }
+		public static double Compute(NQCE3_Series sr,int which,int k,int n)
+		{
+			switch(which)
+			{
+				case Frama:
+				{
+					int h=Math.Max(2,n/2);
+					double hi1=NQCE3_M.Highest(sr,k,h,2),
+						   lo1=NQCE3_M.Lowest(sr,k,h,3),
+						   hi2=NQCE3_M.Highest(sr,k-h,h,2),
+						   lo2=NQCE3_M.Lowest(sr,k-h,h,3),
+						   hi=NQCE3_M.Highest(sr,k,2*h,2),
+						   lo=NQCE3_M.Lowest(sr,k,2*h,3);
+					double d1=(hi1-lo1)/h,d2=(hi2-lo2)/h,
+						   d3=(hi-lo)/(2.0*h);
+					double dimension=d1+d2<=NQCE3_M.Eps||d3<=NQCE3_M.Eps?
+						1:Math.Log((d1+d2)/d3)/Math.Log(2);
+					return NQCE3_M.Clip(Math.Exp(-4.6*
+						(dimension-1)),0.01,1);
+				}
+				case Cmo:
+				{
+					double gain=0,loss=0;
+					for(int j=k-n+1;j<=k;j++)
+					{
+						double d=sr.C[j]-sr.C[j-1];
+						gain+=Math.Max(0,d);loss+=Math.Max(0,-d);
+					}
+					return Math.Abs(NQCE3_M.Div(gain-loss,gain+loss));
+				}
+				case Kama:
+				{
+					int t=k-n;double travel=0;
+					for(int j=t+1;j<=k;j++)travel+=Math.Abs(sr.C[j]-sr.C[j-1]);
+					return Math.Abs(NQCE3_M.Div(sr.C[k]-sr.C[t],travel));
+				}
+				case Rsi: return NQCE3_M.RSI(sr,k,n);
+				case Smi:
+				{
+					int look=Math.Min(n,k+1);
+					double hi=NQCE3_M.Highest(sr,k,look,2),
+						   lo=NQCE3_M.Lowest(sr,k,look,3);
+					return sr.C[k]-(hi+lo)/2;
+				}
+				case Ulcer:
+				{
+					double hi=NQCE3_M.Highest(sr,k,Math.Min(n,k+1),0);
+					return sr.C[k]-hi;
+				}
+				case ChHi: return NQCE3_M.Highest(sr,k,n,2);
+				case ChLo: return NQCE3_M.Lowest(sr,k,n,3);
+			}
+			throw new ArgumentOutOfRangeException("which");
+		}
+	}
 }

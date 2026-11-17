@@ -424,7 +424,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				bool noVolErr = false; try { new NQCE3_Fitness(full, null, new NQCE_Config(), new NQCE3_Library()); } catch (ArgumentException) { noVolErr = true; }
 				Chk("L10.3 NQCE3_Fitness exige volumen enlazado (error explicito)", noVolErr, "ok");
 				// presupuesto LRU: con presupuesto para ~3 series, la cache no crece y no se vacia de golpe
-				long old = NQCE3_Series.MemoBudgetBytes; NQCE3_Series.MemoBudgetBytes = 8L * 124 * 3; int maxCount = 0;
+				long old = NQCE3_Series.MemoBudgetBytes; NQCE3_Series.MemoBudgetBytes = 8L * (124 + NQCE3_Series.PosMarginBars) * 3; int maxCount = 0;   // NQCRUN-1.3.0: la ventana memorizada incluye 2 barras de margen (126 posiciones por serie)
 				NQCE3_Series sL = new NQCE3_Series(full, v);
 				double a0 = sL.Feature(0, 10, 14, 600);
 				for (int f = 1; f < 8; f++) { sL.Feature(f, 10, 14, 600); if (sL.MemoCount > maxCount) maxCount = sL.MemoCount; }

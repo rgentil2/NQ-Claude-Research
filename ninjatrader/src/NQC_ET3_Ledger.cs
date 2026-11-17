@@ -76,6 +76,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public NQCE3_Ledger Ledger = new NQCE3_Ledger();
 		public NQCE3_Databank Bank = new NQCE3_Databank(2000);   // D-019: top-K 2.000 deduplicado (se reconstruye con p.TopK al correr)
 		public const int MaxEvaluations = 100000;   // tope duro D-019 (inmigrantes y elite recalculada incluidos en el conteo de evaluaciones nuevas)
+		public int Threads = 1;                    // hilos de evaluacion (NQCRUN-1.3.0); el resultado es identico para cualquier valor
 		public int MaxEvals = MaxEvaluations;      // por defecto el tope; las pruebas pueden bajarlo
 		public Action<int, NQCE3_Campaign> OnGeneration;   // opcional: se llama al cerrar cada generacion (progreso del runner); no afecta al azar ni al ledger
 
@@ -87,12 +88,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for (int gen = 0; gen < p.Generations; gen++)
 			{
 				double[] f = new double[pop.Count]; double sum = 0; int valid = 0, evaluated = 0; double best = double.NaN;
+				// NQCRUN-1.3.0: la generacion se evalua como LOTE (Threads hilos); la consolidacion (ledger, databank, curva) es en orden de indice, asi el resultado no depende de Threads.
+				NQCE3_BatchItem[] items = fit.EvaluateBatch(pop, MaxEvals, Threads);
 				for (int i = 0; i < pop.Count; i++)
 				{
-					int before = fit.FreshEvaluations;
-					if (before >= MaxEvals) { f[i] = double.NegativeInfinity; continue; }      // tope duro de evaluaciones
-					NQCE3_Eval e = fit.Evaluate(pop[i]);
-					if (fit.FreshEvaluations > before) Ledger.Add(Name, gen, e);            // solo evaluaciones nuevas son ensayos
+					if (items[i].Skipped) { f[i] = double.NegativeInfinity; continue; }      // tope duro de evaluaciones
+					NQCE3_Eval e = items[i].Eval;
+					if (items[i].Fresh) Ledger.Add(Name, gen, e);                            // solo evaluaciones nuevas son ensayos
 					Bank.Offer(e);
 					f[i] = e.Fitness; sum += e.Fitness; evaluated++; if (e.Valid) valid++; if (double.IsNaN(best) || e.Fitness > best) best = e.Fitness;
 				}

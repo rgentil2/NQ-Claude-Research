@@ -31,10 +31,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int[] DayStart;             // indice de la primera barra del dia calendario de cada barra
 		public NQCE_Bars Src;
 		public static long MemoBudgetBytes = 256L * 1024 * 1024;   // presupuesto de la cache por serie de barras
-		private sealed class Entry { public double[] A; public long Used; }
-		private int[] pos; private int winCount; private long tick;
+		// Cache de numeradores. THREAD-SAFE (NQCRUN-1.3.0): el diccionario y la expulsion LRU van bajo memoLock; los ELEMENTOS se llenan de forma perezosa
+		// (NaN = no calculado) y cada fallo se resuelve bajo un candado de pool (stripe) que depende de (clave, posicion): dos hilos NUNCA calculan el mismo
+		// elemento a la vez (el segundo espera y lee el valor del primero). Los valores son identicos a los del calculo directo (mismo camino, mismo orden de
+		// operaciones), asi que el resultado no depende del numero de hilos ni del orden de llegada.
+		internal sealed class Entry { public double[] A; public long Used; public int Key; public long Bytes; }
+		private int[] pos, posAux; private int winCount, auxCount; private long tick, memoBytes;
+		private readonly object memoLock = new object();
 		private Dictionary<int, Entry> memo = new Dictionary<int, Entry>();
+		private const int StripeCount = 4096;
+		private static readonly object[] StripesF = MakeStripes(), StripesM = MakeStripes();
+		private static object[] MakeStripes() { object[] a = new object[StripeCount]; for (int i = 0; i < a.Length; i++) a[i] = new object(); return a; }
+		public static int MemoReserveEntries = 0;     // entradas de cache en vuelo (arreglos que un hilo usa aunque ya se hayan expulsado): con varios hilos el lote lo fija en ~10 por hilo y se descuentan del presupuesto
+		public const int AuxMarginBars = 64;          // ventana de los memos auxiliares (por barra, independientes de `at`): 64 barras antes de la carga (las familias miran hasta ~2n+h atras)
+		public const int PosMarginBars = 2;           // la ventana memorizada incluye 2 barras antes de la carga: la senal de 09:29/09:30 lee at-1 y at-2 (antes se calculaban sin cache)
 		private static readonly double NonFiniteMark = double.NegativeInfinity;   // Clean() nunca devuelve infinitos: marca "calculado, no finito"
+		// ATR de Wilder por periodo: tabla directa (lectura sin candado; la primera vez bajo memoLock). El ejecutor lee bars.Atr(p) del diccionario de NQCE_Bars:
+		// el lote llama PrepareAtr(p) en el hilo principal ANTES de lanzar los hilos, asi el diccionario solo se LEE en paralelo.
+		private double[][] atrTab = new double[257][];
+		// estado del ATR de la llamada Direct en curso: POR HILO (antes campos de instancia: no era seguro con varios hilos)
+		[ThreadStatic] private static bool tsAtrUnit; [ThreadStatic] private static double[] tsAtrArr;
+		// ultima entrada MACD usada por este hilo (evita candado + diccionario en los bucles internos de las familias 31 y 69)
+		[ThreadStatic] private static NQCE3_Series tsMacdOwner; [ThreadStatic] private static int tsMacdKey; [ThreadStatic] private static Entry tsMacdEntry;
 
 		public NQCE3_Series(NQCE_Bars b, double[] volume)
 		{
@@ -44,12 +62,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				if (!Fin(O[i]) || !Fin(H[i]) || !Fin(L[i]) || !Fin(C[i]) || (volume != null && (!Fin(volume[i]) || volume[i] < 0)))
 					throw new ArgumentException("barra " + i.ToString(CultureInfo.InvariantCulture) + ": valor no finito (OHLC) o volumen negativo/no finito");
 			V = volume; HasVolume = volume != null;
-			DayStart = new int[Count]; pos = new int[Count]; winCount = 0;
+			DayStart = new int[Count]; pos = new int[Count]; posAux = new int[Count]; winCount = 0; auxCount = 0;
 			for (int i = 0; i < Count; i++)
 			{
 				DayStart[i] = (i > 0 && b.DayKey[i] == b.DayKey[i - 1]) ? DayStart[i - 1] : i;
 				int st = b.Stamp[i];
-				if (st >= NQCE_Const.StampLoadFrom && st <= NQCE_Const.StampLoadTo) pos[i] = winCount++; else pos[i] = -1;
+				if (st >= NQCE_Const.StampLoadFrom - PosMarginBars && st <= NQCE_Const.StampLoadTo) pos[i] = winCount++; else pos[i] = -1;
+				if (st >= NQCE_Const.StampLoadFrom - AuxMarginBars && st <= NQCE_Const.StampLoadTo) posAux[i] = auxCount++; else posAux[i] = -1;
 			}
 		}
 		private static bool Fin(double x) { return !double.IsNaN(x) && !double.IsInfinity(x); }
@@ -60,47 +79,121 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return r;
 		}
 
-		private double[] GetArr(int key)
+		// Entrada de cache de la clave (crea si falta; expulsa por LRU una a una). Bajo memoLock: seguro entre hilos.
+		internal Entry GetEntry(int key)
 		{
-			Entry e;
-			if (memo.TryGetValue(key, out e)) { e.Used = ++tick; return e.A; }
-			long each = 8L * Math.Max(1, winCount);
-			while (memo.Count > 0 && (memo.Count + 1) * each > MemoBudgetBytes)
+			lock (memoLock)
 			{
-				int lru = 0; long best = long.MaxValue;
-				foreach (KeyValuePair<int, Entry> kv in memo) if (kv.Value.Used < best) { best = kv.Value.Used; lru = kv.Key; }
-				memo.Remove(lru);                                  // LRU: se expulsa la menos usada, no se vacia todo
+				Entry e;
+				if (memo.TryGetValue(key, out e)) { e.Used = ++tick; return e; }
+				int len = key >= AuxKeyBase ? auxCount : winCount;
+				long bytes = 8L * Math.Max(1, len);
+				long budget = MemoBudgetBytes - MemoReserveEntries * 8L * Math.Max(1, winCount);
+				while (memo.Count > 0 && memoBytes + bytes > budget)
+				{
+					int lru = 0; long best = long.MaxValue;
+					foreach (KeyValuePair<int, Entry> kv in memo) if (kv.Value.Used < best) { best = kv.Value.Used; lru = kv.Key; }
+					memoBytes -= memo[lru].Bytes; memo.Remove(lru);    // LRU: se expulsa la menos usada, no se vacia todo
+				}
+				e = new Entry(); e.A = new double[len]; e.Key = key; e.Bytes = bytes; for (int i = 0; i < len; i++) e.A[i] = double.NaN;
+				e.Used = ++tick; memo[key] = e; memoBytes += bytes; return e;
 			}
-			e = new Entry(); e.A = new double[winCount]; for (int i = 0; i < winCount; i++) e.A[i] = double.NaN;
-			e.Used = ++tick; memo[key] = e; return e.A;
 		}
-		public int MemoCount { get { return memo.Count; } }
+		public const int AuxKeyBase = 3000000;
+		private static readonly object[] StripesA = MakeStripes();
+		[ThreadStatic] private static NQCE3_Series[] tsAuxOwner; [ThreadStatic] private static int[] tsAuxKey; [ThreadStatic] private static Entry[] tsAuxEntry;
+		// Memo AUXILIAR por barra: cantidad g(k) de una familia que NO depende de la barra de senal `at` (p. ej. el alpha de FRAMA en la barra k). Mismo valor que el
+		// calculo directo (NQCE3_Aux.Compute), calculado una vez por barra y reutilizado por las ~2n barras siguientes. Ventana propia (AuxMarginBars antes de la carga).
+		internal Entry AuxEntry(int which, int n)
+		{
+			int key = AuxKeyBase + which * 64 + n; int slot = key & 3;
+			if (tsAuxEntry == null) { tsAuxOwner = new NQCE3_Series[4]; tsAuxKey = new int[4]; tsAuxEntry = new Entry[4]; }
+			if (ReferenceEquals(tsAuxOwner[slot], this) && tsAuxKey[slot] == key && tsAuxEntry[slot] != null) return tsAuxEntry[slot];
+			Entry e = GetEntry(key); tsAuxOwner[slot] = this; tsAuxKey[slot] = key; tsAuxEntry[slot] = e; return e;
+		}
+		internal double AuxAt(Entry e, int which, int k, int n)
+		{
+			int ps = posAux[k];
+			if (ps < 0 || DebugNoAux) return NQCE3_Aux.Compute(this, which, k, n);
+			double[] arr = e.A; double v = arr[ps];
+			if (double.IsNaN(v))
+			{
+				lock (StripesA[(unchecked((uint)(e.Key * 7919 + ps)) * 2654435761u) % StripeCount])
+				{
+					v = arr[ps];
+					if (double.IsNaN(v)) { v = NQCE3_Aux.Compute(this, which, k, n); arr[ps] = v; }   // un NaN real se recalcula cada vez (correcto, solo mas lento)
+				}
+			}
+			return v;
+		}
+		public int MemoCount { get { lock (memoLock) { return memo.Count; } } }
+		public long MemoBytes { get { lock (memoLock) { return memoBytes; } } }     // bytes de la cache (sin las entradas expulsadas que algun hilo aun usa)
+		public static bool DebugNoAux;    // SOLO pruebas: desactiva el memo auxiliar (cada llamada recalcula la expresion original) para comprobar que memorizar no cambia ningun valor
 
 		// ---- D-031(3): ATR de Wilder (el MISMO arreglo que usa el ejecutor: NQCE_Bars.Atr(p) = AtrOwn) con el periodo p del gen de salida.
 		// AtrOwn arranca con r[0]=H-L y MEDIA CRECIENTE hasta completar p barras (calentamiento): en las primeras ~3p barras de la serie
 		// completa el valor es una media parcial, no un Wilder asentado. Como la serie incluye pre-mercado (ETH desde 00:00), a las 09:31
 		// de cualquier dia del IS salvo los primeros del dataset el ATR ya esta asentado; la biblioteca NO anade otro requisito.
-		private bool atrUnit; private double[] atrArr;
 		public const double AtrEps = 1e-12;
 		public void SetAtr(int p, bool unit)
 		{
-			atrUnit = unit; atrArr = unit ? null : Src.Atr(p);
+			tsAtrUnit = unit; tsAtrArr = unit ? null : AtrArr(p);
 		}
+		// Arreglo ATR de Wilder de periodo p (el mismo objeto que NQCE_Bars.Atr(p)). Lectura sin candado tras la primera vez.
+		public double[] AtrArr(int p)
+		{
+			if (p < 0 || p >= atrTab.Length) lock (memoLock) return Src.Atr(p);
+			double[] a = atrTab[p];
+			if (a == null) lock (memoLock) { a = Src.Atr(p); atrTab[p] = a; }
+			return a;
+		}
+		// Hilo principal, antes de lanzar hilos: deja el arreglo ATR(p) creado en NQCE_Bars y en la tabla (el ejecutor lo lee del diccionario sin candado).
+		public void PrepareAtr(int p) { AtrArr(p); }
 		// ATR (Wilder, periodo SetAtr) en la barra k. En modo unitario devuelve 1: las formulas "numerador/ATR" devuelven entonces el numerador en puntos.
 		public double AtrAt(int k)
 		{
-			if (atrUnit) return 1.0;
-			if (atrArr == null) throw new InvalidOperationException("ATR no fijado (SetAtr)");
-			return Math.Max(atrArr[k], AtrEps);
+			if (tsAtrUnit) return 1.0;
+			double[] a = tsAtrArr;
+			if (a == null) throw new InvalidOperationException("ATR no fijado (SetAtr)");
+			return Math.Max(a[k], AtrEps);
 		}
-		private double WilderAt(int p, int at) { return Math.Max(Src.Atr(p)[at], AtrEps); }
+		private double WilderAt(int p, int at) { return Math.Max(AtrArr(p)[at], AtrEps); }
 
 		// Calculo directo (sin cache) de la familia f, periodo n, ATR de Wilder p, en la barra at; unit=true => ATR = 1 (numerador).
 		public double Direct(int f, int n, int p, int at, bool unit)
 		{
 			SetAtr(p, unit);
 			try { return NQCE3_Features.Compute(this, at, f, n); }
-			finally { atrArr = null; atrUnit = false; }
+			finally { tsAtrArr = null; tsAtrUnit = false; }
+		}
+
+		internal static int KeyOf(char kind, int f, int n, int p) { return kind == '2' ? 2000000 + (f * 64 + n) * 128 + p : f * 64 + n; }
+
+		// Valor de la familia con la entrada de cache ya resuelta (e puede ser null si la barra esta fuera de la ventana memorizada).
+		// kind/f/n/p: clave; atrA: arreglo ATR de Wilder de periodo p (solo para kind '1'). NaN si no es finito.
+		internal double FeatureE(Entry e, char kind, int f, int n, int p, double[] atrA, int at)
+		{
+			int ps = pos[at];
+			if (ps < 0 || e == null)
+			{
+				if (kind == '2') return Clean(Direct(f, n, p, at, false));
+				double v0 = Clean(Direct(f, n, p, at, true));
+				return (kind == '1' && !double.IsNaN(v0)) ? Clean(v0 / Math.Max(atrA[at], AtrEps)) : v0;
+			}
+			double[] arr = e.A;
+			double v = arr[ps];
+			if (double.IsNaN(v))
+			{
+				lock (StripesF[(unchecked((uint)(e.Key * 7919 + ps)) * 2654435761u) % StripeCount])
+				{
+					v = arr[ps];
+					if (double.IsNaN(v)) { v = Clean(Direct(f, n, p, at, kind != '2')); arr[ps] = double.IsNaN(v) ? NonFiniteMark : v; }
+					else if (double.IsNegativeInfinity(v)) v = double.NaN;
+				}
+			}
+			else if (double.IsNegativeInfinity(v)) v = double.NaN;
+			if (kind == '1' && !double.IsNaN(v)) v = Clean(v / Math.Max(atrA[at], AtrEps));
+			return v;
 		}
 
 		// Valor de la familia f (periodo n, ATR de Wilder de periodo p) en la barra at. NaN si no es finito.
@@ -111,21 +204,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double Feature(int f, int n, int p, int at)
 		{
 			char kind = NQCE3_Catalog.AtrKindOf(f);
-			int ps = pos[at];
-			if (ps < 0)
-			{
-				if (kind == '2') return Clean(Direct(f, n, p, at, false));
-				double v0 = Clean(Direct(f, n, p, at, true));
-				return (kind == '1' && !double.IsNaN(v0)) ? Clean(v0 / WilderAt(p, at)) : v0;
-			}
-			int key = kind == '2' ? 2000000 + (f * 64 + n) * 128 + p : f * 64 + n;
-			double[] arr = GetArr(key);
-			double v = arr[ps];
-			if (double.IsNaN(v)) { v = Clean(Direct(f, n, p, at, kind != '2')); arr[ps] = double.IsNaN(v) ? NonFiniteMark : v; }
-			else if (double.IsNegativeInfinity(v)) v = double.NaN;
-			if (kind == '1' && !double.IsNaN(v)) v = Clean(v / WilderAt(p, at));
-			return v;
+			Entry e = pos[at] < 0 ? null : GetEntry(KeyOf(kind, f, n, p));
+			return FeatureE(e, kind, f, n, p, kind == '1' ? AtrArr(p) : null, at);
 		}
+
+		// Tres lecturas (at, at-1, at-2) de una condicion con la entrada ya resuelta (la usa NQCE3_Cond: sin candado ni diccionario por barra).
+		internal Entry Acquire(int f, int n, int p) { return GetEntry(KeyOf(NQCE3_Catalog.AtrKindOf(f), f, n, p)); }
 
 		// MACD EMA(fast)-EMA(slow) de cierres, MISMOS valores que el calculo directo (ventana fija 3n+5 por barra),
 		// pero memorizado por barra: evita recalcularlo ~n*n/2 veces en las familias 31 y 69.
@@ -133,9 +217,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			int p = pos[at];
 			if (p < 0) return NQCE3_M.EMA(this, at, fast) - NQCE3_M.EMA(this, at, slow);
-			double[] arr = GetArr(1000000 + fast * 1000 + slow);
+			int key = 1000000 + fast * 1000 + slow;
+			Entry e;
+			if (ReferenceEquals(tsMacdOwner, this) && tsMacdKey == key && tsMacdEntry != null) e = tsMacdEntry;
+			else { e = GetEntry(key); tsMacdOwner = this; tsMacdKey = key; tsMacdEntry = e; }
+			double[] arr = e.A;
 			double v = arr[p];
-			if (double.IsNaN(v)) { v = NQCE3_M.EMA(this, at, fast) - NQCE3_M.EMA(this, at, slow); arr[p] = v; }
+			if (double.IsNaN(v))
+			{
+				lock (StripesM[(unchecked((uint)(key * 7919 + p)) * 2654435761u) % StripeCount])
+				{
+					v = arr[p];
+					if (double.IsNaN(v)) { v = NQCE3_M.EMA(this, at, fast) - NQCE3_M.EMA(this, at, slow); arr[p] = v; }
+				}
+			}
 			return v;
 		}
 		private static double Clean(double x) { return (double.IsNaN(x) || double.IsInfinity(x)) ? double.NaN : x; }

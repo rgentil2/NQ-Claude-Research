@@ -115,6 +115,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int FreshTrials;                                         // vecinos nuevos = ensayos que ET4 agrega al TRIALS_LEDGER
 		public int NeighborEvaluations;                                 // vecinos evaluados (incluye ya conocidos), solo informativo
 		public int ExecutorRuns;                                        // corridas del ejecutor (candidatos + vecinos nuevos en ET4)
+		public int Threads = 1;                                         // NQCRUN-1.3.0 (aditivo): hilos para las corridas del ejecutor (candidatos en bloques y vecinos); el resultado es identico para cualquier valor
 		public List<NQCE4_Outcome> Outcomes = new List<NQCE4_Outcome>();
 		private StringBuilder ledger = new StringBuilder("trial_id\tparent_id\tstage\tperturbation\tfresh\ttrades\ttotal_net\n");
 
@@ -156,23 +157,69 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return NQCE_Executor.Run(bars, pf, cfg, new NQCE_NullHooks());
 		}
 
+		// ---- NQCRUN-1.3.0: corridas del ejecutor en paralelo. Los miembros se crean y el ATR se prepara en el hilo principal (en orden); solo la corrida del ejecutor es concurrente
+		// (funcion pura de miembro, barras y cfg; la cache de numeradores es thread-safe). Los resultados se consumen en ORDEN de indice, asi nada depende de los hilos.
+		private NQCE_Result[] RunMany(List<NQCE3_Genome> gs, List<string> ids)
+		{
+			int n = gs.Count; NQCE_Result[] outp = new NQCE_Result[n]; NQCE_Portfolio[] pfs = new NQCE_Portfolio[n];
+			NQCE3_Library nl = lib as NQCE3_Library; NQCE3_Series ser = nl == null ? null : nl.SeriesFor(bars);
+			for (int i = 0; i < n; i++)
+			{
+				NQCE_Member m = gs[i].ToMember(lib, ids[i].Substring(0, 12));
+				if (m == null) continue;
+				bars.Atr(m.AtrPeriod); if (ser != null) ser.PrepareAtr(m.AtrPeriod);
+				NQCE_Portfolio pf = new NQCE_Portfolio(); pf.Name = "ET4"; pf.Members.Add(m); pfs[i] = pf;
+			}
+			bars.BuildDays(); NQCE3_Series.MemoReserveEntries = Threads > 1 ? 10 * Threads + 6 : 0;
+			if (Threads <= 1 || n <= 1) { for (int i = 0; i < n; i++) if (pfs[i] != null) outp[i] = NQCE_Executor.Run(bars, pfs[i], cfg, new NQCE_NullHooks()); }
+			else
+			{
+				int next = -1; int nt = Math.Min(Threads, n); System.Threading.Thread[] th = new System.Threading.Thread[nt]; Exception err = null;
+				for (int t = 0; t < nt; t++)
+				{
+					th[t] = new System.Threading.Thread(delegate()
+					{
+						try { while (true) { int k = System.Threading.Interlocked.Increment(ref next); if (k >= n || err != null) break; if (pfs[k] != null) outp[k] = NQCE_Executor.Run(bars, pfs[k], cfg, new NQCE_NullHooks()); } }
+						catch (Exception ex) { err = ex; }
+					});
+					th[t].IsBackground = true; th[t].Start();
+				}
+				for (int t = 0; t < nt; t++) th[t].Join();
+				if (err != null) throw new InvalidOperationException("ET4: fallo en un hilo del ejecutor: " + err.Message, err);
+			}
+			for (int i = 0; i < n; i++) { if (pfs[i] == null) outp[i] = new NQCE_Result(); else ExecutorRuns++; }
+			return outp;
+		}
+
 		public List<NQCE4_Outcome> Evaluate(List<NQCE4_Candidate> cands)
 		{
-			foreach (NQCE4_Candidate c in cands)
+			int chunk = Math.Max(1, Threads <= 1 ? 1 : Threads * 2);
+			for (int from = 0; from < cands.Count; from += chunk)
 			{
-				c.Genome.Repair(lib);
-				string id = c.Genome.TrialId(lib);
-				if (id != c.TrialId) throw new ArgumentException("ET4: el TrialId del candidato no coincide con su genoma (" + c.TrialId + " vs " + id + ")");
-				known.Add(id);                                           // ya esta en el ledger de ET3
-				Outcomes.Add(EvaluateOne(c, id));
+				int to = Math.Min(cands.Count, from + chunk);
+				List<NQCE3_Genome> gs = new List<NQCE3_Genome>(); List<string> ids = new List<string>();
+				for (int k = from; k < to; k++)
+				{
+					NQCE4_Candidate c = cands[k];
+					c.Genome.Repair(lib);
+					string id = c.Genome.TrialId(lib);
+					if (id != c.TrialId) throw new ArgumentException("ET4: el TrialId del candidato no coincide con su genoma (" + c.TrialId + " vs " + id + ")");
+					gs.Add(c.Genome); ids.Add(id);
+				}
+				NQCE_Result[] pre = Threads <= 1 ? null : RunMany(gs, ids);       // threads=1: ruta secuencial original
+				for (int k = from; k < to; k++)
+				{
+					known.Add(ids[k - from]);                                    // ya esta en el ledger de ET3
+					Outcomes.Add(EvaluateOne(cands[k], ids[k - from], pre == null ? null : pre[k - from]));
+				}
 			}
 			return Outcomes;
 		}
 
-		private NQCE4_Outcome EvaluateOne(NQCE4_Candidate c, string id)
+		private NQCE4_Outcome EvaluateOne(NQCE4_Candidate c, string id, NQCE_Result pre)
 		{
 			NQCE4_Outcome o = new NQCE4_Outcome(); o.TrialId = id;
-			NQCE_Result res = Run(c.Genome, id);
+			NQCE_Result res = pre != null ? pre : Run(c.Genome, id);
 			o.Trades = res.Trades.Count;
 			double delta = cfg.CostRT * NQCE4_Params.StressMult - cfg.Cost();       // costo adicional del estres por operacion
 			List<double> sp = new List<double>();
@@ -193,14 +240,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 			// F3
 			o.F3Done = true;
 			List<NQCE4_Neighbor> nb = NQCE4_Neighbors.Build(c.Genome, lib);
+			// vecinos: (1) en orden, id y decision de que corridas hacen falta (no en nbCache y primera aparicion en esta lista); (2) corridas del ejecutor (paralelo si Threads>1); (3) consumo en orden
+			string[] nids = new string[nb.Count]; Dictionary<string, NQCE_Result> pend = new Dictionary<string, NQCE_Result>(StringComparer.Ordinal);
+			if (Threads > 1)
+			{
+				List<NQCE3_Genome> gs = new List<NQCE3_Genome>(); List<string> gi = new List<string>();
+				for (int q = 0; q < nb.Count; q++)
+				{
+					nb[q].Genome.Repair(lib); nids[q] = nb[q].Genome.TrialId(lib);
+					if (!nbCache.ContainsKey(nids[q]) && !pend.ContainsKey(nids[q])) { pend[nids[q]] = null; gs.Add(nb[q].Genome); gi.Add(nids[q]); }
+				}
+				NQCE_Result[] rr = RunMany(gs, gi); for (int q = 0; q < gi.Count; q++) pend[gi[q]] = rr[q];
+			}
+			int qi = -1;
 			foreach (NQCE4_Neighbor n in nb)
 			{
+				qi++;
 				n.Genome.Repair(lib);                                                // no-op en vecinos validos; defensivo
-				string nid = n.Genome.TrialId(lib); double[] r; NeighborEvaluations++;
+				string nid = Threads > 1 ? nids[qi] : n.Genome.TrialId(lib); double[] r; NeighborEvaluations++;
 				bool fresh = !known.Contains(nid);
 				if (!nbCache.TryGetValue(nid, out r))
 				{
-					NQCE_Result nr = Run(n.Genome, nid); double net = 0; foreach (NQCE_Trade t in nr.Trades) net += t.Net;
+					NQCE_Result nr = Threads > 1 ? pend[nid] : Run(n.Genome, nid); double net = 0; foreach (NQCE_Trade t in nr.Trades) net += t.Net;
 					r = new double[] { nr.Trades.Count, net }; nbCache[nid] = r;
 				}
 				if (fresh) { known.Add(nid); FreshTrials++; }

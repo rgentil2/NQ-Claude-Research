@@ -36,7 +36,27 @@ namespace NinjaTrader.NinjaScript.Strategies
 				default:throw new ArgumentOutOfRangeException("kind");
 			}
 		}
+		// Optimizacion NQCRUN-1.3.0: lee los arreglos directamente (antes copiaba una estructura NQCE3_Bar de 5 doubles por cada acceso). MISMAS expresiones y
+		// MISMO orden de operaciones que Price(): el resultado es identico bit a bit (verificado por NQC_RUN_PerfTest contra la ruta antigua).
 		internal static double P(NQCE3_Series sr,int at,int kind=0)
+		{
+			switch(kind)
+			{
+				case 0:return sr.C[at];
+				case 1:return sr.O[at];
+				case 2:return sr.H[at];
+				case 3:return sr.L[at];
+				case 4:return sr.V==null?0.0:sr.V[at];
+				case 5:return (sr.H[at]+sr.L[at]+sr.C[at])/3;
+				case 6:return (sr.H[at]+sr.L[at])/2;
+				case 7:return (sr.H[at]+sr.L[at]+2*sr.C[at])/4;
+				case 8:return sr.C[at]-sr.O[at];
+				case 9:return sr.H[at]-sr.L[at];
+				default:throw new ArgumentOutOfRangeException("kind");
+			}
+		}
+		// Ruta de referencia (antigua), solo para la prueba de identidad bit a bit.
+		internal static double PRef(NQCE3_Series sr,int at,int kind=0)
 		{return Price(sr.Bar(at),kind);}
 		internal static double SMA(NQCE3_Series sr,int at,int n,int kind=0)
 		{

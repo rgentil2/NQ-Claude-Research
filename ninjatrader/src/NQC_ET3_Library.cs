@@ -42,7 +42,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public const int WarmSameDay = 0, WarmAnyHistory = 1;
 		public int WarmupMode = WarmSameDay;       // defecto: todas las barras de recursion en el mismo dia calendario
 		// Contadores de condiciones sin senal posible (diagnostico; se reinician con ResetRejects).
+		// Totales (diagnostico). Con varios hilos NO se incrementan en la ruta caliente: cada hilo cuenta en variables de hilo (ThreadRejects) y el lote de
+		// NQCE3_Fitness suma al terminar cada evaluacion (Interlocked), en orden de indice; asi el delta por evaluacion es exacto y el total no depende de los hilos.
 		public long RejectWarmup, RejectVolume, RejectNonFinite;
+		[ThreadStatic] private static long tWarm, tVol, tNon;
+		internal static void NoteReject(int why) { if (why == 1) tWarm++; else if (why == 2) tVol++; else if (why == 3) tNon++; }
+		// Contadores acumulados POR HILO (solo crecen): el delta alrededor de una evaluacion es el de esa evaluacion.
+		public static void ThreadRejects(out long warm, out long vol, out long nonFinite) { warm = tWarm; vol = tVol; nonFinite = tNon; }
+		internal void AddRejects(long w, long v, long n)
+		{
+			if (w != 0) System.Threading.Interlocked.Add(ref RejectWarmup, w);
+			if (v != 0) System.Threading.Interlocked.Add(ref RejectVolume, v);
+			if (n != 0) System.Threading.Interlocked.Add(ref RejectNonFinite, n);
+		}
 		private string version;
 		private List<NQCE3_Series> cache = new List<NQCE3_Series>(); private const int MaxSeries = 4;
 		private NQCE_Bars pendingBars; private double[] pendingVolume;
@@ -108,12 +120,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 	public sealed class NQCE3_Cond : INQCE_Condition
 	{
 		private NQCE3_Library lib; private int condId, n, atrP, dir, family, rule; private double thr;
+		// Estado por condicion (NQCE3_Cond la usa UN solo hilo a la vez: el lote crea un miembro por genoma): serie y entrada de cache resueltas una vez,
+		// de modo que la evaluacion por barra no toca candados ni diccionarios.
+		private NQCE_Bars hb; private NQCE3_Series hs; private NQCE3_Series.Entry he; private double[] hatr; private char hkind; private bool needsVol;
 
 		public NQCE3_Cond(NQCE3_Library library, int id, int period, int thresholdLevel, int atrPeriod, int direction)
 		{
 			lib = library; condId = id; n = period; atrP = atrPeriod; dir = direction;
 			family = NQCE3_Catalog.FamilyOf(id); rule = NQCE3_Catalog.RuleOf(id);
 			thr = NQCE3_Rules.ThresholdCount(rule) > 1 ? NQCE3_Rules.ThresholdValue(rule, thresholdLevel) : double.NaN;
+			needsVol = NQCE3_Catalog.NeedsVolume(family);
 		}
 
 		// p = periodo del ATR de Wilder (gen de salida del miembro), D-031(3).
@@ -144,11 +160,30 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return r;
 		}
 
+		// Misma logica y mismas salidas que DirectionWhy (mismos valores bit a bit), con la entrada de cache resuelta una vez por condicion.
 		public bool Eval(NQCE_Ctx c)
 		{
-			NQCE3_Series s = lib.SeriesFor(c.B);
-			int why; int d = DirectionWhy(s, family, rule, n, atrP, thr, c.I, lib.WarmupMode, out why);
-			if (why == 1) lib.RejectWarmup++; else if (why == 2) lib.RejectVolume++; else if (why == 3) lib.RejectNonFinite++;
+			NQCE3_Series s = hs;
+			if (s == null || !object.ReferenceEquals(hb, c.B)) { s = hs = lib.SeriesFor(c.B); hb = c.B; he = null; }
+			int at = c.I, why = 1, d = -2;
+			if (at >= 2)
+			{
+				int oldest = at - NQCE3_Catalog.RequiredBars(n) + 1;
+				if (oldest >= 0 && !(lib.WarmupMode == NQCE3_Library.WarmSameDay && s.DayStart[at] > oldest))
+				{
+					why = 2;
+					if (!(needsVol && !s.HasVolume))
+					{
+						if (he == null) { hkind = NQCE3_Catalog.AtrKindOf(family); he = s.Acquire(family, n, atrP); hatr = hkind == '1' ? s.AtrArr(atrP) : null; }
+						double x = s.FeatureE(he, hkind, family, n, atrP, hatr, at);
+						double y = s.FeatureE(he, hkind, family, n, atrP, hatr, at - 1);
+						double z = s.FeatureE(he, hkind, family, n, atrP, hatr, at - 2);
+						d = NQCE3_Rules.Resolve(x, y, z, rule, thr);
+						why = d == -2 ? 3 : 0;
+					}
+				}
+			}
+			if (why != 0) NQCE3_Library.NoteReject(why);
 			return d == dir;
 		}
 
