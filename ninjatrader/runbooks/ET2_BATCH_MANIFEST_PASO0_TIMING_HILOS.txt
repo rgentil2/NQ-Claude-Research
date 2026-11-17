@@ -1,0 +1,11 @@
+# ET2 Paso 0 (v2, NQCRUN-1.3.0) - medicion de ms por evaluacion Y ESCALADO EN HILOS con NQC_RUN_Batch (modo TIMING). SOLO tiempos y memoria; no se guarda ni se mira ninguna economia.
+# Corre sobre un dataset N1 (NUNCA sobre el IS original). Dos campanas:
+#  1) TIMING_HILOS: 200 evaluaciones por valor de threads (1,4,8,16,24), cada valor con datos y cache FRIOS. Mide el escalado en tu PC (nucleos P/E, termica). Es el peor caso: 100% de las evaluaciones llenan cache.
+#  2) TIMING_REGIMEN: 10.000 evaluaciones con 8 hilos; el bloque final mide el costo en REGIMEN (cache caliente), que es el que domina una campana FULL de 100.000 evaluaciones.
+# El resultado (ledger) es identico para cualquier numero de hilos: el SUMMARY lo comprueba (resultado_identico_entre_hilos=SI).
+batch=ET2_PASO0_TIMING_HILOS
+resume=1
+memo_budget_mb=4096
+max_memory_mb=8192
+campaign id=TIMING_HILOS transform=N1 tseed=20269001 gaseed=20279001 size=TIMING evals=200 threads=1,4,8,16,24
+campaign id=TIMING_REGIMEN transform=N1 tseed=20269001 gaseed=20279002 size=TIMING evals=10000 threads=8

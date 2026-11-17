@@ -254,6 +254,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 				string m1 = g + "campaign id=T-N1 transform=N1 tseed=11 gaseed=20269002" + cz + "\n", m2 = "threads=8\nmax_memory_mb=4096\n" + g + "campaign id=T-N1 transform=N1 tseed=11 gaseed=20269002" + cz + " threads=2\n";
 				string e1, e2; NQCRUN_BatchManifest a = NQCRUN_BatchManifest.Parse(m1, out e1), b = NQCRUN_BatchManifest.Parse(m2, out e2);
 				Chk("D1 el lote acepta threads/max_memory_mb globales y threads= por campana y NO los incluye en el hash del manifiesto", a != null && b != null && a.Sha == b.Sha && b.Campaigns[0].Threads[0] == 2, e1 + e2);
+				{
+					// el manifiesto de barrido que se entrega al usuario (ET2_BATCH_MANIFEST_PASO0_TIMING_HILOS.txt): mismas lineas de campana
+					string mt = "batch=ET2_PASO0_TIMING_HILOS\nresume=1\nmemo_budget_mb=4096\nmax_memory_mb=8192\ncampaign id=TIMING_HILOS transform=N1 tseed=20269001 gaseed=20279001 size=TIMING evals=200 threads=1,4,8,16,24\ncampaign id=TIMING_REGIMEN transform=N1 tseed=20269001 gaseed=20279002 size=TIMING evals=10000 threads=8\n"; string et;
+					NQCRUN_BatchManifest mm = NQCRUN_BatchManifest.Parse(mt, out et);
+					Chk("D1b el manifiesto de barrido de hilos del runbook (threads=1,4,8,16,24 con 200 evaluaciones + regimen de 10.000 con 8 hilos) es valido", mm != null && mm.Campaigns.Count == 2 && mm.Campaigns[0].Threads.Length == 5 && mm.Campaigns[0].Threads[4] == 24 && mm.Campaigns[0].Evals == 200 && mm.Campaigns[1].Evals == 10000, et ?? "");
+				}
 				NQCRUN_BatchResult rb1 = RunBatch(w, m1 + "out_root=" + Path.Combine(root, "b1") + "\n"), rb2 = RunBatch(w, m2 + "out_root=" + Path.Combine(root, "b2") + "\n");
 				Chk("B6 lote (juguete): batch_digest con threads=1 (por defecto) y con threads=8 / threads=2 por campana es el MISMO", rb1.BatchDigest.Length == 64 && rb1.BatchDigest == rb2.BatchDigest && rb1.Status == "COMPLETO" && rb2.Status == "COMPLETO", "digest=" + rb1.BatchDigest.Substring(0, 12));
 				det.Append("B6=").Append(rb1.BatchDigest).Append("\n");

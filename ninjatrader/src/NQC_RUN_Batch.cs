@@ -229,7 +229,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		// y reporta speed-up y eficiencia por hilo. Ademas compara el hash del ledger entre valores (el resultado debe ser identico: lo unico que cambia es el tiempo). No se guarda economia.
 		private sealed class TimingStats
 		{
-			public int Threads, Applied, N; public double WallS, SumMs, Mean, Median, P90, Max, MeanWarm, MemGestMb, TransformS, Mem0Mb; public long PeakMb; public string LedgerSha = "", LibVersion = "", TrName = "", TrParams = ""; public int Sessions, Bars; public List<double> Ms;
+			public int Threads, Applied, N; public double WallS, SumMs, Mean, Median, P90, Max, MeanWarm, Mean2nd, Wall2ndMsPerEval, MemGestMb, TransformS, Mem0Mb; public long PeakMb; public string LedgerSha = "", LibVersion = "", TrName = "", TrParams = ""; public int Sessions, Bars; public List<double> Ms;
 		}
 
 		private static TimingStats TimingOnce(NQCRUN_BatchManifest m, NQCRUN_BatchCampaign c, NQCRUN_BatchOptions opt, NQCE_Config cfg, NQCE_Bars rawBars, double[] vol, NQCRUN_Params baseP, int requested)
@@ -248,11 +248,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				long mem0 = GC.GetTotalMemory(true);
 				NQCE3_Fitness fit = new NQCE3_Fitness(bars, volume, cfg, lib); fit.FreshEvalMs = new List<double>(c.Evals + 256);
 				NQCE3_Campaign camp = new NQCE3_Campaign(); camp.Name = c.Id; camp.MaxEvals = c.Evals; camp.Threads = ts.Applied;
-				Stopwatch sw = Stopwatch.StartNew(); camp.Run(fit, lib, gp, null); sw.Stop();
+				Stopwatch sw = Stopwatch.StartNew(); double tHalf = -1; int eHalf = 0; int halfTarget = Math.Max(1, c.Evals / 2);
+				camp.OnGeneration = delegate(int g, NQCE3_Campaign cm) { if (tHalf < 0 && fit.FreshEvaluations >= halfTarget) { tHalf = sw.Elapsed.TotalSeconds; eHalf = fit.FreshEvaluations; } };   // marca de la mitad: mide el REGIMEN (segunda mitad) aparte del arranque en frio
+				camp.Run(fit, lib, gp, null); sw.Stop();
 				ts.WallS = sw.Elapsed.TotalSeconds; ts.MemGestMb = GC.GetTotalMemory(false) / 1048576.0; ts.Mem0Mb = mem0 / 1048576.0; ts.PeakMb = PeakMb();
 				List<double> ms = new List<double>(fit.FreshEvalMs); int n = ms.Count; if (n == 0) throw new NQCRUN_Exception("RUN: TIMING sin evaluaciones");
 				double sum = 0; foreach (double x in ms) sum += x; ts.SumMs = sum; ts.Mean = sum / n; ts.N = n;
 				int skip = n / 20; double sum2 = 0; for (int i = skip; i < n; i++) sum2 += ms[i]; ts.MeanWarm = n - skip > 0 ? sum2 / (n - skip) : ts.Mean;
+				{ int h = n / 2; double s2 = 0; for (int i = h; i < n; i++) s2 += ms[i]; ts.Mean2nd = n - h > 0 ? s2 / (n - h) : ts.Mean; ts.Wall2ndMsPerEval = (tHalf >= 0 && n > eHalf) ? (sw.Elapsed.TotalSeconds - tHalf) * 1000.0 / (n - eHalf) : ts.WallS * 1000.0 / n; }
 				ms.Sort(); ts.Median = n % 2 == 1 ? ms[n / 2] : 0.5 * (ms[n / 2 - 1] + ms[n / 2]); ts.Ms = ms; ts.P90 = ms[Math.Max(0, Math.Min(n - 1, (int)Math.Ceiling(0.90 * n) - 1))]; ts.Max = ms[n - 1];
 				ts.LedgerSha = camp.Ledger.Sha256();      // solo el hash (determinismo entre hilos); NO se guarda ni se muestra ninguna economia
 				ts.LibVersion = lib.Version; ts.TrName = tr.Name; ts.TrParams = tr.ParamsText; ts.Sessions = rep2.Sessions; ts.Bars = bars.Count; ts.TransformS = swT.Elapsed.TotalSeconds;
@@ -280,7 +283,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			foreach (TimingStats t in all)
 			{
 				double wallMsPerEval = t.WallS * 1000.0 / t.N;
-				s.Append("[threads=").Append(I(t.Applied)).Append(t.Applied != t.Threads && t.Threads > 0 ? " (pedido " + I(t.Threads) + ", limitado por memoria)" : "").Append("] ms_por_evaluacion: media=").Append(F(t.Mean, "0.000")).Append(" mediana=").Append(F(t.Median, "0.000")).Append(" p90=").Append(F(t.P90, "0.000")).Append(" max=").Append(F(t.Max, "0.000")).Append(" media_sin_el_5%_inicial=").Append(F(t.MeanWarm, "0.000")).Append(" (tiempo de cada evaluacion dentro de su hilo)\n");
+				s.Append("[threads=").Append(I(t.Applied)).Append(t.Applied != t.Threads && t.Threads > 0 ? " (pedido " + I(t.Threads) + ", limitado por memoria)" : "").Append("] ms_por_evaluacion: media=").Append(F(t.Mean, "0.000")).Append(" mediana=").Append(F(t.Median, "0.000")).Append(" p90=").Append(F(t.P90, "0.000")).Append(" max=").Append(F(t.Max, "0.000")).Append(" media_sin_el_5%_inicial=").Append(F(t.MeanWarm, "0.000")).Append(" segunda_mitad(REGIMEN): ms_en_hilo=").Append(F(t.Mean2nd, "0.000")).Append(" ms_de_PARED=").Append(F(t.Wall2ndMsPerEval, "0.000")).Append(" (tiempo de cada evaluacion dentro de su hilo)\n");
 				s.Append("[threads=").Append(I(t.Applied)).Append("] tiempo_total_evaluaciones_s=").Append(F(t.WallS, "0.00")).Append(" ms_por_evaluacion_de_PARED=").Append(F(wallMsPerEval, "0.000")).Append(" tiempo_transformador_s=").Append(F(t.TransformS, "0.00")).Append(" memoria_gestionada_antes_mb=").Append(F(t.Mem0Mb, "0")).Append(" despues_mb=").Append(F(t.MemGestMb, "0")).Append(" pico_working_set_mb=").Append(I(t.PeakMb)).Append(" memo_budget_mb=").Append(I(baseP.MemoBudgetMb)).Append('\n');
 			}
 			if (all.Count > 1)
@@ -300,6 +303,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double wallBest = best.WallS * 1000.0 / best.N, wall0 = a0.WallS * 1000.0 / a0.N;
 			double h10k = wallBest * 10000.0 / 3600000.0, h100k = wallBest * 100000.0 / 3600000.0;
 			s.Append("extrapolacion con tiempo de PARED y ").Append(I(best.Applied)).Append(" hilo(s) (SOLO ET3, ").Append(F(wallBest, "0.000")).Append(" ms/eval; ET4-ET7 NO medidos; la cache en regimen real puede cambiar el costo): 10.000 evaluaciones = ").Append(F(h10k, "0.00")).Append(" h; 100.000 = ").Append(F(h100k, "0.00")).Append(" h; 30 campanas REDUCED = ").Append(F(30 * h10k, "0.0")).Append(" h; 30 FULL = ").Append(F(30 * h100k, "0.0")).Append(" h; 20 FULL = ").Append(F(20 * h100k, "0.0")).Append(" h\n");
+			{ double hr = best.Wall2ndMsPerEval * 100000.0 / 3600000.0; s.Append("extrapolacion con el ms de PARED de la SEGUNDA MITAD (regimen con cache ya llena; mas fiel a una campana FULL que la media de todo el arranque en frio): ").Append(F(best.Wall2ndMsPerEval, "0.000")).Append(" ms/eval -> 100.000 evaluaciones = ").Append(F(hr, "0.00")).Append(" h; 30 FULL = ").Append(F(30 * hr, "0.0")).Append(" h; 20 FULL = ").Append(F(20 * hr, "0.0")).Append(" h (con >= 2.000 evaluaciones la segunda mitad todavia incluye llenado de cache: es una cota SUPERIOR del regimen; usar TIMING con evals>=10.000 para ver el regimen)\n"); }
 			File.WriteAllText(Path.Combine(dir, "SUMMARY.txt"), s.ToString(), new UTF8Encoding(false));
 			row.State = "TIMING"; row.FunnelStatus = "TIMING_MEDIDO"; row.Trials = I(a0.N); row.Seconds = all.Count == 1 ? a0.WallS : all.Sum(delegate(TimingStats t) { return t.WallS; }); row.PeakMb = all[all.Count - 1].PeakMb;
 			row.Note = (row.Note.Length > 0 ? row.Note + " " : "") + "hilos=" + I(best.Applied) + " ms/eval_pared=" + F(wallBest, "0.000") + " ms/eval_hilo_media=" + F(best.Mean, "0.000") + " mediana=" + F(best.Median, "0.000") + " p90=" + F(best.P90, "0.000") + " mem_gest_mb=" + F(best.MemGestMb, "0");
