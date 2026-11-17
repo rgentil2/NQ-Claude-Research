@@ -164,6 +164,31 @@ namespace NinjaTrader.NinjaScript.Strategies
 					cmp++; if (B(a) != B(b)) { ok2 = false; bad2++; }
 				}
 				Chk("A4 memo auxiliar por barra (familias 44, 45, 54, 59, 70, 92, 93) == recalcular la expresion original en cada llamada, bit a bit", ok2, "comparaciones=" + I(cmp) + " diferencias=" + I(bad2));
+				// A7: sumas prefijo de las familias 44 (KAMA) y 54 (VIDYA) (ventana parcial incremental) == bucle ORIGINAL (copia literal del codigo anterior), bit a bit, todos los periodos 4..30
+				{
+					bool ok3 = true; int bad3 = 0, cmp3 = 0; double[] C = s.C;
+					for (int n = 4; n <= 30; n++)
+						for (int at = 7 * n + 10; at < r.Bars.Count && at < 7 * n + 10 + 4000; at += 3)
+						{
+							if (r.Bars.Stamp[at] < 567 || r.Bars.Stamp[at] > 692) continue;
+							double vid = C[at - 2 * n]; double kam = C[at - 2 * n]; int st = at - 2 * n;
+							for (int k = at - 2 * n + 1; k <= at; k++)
+							{
+								int look = Math.Min(n, k - (at - 2 * n)); double gain = 0, loss = 0;
+								for (int j = k - look + 1; j <= k; j++) { double d = C[j] - C[j - 1]; gain += Math.Max(0, d); loss += Math.Max(0, -d); }
+								double cmo = Math.Abs(NQCE3_M.Div(gain - loss, gain + loss)); vid += 2.0 / (n + 1) * cmo * (C[k] - vid);
+								int t2 = Math.Max(st, k - n), diffs = 0; double travel = 0;
+								for (int j = t2 + 1; j <= k; j++) { travel += Math.Abs(C[j] - C[j - 1]); diffs++; }
+								double er = diffs == 0 ? 0 : Math.Abs(NQCE3_M.Div(C[k] - C[t2], travel));
+								double a2 = Math.Pow(er * (2.0 / 3 - 2.0 / 31) + 2.0 / 31, 2); kam += a2 * (C[k] - kam);
+							}
+							double r54 = (C[at] - vid) / 1.0, r44 = (C[at] - kam) / 1.0;
+							double n54 = s.Direct(54, n, 14, at, true), n44 = s.Direct(44, n, 14, at, true); cmp3 += 2;
+							if (B(r54) != B(n54)) { ok3 = false; bad3++; }
+							if (B(r44) != B(n44)) { ok3 = false; bad3++; }
+						}
+					Chk("A7 familias 44 (KAMA) y 54 (VIDYA) con sumas prefijo incrementales == bucle original del commit anterior, bit a bit (periodos 4..30)", ok3, "comparaciones=" + I(cmp3) + " diferencias=" + I(bad3));
+				}
 				// campana completa (tope de evaluaciones a mitad de generacion, reservorio, contadores) == commit anterior; con 1 hilo
 				CampOut c1 = RunCampaign(false, 1, 512L * 1024 * 1024, 60, 5, 170, 20269999L, 40);
 				Chk("A5 campana (pop 60 x 5 gen, tope 170 evaluaciones, reservorio K=25): ledger, databank, curva y reservorio IDENTICOS a los del commit 4006522", c1.Ledger == GoldLedger && c1.Bank == GoldBank && c1.Curve == GoldCurve && c1.Res == GoldRes && c1.Fresh == 170 && c1.Zero == 24, "ledger=" + c1.Ledger.Substring(0, 12) + " evaluaciones=" + I(c1.Fresh) + " sin_operaciones=" + I(c1.Zero));

@@ -506,6 +506,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					int startIdx=at-2*n;
 					double kama=sr.C[startIdx];
 					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Kama,n);
+					double travelAcc=0;
 					for(int k=startIdx+1;k<=at;k++)
 					{
 						int t=Math.Max(startIdx,k-n),diffs=0;
@@ -513,14 +514,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 						if(t==k-n)er=sr.AuxAt(ae,NQCE3_Aux.Kama,k,n);   // ventana completa (n diferencias): no depende de `at`, memorizada
 						else
 						{
-							double travel=0;
-							for(int j=t+1;j<=k;j++)
-							{
-								travel+=Math.Abs(sr.C[j]-sr.C[j-1]);
-								diffs++;
-							}
+							// ventana parcial (t==startIdx): la suma de recorridos es la SUMA PREFIJO de |dC| desde startIdx+1 hasta k, acumulada en el mismo orden ascendente que el bucle
+							// original, asi que prolongarla con el termino k da EXACTAMENTE el mismo double (NQCRUN-1.3.0: de O(n^2) a O(n); identico bit a bit, verificado en NQC_RUN_PerfTest)
+							travelAcc+=Math.Abs(sr.C[k]-sr.C[k-1]);diffs=k-t;
 							er=diffs==0?0:
-								Math.Abs(NQCE3_M.Div(sr.C[k]-sr.C[t],travel));
+								Math.Abs(NQCE3_M.Div(sr.C[k]-sr.C[t],travelAcc));
 						}
 						double a=Math.Pow(er*(2.0/3-2.0/31)+2.0/31,2);
 						kama+=a*(sr.C[k]-kama);
@@ -598,6 +596,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					double vidya=sr.C[at-2*n];
 					NQCE3_Series.Entry ae=sr.AuxEntry(NQCE3_Aux.Cmo,n);
+					double gainAcc=0,lossAcc=0;
 					for(int k=at-2*n+1;k<=at;k++)
 					{
 						int look=Math.Min(n,k-(at-2*n));
@@ -605,13 +604,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 						if(look==n)cmo=sr.AuxAt(ae,NQCE3_Aux.Cmo,k,n);   // ventana completa: no depende de `at`, memorizada
 						else
 						{
-							double gain=0,loss=0;
-							for(int j=k-look+1;j<=k;j++)
-							{
-								double d=sr.C[j]-sr.C[j-1];
-								gain+=Math.Max(0,d);loss+=Math.Max(0,-d);
-							}
-							cmo=Math.Abs(NQCE3_M.Div(gain-loss,gain+loss));
+							// ventana parcial (look<n): sumas prefijo desde at-2n+1 hasta k, mismo orden ascendente que el bucle original => mismo double (identico bit a bit)
+							double d=sr.C[k]-sr.C[k-1];
+							gainAcc+=Math.Max(0,d);lossAcc+=Math.Max(0,-d);
+							cmo=Math.Abs(NQCE3_M.Div(gainAcc-lossAcc,gainAcc+lossAcc));
 						}
 						vidya+=2.0/(n+1)*cmo*(sr.C[k]-vidya);
 					}
