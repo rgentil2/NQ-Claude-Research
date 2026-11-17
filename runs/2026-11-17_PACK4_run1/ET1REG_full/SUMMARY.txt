@@ -1,0 +1,27 @@
+NQC ET1 REGRESSION - SUMMARY
+script_version : ET1REG-1.0.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+executor_spec  : 2.3.0
+instrument     : NQ DEC26
+zona plantilla horario (informativo, no es la zona de las horas de barra): Central Standard Time
+R2 zona de barras (empirico): pico de volumen 09:16-10:00 en barra 09:31/09:32 en 546/774 sesiones = 70.54% (exigido >= 70%)
+bars           : 1054234
+first_bar      : 2020-01-01 18:01:00
+last_bar       : 2022-12-30 16:59:00
+indicators_ok  : SI
+news           : OK 3954 eventos sha=93d837ac323c6f144786c507606b0b77f25c2fa33fba6d21bb941d2d4d9c377d
+n1n9_native    : 8110
+n1n9_equal     : 8110
+n1n9_expected  : 8110
+gaps_equal     : 46
+gaps_gapped    : 46
+gaps_expected  : 46
+gap_native_sha : e2aab0565b45ea228ecd38fedcf5ea38031d647a7291f9a47d299182f41475ca
+determinism    : SI
+trades_hash_n1n9: 760227dcdeb99d64dbd1c47c7d5b5c75ef1722025cba5e0740592ccf7878ecbf
+synthetic_ok   : SI (14 ok, 0 falla)
+tracker_ok     : SI
+et1c_22_checks : EXTERNO (correr NQC_ET1C_AccountSim; exigir checks_ok=22)
+status         : PASS
+report_sha256  : 98303ce54280bdcf69a6b390f1d83d6291cf66e1c24db057068d765cd1c2a797

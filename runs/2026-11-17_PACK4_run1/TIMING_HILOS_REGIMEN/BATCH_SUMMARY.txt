@@ -1,0 +1,13 @@
+NQC RUN BATCH SUMMARY | NQCRUNBATCH-1.1.0 | SOLO IS 2020-01-01..2022-12-31 | el OOS no se toca | sin congelado | SOLO DESARROLLO (no es evidencia hasta correr en NT8 con datos reales)
+batch=ET2_PASO0_TIMING_HILOS status=COMPLETO campaigns=2 runner=NQCRUN-1.3.0 library=NQCL-3.1.0:dac56e19fbc7b431
+manifest_sha256=3aa490af50560b8bf4dc930b65a12144490e0378b7f34059dd051404060db8d7 target=20 tol=2
+data: bars=1054234 sessions=933 first_day=20200101 last_day=20221230 r2_zone=546/774 data_raw_sha256=0b44647c5d413095967e2fa6db6f6a18f7fb57fd50e942951aab50752e0f59d4
+id	state	transform	size	ga_seed	trials	funnel_status	digest
+TIMING_HILOS	TIMING	N1	TIMING	20279001	200	TIMING_MEDIDO	NA
+TIMING_REGIMEN	TIMING	N1	TIMING	20279002	10000	TIMING_MEDIDO	NA
+batch_digest_sha256=ee785c233446cd236d8b090451618ca300e64842623be85afb29a946dd505b34
+--- no determinista (tiempos, memoria, reanudacion y notas; no entran en batch_digest_sha256) ---
+id	resumed	seconds	peak_working_set_mb	nota
+TIMING_HILOS	NO	16.24	3175	hilos=24 ms/eval_pared=9.139 ms/eval_hilo_media=138.332 mediana=115.048 p90=223.359 mem_gest_mb=2522
+TIMING_REGIMEN	NO	26.49	5492	hilos=8 ms/eval_pared=2.649 ms/eval_hilo_media=18.742 mediana=10.984 p90=39.169 mem_gest_mb=4848
+total_seconds=45.31 peak_working_set_mb=5502

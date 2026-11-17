@@ -1,0 +1,12 @@
+NQC RUN PERF TEST - SUMMARY
+script_version : RUNPERFTEST-1.0.0
+runner_version : NQCRUN-1.3.0
+batch_version  : NQCRUNBATCH-1.1.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+library        : NQCL-3.1.0:dac56e19fbc7b431
+checks_ok      : 23
+checks_fail    : 1
+perf_digest_A  : acf9faeb8926fb54b75d2661662bb954a96dedda9cee5898c7b5c79f7ee785b7
+report_sha256  : 6be1852a86b2d576a16bf9bdc5cbe05f3cfad8a6412116ae79ccb70cf7a33861
+result         : FAIL

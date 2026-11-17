@@ -1,0 +1,11 @@
+NQC RUN BATCH TEST - SUMMARY
+script_version : RUNBATCHTEST-1.1.0
+batch_version  : NQCRUNBATCH-1.1.0
+runner_version : NQCRUN-1.3.0
+core_version   : ET1CORE-1.0.0
+contract       : NQC 2.0.0
+checks_ok      : 20
+checks_fail    : 0
+batch_digest_A : 6bfe495c08a00bf9ce1fe0f516f92e8811586bef3a7e2646bdc59acd2619e563
+report_sha256  : bc634aef48b9295230fb5f269ba8a56320389cb2ef1e4cc2209bcf27f13bfd57
+result         : PASS

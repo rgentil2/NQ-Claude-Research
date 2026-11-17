@@ -1,0 +1,36 @@
+NQC RUN PerfTest RUNPERFTEST-1.0.0 | runner NQCRUN-1.3.0 | lote NQCRUNBATCH-1.1.0 | biblioteca NQCL-3.1.0:dac56e19fbc7b431 | contrato NQC 2.0.0 | SOLO datos sinteticos (NO son resultados de mercado)
+
+[FALLA] A1 huella de 134688 valores de familia (cacheado y directo; periodos 4..30, ATR 5..100, barras de ventana y de inicio de ventana) IDENTICA a la del commit 4006522 (antes de optimizar) | 69d2da26d275
+[PASS] A2 evaluacion de 300 genomas aleatorios (TrialId, fitness, operaciones, media, desviacion, total, huella de operaciones, validez) IDENTICA bit a bit a la del commit 4006522 | a6ef7784aa66
+[PASS] A3 NQCE3_M.P (sin copiar la estructura de barra) == ruta antigua (PRef) bit a bit para los 10 tipos de precio | diferencias=0
+[PASS] A4 memo auxiliar por barra (familias 44, 45, 54, 59, 70, 92, 93) == recalcular la expresion original en cada llamada, bit a bit | comparaciones=3240 diferencias=0
+[PASS] A7 familias 44 (KAMA) y 54 (VIDYA) con sumas prefijo incrementales == bucle original del commit anterior, bit a bit (periodos 4..30) | comparaciones=6804 diferencias=0
+[PASS] A5 campana (pop 60 x 5 gen, tope 170 evaluaciones, reservorio K=25): ledger, databank, curva y reservorio IDENTICOS a los del commit 4006522 | ledger=4bf232d3a372 evaluaciones=170 sin_operaciones=24
+[PASS] A6 igual con precios que cruzan cero (familias logaritmicas dan NaN; contadores de condiciones sin senal): identico al commit 4006522 | ledger=c6c169e43854
+[PASS] B1 la misma campana con threads = 1, 2, 8 y 24 da el MISMO ledger, databank, curva de fitness, reservorio y contadores (con tope de evaluaciones a mitad de generacion) | ledger_sha=4bf232d3a372 evaluaciones=170
+[PASS] B2 igual con precios que cruzan cero (NaN en familias logaritmicas) y sin tope de evaluaciones (toda la campana) | ledger_sha=dfb2f5335a4d evaluaciones=276
+[PASS] B3 lote con genomas repetidos, vacios, uno ya en cache y tope de evaluaciones a mitad del lote: ensayos nuevos, aciertos de cache y omitidos identicos para 1, 2 y 8 hilos | ensayos_nuevos=10 huella=e99115e9712c
+[PASS] B4 ET4 (candidatos en bloques y vecinos en paralelo) con 1 y 8 hilos: mismo pool, rechazos, ledger de vecinos y contadores (con candidatos reales) | candidatos=12 huella=0ca361f81ea6
+[PASS] B5 embudo completo ET3 -> ET7 (mundo de juguete) con threads=1 y threads=8: el mismo digest determinista y el mismo ledger de ET3 | digest=3fd26beccd22
+[PASS] D1 el lote acepta threads/max_memory_mb globales y threads= por campana y NO los incluye en el hash del manifiesto | 
+[PASS] D1b el manifiesto de barrido de hilos del runbook (threads=1,4,8,16,24 con 200 evaluaciones + regimen de 10.000 con 8 hilos) es valido | 
+[PASS] B6 lote (juguete): batch_digest con threads=1 (por defecto) y con threads=8 / threads=2 por campana es el MISMO | digest=673bba9dd796
+[PASS] D2 TIMING con barrido threads=1,2,4: tabla de speed-up y eficiencia, 'resultado_identico_entre_hilos=SI', sin economia ni ledger en disco | filas=1
+[PASS] D3 un barrido de threads fuera de TIMING y valores fuera de 1..128 se rechazan | ok
+[PASS] C1 carga: 24 hilos con cache de 3 MB (expulsion LRU continua), 3 repeticiones: sin excepciones y el mismo resultado que con 1 hilo | repeticiones=3 ledger_sha=786e57bfefcf
+[PASS] C2 el presupuesto de cache se respeta con 8 hilos (6 MB: bytes de la cache <= presupuesto) | bytes_cache=2801280 entradas=68
+[PASS] C3 los contadores de condiciones sin senal son POR HILO (delta por evaluacion exacto, sin carreras) | 1000/300
+[PASS] D4 hilos por defecto = min(nucleos logicos - 4, 16), al menos 1 (aqui 32 nucleos -> 16) | auto=16
+[PASS] D5 tope por memoria: 24 hilos pedidos con 2048 MB de cache y 6144 MB de proceso -> 24; con 3500 MB de proceso se limita; nunca < 1 | tope(2048,3500)=1
+[PASS] D6 runner: threads/max_memory_mb se leen, el defecto es 0 (automatico), >128 se rechaza y NO entran en el texto canonico (el hash no depende de los hilos) | ok
+[PASS] E1 el lote de medicion da el mismo resultado con 1, 2, 4 y 8 hilos (tiempos en la seccion no determinista) | genomas=96
+
+--- Medicion (mono, datos sinteticos, biblioteca real; NO es el rendimiento de NT8) ---
+A1+A2: 6.3 s
+--- Speed-up de la evaluacion en ESTA maquina (32 nucleos logicos; 96 genomas aleatorios con la biblioteca real, 100 dias sinteticos, datos y cache FRIOS en cada corrida) ---
+hilos	pared_s	speedup	eficiencia_por_hilo
+1	1.65	1.00	1.00
+2	0.79	2.08	1.04
+4	0.51	3.24	0.81
+8	0.41	4.02	0.50
+nucleos logicos=32 prueba completa=40.2 s
